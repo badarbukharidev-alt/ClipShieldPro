@@ -1,0 +1,503 @@
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import '../models/app_modes.dart';
+import '../models/clip_model.dart';
+import '../models/project_model.dart';
+import '../services/downloader_service.dart';
+import '../services/ffmpeg_engine_service.dart';
+import '../services/media_probe_service.dart';
+import '../transformation/layer.dart';
+import '../transformation/pipeline.dart';
+import '../theme/app_theme.dart';
+import 'processing_screen.dart';
+import 'preview_screen.dart';
+
+class TransformPipelineScreen extends StatefulWidget {
+  final String sourceVideoPathOrUrl;
+  final SourceType sourceType;
+
+  const TransformPipelineScreen({
+    super.key,
+    required this.sourceVideoPathOrUrl,
+    required this.sourceType,
+  });
+
+  @override
+  State<TransformPipelineScreen> createState() => _TransformPipelineScreenState();
+}
+
+class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
+  final TransformationPipeline _pipeline = TransformationPipeline();
+  final FfmpegEngineService _ffmpegService = FfmpegEngineService();
+  final DownloaderService _downloader = DownloaderService();
+
+  MediaProbeInfo? _probeInfo;
+  String? _localVideoPath;
+  bool _isLoading = true;
+  String _loadingMessage = "Inspecting media streams...";
+
+  PipelinePreset _selectedPreset = PipelinePreset.balanced;
+  double _globalIntensity = 0.5;
+  final AspectRatioOption _aspectRatio = AspectRatioOption.original169;
+  bool _isPreviewGenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSource();
+  }
+
+  @override
+  void dispose() {
+    _downloader.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeSource() async {
+    try {
+      if (widget.sourceType == SourceType.youtubeUrl) {
+        setState(() => _loadingMessage = "Downloading source stream...");
+        final tempDir = await getTemporaryDirectory();
+        final downloadDir = "${tempDir.path}/clipshield_transform_source";
+        _localVideoPath = await _downloader.downloadVideo(
+          url: widget.sourceVideoPathOrUrl,
+          downloadDir: downloadDir,
+          quality: 'balanced',
+          progressCallback: (p, msg) {
+            setState(() => _loadingMessage = msg);
+          },
+        );
+      } else {
+        _localVideoPath = widget.sourceVideoPathOrUrl;
+      }
+
+      setState(() => _loadingMessage = "Probing video tracks...");
+      _probeInfo = await MediaProbeService.probe(_localVideoPath!);
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: AppColors.error, content: Text("Failed to initialize media: $e")),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  void _onPresetChanged(PipelinePreset preset) {
+    setState(() {
+      _selectedPreset = preset;
+      _pipeline.applyPreset(preset);
+      _globalIntensity = _pipeline.globalIntensity;
+    });
+  }
+
+  void _onIntensityChanged(double val) {
+    setState(() {
+      _globalIntensity = val;
+      _pipeline.setGlobalIntensity(val);
+      _selectedPreset = PipelinePreset.custom;
+    });
+  }
+
+  Future<void> _generatePreview() async {
+    if (_localVideoPath == null || _probeInfo == null || _isPreviewGenerating) return;
+
+    setState(() => _isPreviewGenerating = true);
+    final tempDir = await getTemporaryDirectory();
+    final previewPath = "${tempDir.path}/preview_${DateTime.now().millisecondsSinceEpoch}.mp4";
+
+    final filterContext = FilterContext(
+      sourceWidth: _probeInfo!.width,
+      sourceHeight: _probeInfo!.height,
+      duration: _probeInfo!.duration,
+      hasAudio: _probeInfo!.hasAudio,
+      quality: 'fast',
+      targetWidth: 1280,
+      targetHeight: 720,
+      cropCoordinates: "${_probeInfo!.width}:${_probeInfo!.height}:0:0",
+      isPreview: true,
+    );
+
+    try {
+      await _ffmpegService.generatePreviewSegment(
+        inputPath: _localVideoPath!,
+        previewOutputPath: previewPath,
+        previewStartTime: _probeInfo!.duration > 10.0 ? 5.0 : 0.0,
+        pipeline: _pipeline,
+        context: filterContext,
+        logCallback: (msg) {},
+      );
+
+      if (!mounted) return;
+      setState(() => _isPreviewGenerating = false);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) => PreviewScreen(
+            originalVideoPath: _localVideoPath!,
+            transformedVideoPath: previewPath,
+            title: "Transformation Preview (5s)",
+            duration: "0:05",
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isPreviewGenerating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: AppColors.error, content: Text("Preview failed: $e")),
+      );
+    }
+  }
+
+  void _startFullRender() {
+    if (_localVideoPath == null || _probeInfo == null) return;
+
+    final clip = ClipItem(
+      id: "transform_clip_${DateTime.now().millisecondsSinceEpoch}",
+      title: "Materially Transformed Asset",
+      duration: "${_probeInfo!.duration.toInt()}s",
+      startTime: 0.0,
+      endTime: _probeInfo!.duration,
+      score: 95,
+      tag: "Shielded",
+      cropCoordinates: "${_probeInfo!.width}:${_probeInfo!.height}:0:0",
+    );
+
+    final project = ProjectItem(
+      id: "transform_proj_${DateTime.now().millisecondsSinceEpoch}",
+      mode: AppMode.transformAndProtect,
+      title: widget.sourceType == SourceType.youtubeUrl
+          ? "Protected Stream Export"
+          : _localVideoPath!.split('/').last.split('\\').last,
+      sourceUrlOrPath: _localVideoPath!,
+      sourceType: widget.sourceType,
+      clips: [clip],
+      preset: _selectedPreset,
+      aspectRatio: _aspectRatio,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProcessingScreen(
+          project: project,
+          sourceVideoPath: _localVideoPath!,
+          probeInfo: _probeInfo!,
+          clipsToRender: [clip],
+          pipeline: _pipeline,
+          aspectRatio: _aspectRatio,
+          enableSubjectTracking: false,
+          quality: _selectedPreset == PipelinePreset.advanced ? 'high' : 'balanced',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppColors.accentGrape),
+              const SizedBox(height: 20),
+              Text(
+                _loadingMessage,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final layers = _pipeline.allLayers;
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Text("Long Video Copyright Remover", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Preset Selector: FAST, BALANCED, ADVANCED
+                  const Text(
+                    "PROCESSING PRESET",
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildPresetChip(PipelinePreset.fast, "FAST", "Speed Priority"),
+                      const SizedBox(width: 8),
+                      _buildPresetChip(PipelinePreset.balanced, "BALANCED", "Recommended"),
+                      const SizedBox(width: 8),
+                      _buildPresetChip(PipelinePreset.advanced, "ADVANCED", "Deep Filtergraph"),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Global Intensity Card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.tune, color: AppColors.accentGrape, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Transformation Intensity",
+                                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              "${(_globalIntensity * 100).toInt()}%",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.accentGrape,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          min: 0.1,
+                          max: 1.0,
+                          value: _globalIntensity,
+                          activeColor: AppColors.accentGrape,
+                          onChanged: _onIntensityChanged,
+                        ),
+                        const Text(
+                          "Controls pitch modulation, chromatic grading depth, EQ variance, and spatial delays.",
+                          style: TextStyle(fontSize: 11.5, color: AppColors.mut, height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 9-Layer Modular List Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "MODULAR PROCESSING LAYERS (9)",
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
+                      ),
+                      Text(
+                        "${layers.where((l) => l.isEnabled).length}/9 Active",
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accentGrape),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 9-Layer List
+                  ...layers.map((layer) => _buildLayerCard(layer)),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom Action Bar: Preview vs Render
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: const BoxDecoration(
+              color: AppColors.card,
+              border: Border(top: BorderSide(color: AppColors.line)),
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      onPressed: _isPreviewGenerating ? null : _generatePreview,
+                      icon: _isPreviewGenerating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentGrape),
+                            )
+                          : const Icon(Icons.remove_red_eye_outlined, size: 18),
+                      label: Text(_isPreviewGenerating ? "Building..." : "5s Preview"),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: AppColors.accentGrape, width: 1.5),
+                        foregroundColor: AppColors.accentGrape,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton.icon(
+                      onPressed: _startFullRender,
+                      icon: const Icon(Icons.security, size: 18),
+                      label: const Text("Render Transformed"),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: AppColors.accentGrape,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(PipelinePreset preset, String title, String subtitle) {
+    final bool isSel = _selectedPreset == preset;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onPresetChanged(preset),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSel ? AppColors.accentGrape : AppColors.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSel ? AppColors.accentGrape : AppColors.line,
+              width: 1.5,
+            ),
+            boxShadow: isSel
+                ? [
+                    BoxShadow(
+                      color: AppColors.accentGrape.withOpacity(0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    )
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isSel ? Colors.white : AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w500,
+                  color: isSel ? Colors.white.withOpacity(0.8) : AppColors.mut,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLayerCard(TransformationLayer layer) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: layer.isEnabled ? AppColors.line : AppColors.line.withOpacity(0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: layer.isEnabled ? AppColors.softGrape : AppColors.line.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                layer.layerNumber.toString().padLeft(2, '0'),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: layer.isEnabled ? AppColors.accentGrape : AppColors.mut,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  layer.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: layer.isEnabled ? AppColors.ink : AppColors.mut,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  layer.subtitle,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.mut,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: layer.isEnabled,
+            activeColor: AppColors.accentGrape,
+            onChanged: (val) {
+              setState(() {
+                layer.isEnabled = val;
+                _selectedPreset = PipelinePreset.custom;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

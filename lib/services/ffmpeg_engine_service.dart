@@ -1,0 +1,161 @@
+import 'dart:io';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:path/path.dart' as path;
+import '../transformation/pipeline.dart';
+import '../transformation/layer.dart';
+import 'media_probe_service.dart';
+
+class FfmpegEngineService {
+  /// Executes a single video transformation render.
+  Future<void> renderClip({
+    required String inputPath,
+    required String outputPath,
+    required double startTime,
+    required double endTime,
+    required TransformationPipeline pipeline,
+    required FilterContext context,
+    required Function(double progress, String stage) onProgress,
+    required Function(String log) logCallback,
+  }) async {
+    logCallback("Verifying input media integrity...");
+    final probe = await MediaProbeService.probe(inputPath);
+    logCallback("Source Probed: ${probe.width}x${probe.height} @ ${probe.fps.toStringAsFixed(1)}fps, audio=${probe.hasAudio}");
+
+    onProgress(0.15, "Compiling 9-layer filtergraph...");
+    final args = pipeline.buildFfmpegArgs(
+      inputPath: inputPath,
+      outputPath: outputPath,
+      start: startTime,
+      end: endTime,
+      context: context,
+      logCallback: logCallback,
+    );
+
+    logCallback("Dispatching FFmpeg execution session...");
+    onProgress(0.30, "Rendering transformed video...");
+
+    final session = await FFmpegKit.executeWithArguments(args);
+    final returnCode = await session.getReturnCode();
+
+    if (returnCode == null || !returnCode.isValueSuccess()) {
+      final logs = await session.getLogsAsString();
+      logCallback("Render execution failed: $logs");
+      throw Exception("FFmpeg render failed with exit code $returnCode");
+    }
+
+    onProgress(0.90, "Validating rendered asset...");
+    final isValid = await validateOutput(outputPath, logCallback);
+    if (!isValid) {
+      throw Exception("Output validation failed. The generated file is invalid or empty.");
+    }
+
+    onProgress(1.0, "Render complete!");
+    logCallback("Clip generated and verified: ${path.basename(outputPath)}");
+  }
+
+  /// Generates a fast 5-second preview segment using the exact same transformation pipeline.
+  Future<String> generatePreviewSegment({
+    required String inputPath,
+    required String previewOutputPath,
+    required double previewStartTime,
+    required TransformationPipeline pipeline,
+    required FilterContext context,
+    required Function(String log) logCallback,
+  }) async {
+    final double start = previewStartTime;
+    final double end = previewStartTime + 5.0; // 5-second preview
+
+    final previewContext = FilterContext(
+      sourceWidth: context.sourceWidth,
+      sourceHeight: context.sourceHeight,
+      duration: 5.0,
+      hasAudio: context.hasAudio,
+      quality: 'fast',
+      targetWidth: context.targetWidth,
+      targetHeight: context.targetHeight,
+      cropCoordinates: context.cropCoordinates,
+      isPreview: true,
+    );
+
+    final args = pipeline.buildFfmpegArgs(
+      inputPath: inputPath,
+      outputPath: previewOutputPath,
+      start: start,
+      end: end,
+      context: previewContext,
+      logCallback: logCallback,
+    );
+
+    logCallback("Generating preview segment (5s)...");
+    final session = await FFmpegKit.executeWithArguments(args);
+    final returnCode = await session.getReturnCode();
+
+    if (returnCode == null || !returnCode.isValueSuccess()) {
+      throw Exception("Preview generation failed.");
+    }
+
+    return previewOutputPath;
+  }
+
+  /// Generates high-definition thumbnail poster.
+  Future<String> extractThumbnail({
+    required String videoPath,
+    required String thumbnailPath,
+    double? timestamp,
+  }) async {
+    final probe = await MediaProbeService.probe(videoPath);
+    final double targetTime = timestamp ?? (probe.duration > 2.0 ? probe.duration * 0.10 : 0.5);
+
+    final args = [
+      "-y",
+      "-ss",
+      targetTime.toStringAsFixed(3),
+      "-i",
+      videoPath,
+      "-vframes",
+      "1",
+      "-q:v",
+      "2",
+      "-vf",
+      "scale=480:-1",
+      thumbnailPath,
+    ];
+
+    final session = await FFmpegKit.executeWithArguments(args);
+    final returnCode = await session.getReturnCode();
+
+    if (returnCode == null || !returnCode.isValueSuccess()) {
+      throw Exception("Failed to extract thumbnail image.");
+    }
+
+    return thumbnailPath;
+  }
+
+  /// Output validation: ensures file exists, non-zero size, and can be parsed by ffprobe.
+  Future<bool> validateOutput(String filePath, Function(String) logCallback) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      logCallback("Validation Error: File does not exist at $filePath");
+      return false;
+    }
+
+    final size = await file.length();
+    if (size < 1024) {
+      logCallback("Validation Error: Output file size is too small ($size bytes).");
+      return false;
+    }
+
+    try {
+      final probe = await MediaProbeService.probe(filePath);
+      if (probe.duration <= 0.0) {
+        logCallback("Validation Error: Probed duration is zero.");
+        return false;
+      }
+      logCallback("Validation Passed: ${probe.width}x${probe.height}, ${probe.duration.toStringAsFixed(1)}s, ${size ~/ 1024} KB.");
+      return true;
+    } catch (e) {
+      logCallback("Validation Error: Probe inspection failed ($e).");
+      return false;
+    }
+  }
+}

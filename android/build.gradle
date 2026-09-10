@@ -1,0 +1,67 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'org.jetbrains.kotlin') {
+                details.useVersion '2.0.21'
+            }
+        }
+    }
+}
+
+rootProject.buildDir = "../build"
+class FlutterCompatExtension {
+    int compileSdkVersion = 35
+    int minSdkVersion = 24
+    int targetSdkVersion = 35
+    String ndkVersion = "25.1.8937393"
+}
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+
+    if (project.name != "app") {
+        project.plugins.whenPluginAdded { plugin ->
+            if (plugin.class.name.startsWith("com.android.build.gradle")) {
+                try {
+                    project.android.extensions.create("flutter", FlutterCompatExtension)
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
+
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group
+                }
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+    }
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
