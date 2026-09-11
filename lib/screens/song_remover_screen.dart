@@ -12,6 +12,8 @@ import '../services/downloader_service.dart';
 import '../services/ffmpeg_engine_service.dart';
 import '../services/media_probe_service.dart';
 import '../transformation/song_remover_pipeline.dart';
+import '../services/project_storage_service.dart';
+import '../services/gallery_export_service.dart';
 import '../theme/app_theme.dart';
 import 'results_screen.dart';
 
@@ -212,6 +214,15 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
       project.outputPaths = [videoPath];
       project.thumbnailPath = thumbPath;
 
+      // Persist to project storage so it appears in Projects tab
+      await ProjectStorageService.saveProject(project);
+
+      // Export directly to public device gallery
+      try {
+        await GalleryExportService.exportToPublicGallery(videoPath);
+      } catch (_) {}
+
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

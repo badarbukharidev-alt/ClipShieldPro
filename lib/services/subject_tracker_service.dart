@@ -63,10 +63,10 @@ class SubjectTrackerService {
     await sampleDir.create(recursive: true);
 
     try {
-      // 2. Temporal Frame Sampling (evenly distributed 20 frames)
-      const int sampleCount = 20;
+      // 2. High-Speed Temporal Frame Sampling (3 key frames: 20%, 50%, 80%)
+      const int sampleCount = 3;
       final double duration = max(1.0, endTime - startTime);
-      final double interval = duration / sampleCount;
+      final double interval = duration / (sampleCount + 1);
 
       List<double> xPositions = [];
       List<double> yPositions = [];
@@ -75,7 +75,7 @@ class SubjectTrackerService {
       final double scaleRatio = sourceWidth / scaledWidth;
       final int scaledHeight = (sourceHeight / scaleRatio).round();
 
-      logCallback("Sampling $sampleCount frames for subject facial centroid tracking...");
+      logCallback("Fast subject centroid tracking ($sampleCount samples)...");
 
       for (int i = 0; i < sampleCount; i++) {
         final double t = startTime + (i * interval);

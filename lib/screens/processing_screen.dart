@@ -14,6 +14,7 @@ import '../transformation/pipeline.dart';
 import '../theme/app_theme.dart';
 import '../services/license_service.dart';
 import '../services/render_job_service.dart';
+import '../services/gallery_export_service.dart';
 import 'activation_dialog.dart';
 import 'results_screen.dart';
 
@@ -114,6 +115,10 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       }
 
       RenderJobService.instance.startJob(projectId: widget.project.id, title: widget.project.title);
+
+      // Persist project immediately so it is registered in history
+      widget.project.status = 'rendering';
+      await ProjectStorageService.saveProject(widget.project);
 
       final appDir = await getApplicationDocumentsDirectory();
       final outputDir = Directory(path.join(appDir.path, "ClipShield_Rendered"));
@@ -226,6 +231,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         clip.outputPath = outPath;
         clip.isRendered = true;
         renderedPaths.add(outPath);
+
+        // Auto-export directly to Android device gallery
+        try {
+          await GalleryExportService.exportToPublicGallery(outPath);
+        } catch (_) {}
       }
 
       if (_isCanceled) {
@@ -260,6 +270,12 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       );
     } catch (e) {
       RenderJobService.instance.failJob(e.toString());
+      // Save failed status so project is still visible and debuggable
+      try {
+        widget.project.status = 'failed';
+        await ProjectStorageService.saveProject(widget.project);
+      } catch (_) {}
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(backgroundColor: AppColors.error, content: Text("Render failed: $e")),

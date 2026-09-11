@@ -147,13 +147,17 @@ class TransformationPipeline {
       "-y",
       "-threads",
       "0",
-      "-ss",
-      start.toStringAsFixed(3),
-      "-to",
-      end.toStringAsFixed(3),
-      "-i",
-      inputPath,
     ];
+
+    // Accurate seeking and duration limiting
+    if (start > 0.01) {
+      args.addAll(["-ss", start.toStringAsFixed(3)]);
+    }
+    if (clipDuration > 0.01) {
+      args.addAll(["-t", clipDuration.toStringAsFixed(3)]);
+    }
+
+    args.addAll(["-i", inputPath]);
 
     final vfString = vfList.join(',');
     final bool useAudioConditioning =
@@ -182,7 +186,7 @@ class TransformationPipeline {
           );
           mixStreams.add("[n]");
           mixInputs++;
-          weights += " 1";
+          weights += " 0.02";
         }
 
         if (useBackgroundMusic) {
@@ -193,12 +197,12 @@ class TransformationPipeline {
           );
           mixStreams.add("[bgm]");
           mixInputs++;
-          weights += " 1";
+          weights += " 0.02";
         }
 
         final String streamLabels = mixStreams.join('');
         complexBuf.write(
-          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0:weights=$weights[aout]"
+          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0:weights='$weights'[aout]"
         );
 
         args.addAll([
