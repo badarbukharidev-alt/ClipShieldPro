@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../theme/app_theme.dart';
@@ -12,51 +13,59 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _glowAnimation;
+    with TickerProviderStateMixin {
+  late AnimationController _entryController;
+  late AnimationController _floatController;
+  late AnimationController _pulseController;
+
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _floatAnimation;
+  late Animation<double> _pulseAnimation;
+
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
+    // 1. Initial Entry Animation
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _entryController, curve: const Interval(0.0, 0.8, curve: Curves.easeOut)),
+    );
+    _scaleAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
+      CurvedAnimation(parent: _entryController, curve: const Interval(0.1, 0.9, curve: Curves.easeOutBack)),
+    );
+
+    // 2. Continuous Floating / Hover Motion
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -8.0, end: 8.0).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOutSine),
+    );
+
+    // 3. Ambient Aura Glow Pulse
+    _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
-      ),
-    );
-
-    _glowAnimation = Tween<double>(begin: 0.2, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.2, 0.9, curve: Curves.easeInOut),
-      ),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.1, 0.8, curve: Curves.easeIn),
-      ),
-    );
-
-    _controller.forward();
-    _initializeAppAndPermissions();
+    _entryController.forward();
+    _initializeApp();
   }
 
-  Future<void> _initializeAppAndPermissions() async {
-    // Graceful permission request on first launch
+  Future<void> _initializeApp() async {
     try {
       if (Platform.isAndroid) {
-        // Android 13+ requires granular media permissions
         await [
           Permission.videos,
           Permission.audio,
@@ -66,16 +75,19 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (_) {}
 
-    // Wait for splash animation minimum duration
-    await Future.delayed(const Duration(milliseconds: 2200));
+    // Auto-advance after 3.2 seconds if user hasn't clicked "Get Started"
+    await Future.delayed(const Duration(milliseconds: 3200));
+    _navigateToHome();
+  }
 
-    if (!mounted) return;
+  void _navigateToHome() {
+    if (_navigated || !mounted) return;
+    _navigated = true;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const HomeScreen(),
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -85,169 +97,164 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _entryController.dispose();
+    _floatController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Background ambient radial glow
-          AnimatedBuilder(
-            animation: _glowAnimation,
-            builder: (context, child) {
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.9,
-                    colors: [
-                      AppColors.accentTangerine
-                          .withOpacity(0.15 * _glowAnimation.value),
-                      AppColors.bg,
-                    ],
-                  ),
-                ),
-              );
-            },
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFF9F5),
+              Color(0xFFFDECE2),
+              Color(0xFFFBE4D6),
+            ],
           ),
-
-          // Central branding
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Shield Emblem with glowing border
-                      Container(
-                        width: 110,
-                        height: 110,
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // Ambient Radial Aura behind center
+              Positioned.fill(
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Container(
+                        width: 320 * _pulseAnimation.value,
+                        height: 320 * _pulseAnimation.value,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.card,
-                          border: Border.all(
-                            color: AppColors.accentTangerine,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentTangerine.withOpacity(
-                                  0.35 * _glowAnimation.value),
-                              blurRadius: 36 * _glowAnimation.value,
-                              spreadRadius: 6 * _glowAnimation.value,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/icon/app_icon.png',
-                              width: 68,
-                              height: 68,
-                              fit: BoxFit.contain,
-                            ),
+                          gradient: RadialGradient(
+                            colors: [
+                              AppColors.accentTangerine.withOpacity(0.28),
+                              AppColors.accentTangerine.withOpacity(0.08),
+                              Colors.transparent,
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
+                      );
+                    },
+                  ),
+                ),
+              ),
 
-                      // App Name
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+              // Main Animated Content (Hero Mockup + Floating Motion)
+              Positioned.fill(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: AnimatedBuilder(
+                      animation: _floatAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(0, _floatAnimation.value),
+                          child: child,
+                        );
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            "CLIP",
-                            style: TextStyle(
-                              fontFamily: 'Roboto',
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.5,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          const Text(
-                            "SHIELD",
-                            style: TextStyle(
-                              fontFamily: 'Roboto',
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.5,
-                              color: AppColors.accentTangerine,
-                            ),
-                          ),
-                          Container(
-                            margin: const EdgeInsets.only(left: 6, bottom: 12),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentTangerine,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              "PRO",
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 1.0,
+                          const Spacer(flex: 1),
+
+                          // 3D Phone Mockup & Floating Badges Image
+                          Expanded(
+                            flex: 14,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Image.asset(
+                                'assets/images/splash_hero.png',
+                                fit: BoxFit.contain,
                               ),
                             ),
                           ),
+
+                          const Spacer(flex: 1),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                  ),
+                ),
+              ),
 
-                      const Text(
-                        "AI Video Repurposer & Protection Engine",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.mut,
-                          letterSpacing: 0.5,
+              // Bottom "Get Started" Action Button & Dots
+              Positioned(
+                left: 28,
+                right: 28,
+                bottom: 24,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Interactive Pill Button
+                      GestureDetector(
+                        onTap: _navigateToHome,
+                        child: Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFFF7A45),
+                                Color(0xFFFF5722),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF5722).withOpacity(0.40),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Get Started",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 48),
-
-                      // Sleek pulsing progress indicator
-                      const SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.accentTangerine,
-                          ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "ClipShield Pro · v1.2.0 Studio Engine",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.mut,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-
-          // Bottom version tag
-          const Positioned(
-            bottom: 32,
-            child: Text(
-              "v1.0.0 Pro Edition • 100% On-Device DSP",
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.mut,
-                letterSpacing: 0.8,
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:clipshield/services/license_service.dart';
 
@@ -103,6 +103,54 @@ void main() {
         url,
         'https://wa.me/923079031153?text=Hello%20ClipShield%20Team,%20I%20want%20to%20activate%20ClipShield%20Pro.%20My%20Device%20ID%20is:%20CS-7777-8888-9999',
       );
+    });
+
+    test('Multi-Tier Licensing: Lifetime, Monthly, and Video Pack', () async {
+      final service = LicenseService.instance;
+      await service.resetForTesting();
+      await service.init();
+      final devId = await service.getDeviceId();
+
+      // 1. Lifetime Key
+      final lifeKey = LicenseService.generateLifetimeKey(devId);
+      expect(lifeKey.startsWith('CSL-'), isTrue);
+      expect(LicenseService.verifyKey(lifeKey, devId), isTrue);
+
+      // 2. Monthly Key
+      final monthlyKey = LicenseService.generateMonthlyKey(devId, days: 30);
+      expect(monthlyKey.startsWith('CSM30-'), isTrue);
+      final mResult = LicenseService.validateKeyDetailed(monthlyKey, devId);
+      expect(mResult.isValid, isTrue);
+      expect(mResult.tier, LicenseTier.monthly);
+      expect(mResult.parameter, 30);
+
+      // Activate Monthly
+      await service.activate(monthlyKey);
+      expect(service.isActivated(), isTrue);
+      expect(service.currentTier, LicenseTier.monthly);
+
+      // 3. Video Pack Key (5 videos)
+      await service.resetForTesting();
+      final vpKey = LicenseService.generateVideoPackKey(devId, videoCount: 5);
+      expect(vpKey.startsWith('CSV05-'), isTrue);
+      final vpResult = LicenseService.validateKeyDetailed(vpKey, devId);
+      expect(vpResult.isValid, isTrue);
+      expect(vpResult.tier, LicenseTier.videoPack);
+      expect(vpResult.parameter, 5);
+
+      // Activate Video Pack
+      await service.activate(vpKey);
+      expect(service.isActivated(), isTrue);
+      expect(service.remainingVideos, 5);
+
+      // Consume 5 renders
+      for (int i = 4; i >= 0; i--) {
+        await service.consumeTrial();
+        expect(service.remainingVideos, i);
+      }
+      // After 5 renders, video pack is exhausted
+      expect(service.isActivated(), isFalse);
+      expect(service.canRender(), isFalse);
     });
   });
 }

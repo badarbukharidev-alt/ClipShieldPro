@@ -5,6 +5,7 @@ import '../services/license_service.dart';
 import '../services/project_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'activation_dialog.dart';
+import 'admin_license_screen.dart';
 import 'diagnostics_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -311,6 +312,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Admin Key Generator Tile
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminLicenseScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.softTangerine,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.accentTangerine.withOpacity(0.35)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.admin_panel_settings_rounded, color: AppColors.accentTangerine, size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Admin Key Generator", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppColors.ink)),
+                          SizedBox(height: 2),
+                          Text("Generate Monthly, Lifetime & Video Pack keys", style: TextStyle(fontSize: 11, color: AppColors.mut)),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accentTangerine),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),

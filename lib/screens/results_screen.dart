@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
+import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
 import 'preview_screen.dart';
@@ -100,6 +101,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isWidescreen = widget.project.mode == AppMode.transformAndProtect ||
+        widget.project.aspectRatio == AspectRatioOption.original169;
+    final bool isSongRemover = widget.project.mode == AppMode.songRemover;
+
+    final String headline = isSongRemover
+        ? "Your Audio Asset Is Ready"
+        : (isWidescreen ? "Protected Video Ready" : "Your Shorts Are Ready");
+
+    final String subtitle = isSongRemover
+        ? "DSP mastering applied · ${widget.renderedClips.length} asset generated"
+        : (isWidescreen
+            ? "16:9 Widescreen · 12-layer protection applied"
+            : "${widget.renderedClips.length} clips · reframed, transformed & enhanced");
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -144,10 +159,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       child: const Icon(Icons.check, size: 36, color: AppColors.accentTangerine),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      "Your Shorts Are Ready",
-                      style: TextStyle(
-                        fontSize: 23,
+                    Text(
+                      headline,
+                      style: const TextStyle(
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: AppColors.ink,
                         letterSpacing: -0.4,
@@ -155,125 +170,247 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "${widget.renderedClips.length} clips · reframed, transformed & enhanced",
+                      subtitle,
                       style: const TextStyle(fontSize: 13, color: AppColors.mut),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // 2-Column Grid of 9:16 Shorts
+              // Content View: 16:9 Widescreen Cards or 9:16 Shorts Grid
               Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.58,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                  ),
-                  itemCount: widget.renderedClips.length,
-                  itemBuilder: (context, index) {
-                    final clip = widget.renderedClips[index];
-                    final hasThumb = clip.thumbnailPath != null && File(clip.thumbnailPath!).existsSync();
+                child: isWidescreen
+                    ? ListView.builder(
+                        itemCount: widget.renderedClips.length,
+                        itemBuilder: (context, index) {
+                          final clip = widget.renderedClips[index];
+                          final hasThumb = clip.thumbnailPath != null && File(clip.thumbnailPath!).existsSync();
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _openPreview(context, clip),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.darkCard,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: AppColors.line),
-                                image: hasThumb
-                                    ? DecorationImage(
-                                        image: FileImage(File(clip.thumbnailPath!)),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.4),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.play_arrow, color: Colors.white, size: 26),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    left: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accentTangerine,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Text(
-                                        "TRANSFORMED",
-                                        style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w800),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: GestureDetector(
-                                      onTap: () => _shareClips([clip]),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.6),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.share, color: Colors.white, size: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 8,
-                                    right: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.75),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        clip.duration,
-                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.line),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: GestureDetector(
+                                    onTap: () => _openPreview(context, clip),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.darkCard,
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+                                        image: hasThumb
+                                            ? DecorationImage(
+                                                image: FileImage(File(clip.thumbnailPath!)),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          Center(
+                                            child: Container(
+                                              width: 52,
+                                              height: 52,
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.55),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 10,
+                                            left: 10,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.accentTangerine,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: const Text(
+                                                "16:9 WIDESCREEN",
+                                                style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 10,
+                                            right: 10,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.75),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                clip.duration,
+                                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              clip.title,
+                                              style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.ink),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            const Text(
+                                              "Widescreen · 1080p HD · H.264 FastStart",
+                                              style: TextStyle(fontSize: 11.5, color: AppColors.mut),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.share, color: AppColors.ink),
+                                        onPressed: () => _shareClips([clip]),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                    : GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.58,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          clip.title,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "Score ${clip.score} · 9:16 portrait",
-                          style: const TextStyle(fontSize: 11, color: AppColors.mut),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                        itemCount: widget.renderedClips.length,
+                        itemBuilder: (context, index) {
+                          final clip = widget.renderedClips[index];
+                          final hasThumb = clip.thumbnailPath != null && File(clip.thumbnailPath!).existsSync();
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _openPreview(context, clip),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.darkCard,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: AppColors.line),
+                                      image: hasThumb
+                                          ? DecorationImage(
+                                              image: FileImage(File(clip.thumbnailPath!)),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Center(
+                                          child: Container(
+                                            width: 44,
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.4),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.play_arrow, color: Colors.white, size: 26),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 8,
+                                          left: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentTangerine,
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: const Text(
+                                              "TRANSFORMED",
+                                              style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w800),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: GestureDetector(
+                                            onTap: () => _shareClips([clip]),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.6),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.share, color: Colors.white, size: 14),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.75),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              clip.duration,
+                                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                clip.title,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Score ${clip.score} · 9:16 portrait",
+                                style: const TextStyle(fontSize: 11, color: AppColors.mut),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
               ),
               const SizedBox(height: 14),
 

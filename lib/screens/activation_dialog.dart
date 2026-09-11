@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/license_service.dart';
@@ -176,9 +176,9 @@ class _ActivationDialogState extends State<ActivationDialog> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Unlimited on-device rendering, dynamic reframing, and DSP acoustic protection unlocked permanently.",
-                style: TextStyle(color: AppColors.mut, fontSize: 13),
+              Text(
+                _licenseService.statusDescription,
+                style: const TextStyle(color: AppColors.mut, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),

@@ -101,6 +101,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   }
 
   Future<void> _executeRenderPipeline() async {
+    final List<String> renderedPaths = [];
     try {
       // Verify license / trial render permission
       final canRender = LicenseService.instance.canRender();
@@ -127,7 +128,6 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       }
 
       final int totalClips = widget.clipsToRender.length;
-      List<String> renderedPaths = [];
 
       final bool isWidescreenMode = widget.project.mode == AppMode.transformAndProtect ||
           widget.aspectRatio == AspectRatioOption.original169;
@@ -270,6 +270,31 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       );
     } catch (e) {
       RenderJobService.instance.failJob(e.toString());
+
+      // If at least one clip was successfully rendered, rescue and show results!
+      if (renderedPaths.isNotEmpty) {
+        widget.project.status = 'done';
+        widget.project.outputPaths = renderedPaths;
+        if (widget.clipsToRender.first.thumbnailPath != null) {
+          widget.project.thumbnailPath = widget.clipsToRender.first.thumbnailPath;
+        }
+        try {
+          await ProjectStorageService.saveProject(widget.project);
+        } catch (_) {}
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ResultsScreen(
+              project: widget.project,
+              renderedClips: widget.clipsToRender.where((c) => c.isRendered).toList(),
+            ),
+          ),
+        );
+        return;
+      }
+
       // Save failed status so project is still visible and debuggable
       try {
         widget.project.status = 'failed';
@@ -360,39 +385,91 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                 // Animated Rendering Canvas
                 Container(
                   width: double.infinity,
-                  height: 160,
+                  height: 180,
                   decoration: BoxDecoration(
                     color: AppColors.darkCard,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accentTangerine.withOpacity(0.18),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E1E28), Color(0xFF14141E)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      // Ambient radial glow
+                      Positioned.fill(
+                        child: Center(
+                          child: Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  AppColors.accentTangerine.withOpacity(0.25),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Circular Progress Ring
                       SizedBox(
-                        width: 76,
-                        height: 76,
+                        width: 96,
+                        height: 96,
                         child: CircularProgressIndicator(
                           value: _totalProgress > 0 ? _totalProgress : null,
                           strokeWidth: 6,
-                          backgroundColor: Colors.white12,
+                          backgroundColor: Colors.white.withOpacity(0.08),
                           valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
                         ),
                       ),
-                      Positioned(
-                        bottom: 16,
-                        child: Text(
-                          "$pct%",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
+                      // Inner Percent Text & Chip
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "$pct%",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentTangerine.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              "ON-DEVICE DSP",
+                              style: TextStyle(
+                                color: AppColors.accentTangerine,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // 6 Pipeline Steps Card
                 Expanded(

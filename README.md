@@ -1,4 +1,4 @@
-﻿# 🛡️ ClipShield Pro (v1.2.0)
+# 🛡️ ClipShield Pro (v1.2.0)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
@@ -59,11 +59,22 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 
 ## 🛠️ What's New in v1.2.0
 
-- ⚡ **Ultra-Fast FFmpeg Rendering & Audio DSP**:
+- ⚡ **Ultra-Fast FFmpeg Rendering & Pipeline Resilience**:
+  - Eliminated rendering failure near 100%: replaced fragile `weights` amix syntax with volume modulation and standard `amix=inputs=X:duration=first:dropout_transition=0`.
+  - Added baseline H.264 fallback encoding and non-blocking rescue catches so in-progress clips are preserved.
   - Replaced CPU-heavy filters with near real-time `boxblur=1:1`.
-  - Removed memory-heavy `areverse` bottleneck in audio DSP.
-  - Optimized static cover image video composition with `-framerate 1`, `-r 1`, `-threads 0`, and `-c:a copy` (takes 2-3 seconds instead of 3 minutes!).
   - Multi-core auto-threading (`-threads 0`) and `-preset ultrafast` across all processing pipelines.
+- 🔑 **Multi-Tier Hardware-Bound Licensing & Admin Key Generator**:
+  - **1 Month (30 Days)**: Auto-expiring monthly subscription keys (`CSM30-...`).
+  - **Lifetime**: Permanent unlimited access keys (`CSL-...`).
+  - **Custom Video Packs**: Pay-per-use keys (`CSV05-...`, etc.) with real-time video credit decrement per successful render.
+  - **In-App Admin Generator**: Accessible via Settings (`Admin Key Generator`) to input customer Device ID, configure tier/duration/count, generate signed HMAC-SHA256 keys, and share via WhatsApp in one tap.
+- 📺 **16:9 Widescreen Native Results Screen**:
+  - Context-aware results screen dynamically adapts layout based on project aspect ratio.
+  - 16:9 widescreen mode presents full-width cinematic player cards with duration, resolution tags, and instant social sharing (no longer forced into vertical 9:16 Shorts grid).
+- 🎨 **Transparent App Icon & High-Tech Animated Splash**:
+  - Transparent rounded icon across all Android launcher densities (`mipmap-mdpi` through `mipmap-xxxhdpi`).
+  - Animated motion splash screen with floating hover physics, ambient gradient glow, and responsive "Get Started" onboarding.
 - 📱 **YouTube Shorts Full Support**:
   - Direct acceptance of any YouTube Shorts link (`/shorts/`, `youtu.be/`, query parameters).
   - Resilient DASH stream fallback downloading video and audio separately and fast-muxing when muxed streams are absent.
@@ -76,11 +87,8 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
   - Android MediaScanner triggered so videos appear immediately in Google Photos and Gallery apps.
 - 📲 **Instant Social Sharing**:
   - One-tap sharing to WhatsApp, YouTube, and Facebook/Instagram directly from Results screen.
-  - Individual clip sharing from each clip card in the grid.
 - 🪶 **44% Smaller APK Size (172 MB)**:
   - Configured NDK ABI filters (`arm64-v8a`, `armeabi-v7a`) for physical Android devices, eliminating redundant desktop emulator binaries.
-- 🎨 **UI Bugfix**:
-  - Fixed selection highlight bug in Mode Selector so "Video to Shorts" is not mistakenly highlighted when "Songs Remover" is chosen.
 
 ---
 

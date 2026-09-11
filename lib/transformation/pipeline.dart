@@ -186,7 +186,6 @@ class TransformationPipeline {
           );
           mixStreams.add("[n]");
           mixInputs++;
-          weights += " 0.02";
         }
 
         if (useBackgroundMusic) {
@@ -197,12 +196,11 @@ class TransformationPipeline {
           );
           mixStreams.add("[bgm]");
           mixInputs++;
-          weights += " 0.02";
         }
 
         final String streamLabels = mixStreams.join('');
         complexBuf.write(
-          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0:weights='$weights'[aout]"
+          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0[aout]"
         );
 
         args.addAll([
@@ -210,6 +208,7 @@ class TransformationPipeline {
           complexBuf.toString(),
           "-map", "[vout]",
           "-map", "[aout]",
+          "-shortest",
         ]);
       } else {
         final filterComplex =
