@@ -7,6 +7,21 @@ class DownloaderService {
   final YoutubeExplode _yt = YoutubeExplode();
 
   String? getVideoId(String url) {
+    url = url.trim();
+    if (url.isEmpty) return null;
+
+    final shortsRegExp = RegExp(r'(?:youtube\.com|youtu\.be)\/shorts\/([a-zA-Z0-9_-]{11})');
+    final shortsMatch = shortsRegExp.firstMatch(url);
+    if (shortsMatch != null && shortsMatch.groupCount >= 1) {
+      return shortsMatch.group(1);
+    }
+
+    final generalRegExp = RegExp(r'(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([a-zA-Z0-9_-]{11})');
+    final generalMatch = generalRegExp.firstMatch(url);
+    if (generalMatch != null && generalMatch.groupCount >= 1) {
+      return generalMatch.group(1);
+    }
+
     try {
       return VideoId.parseVideoId(url);
     } catch (_) {
@@ -92,49 +107,67 @@ class DownloaderService {
     progressCallback(0.05, "Analyzing streams...");
     final manifest = await _yt.videos.streamsClient.getManifest(id);
 
-    if (quality == 'high') {
-      progressCallback(0.10, "Fetching high-definition streams...");
-      if (manifest.videoOnly.isEmpty || manifest.audioOnly.isEmpty) {
-        progressCallback(0.12, "Fallback: HD streams missing, retrieving standard stream...");
-        return await _downloadMuxedStream(manifest, outputPath, progressCallback);
-      }
+    final bool useMuxed = manifest.muxed.isNotEmpty && quality != 'high';
 
-      final videoStreamInfo = manifest.videoOnly.bestQuality;
-      final audioStreamInfo = manifest.audioOnly.withHighestBitrate();
-
-      final tempVideoPath = path.join(downloadDir, "temp_video.mp4");
-      final tempAudioPath = path.join(downloadDir, "temp_audio.m4a");
-
-      progressCallback(0.15, "Downloading video track...");
-      await _downloadStream(videoStreamInfo, tempVideoPath, (p) {
-        progressCallback(0.15 + (p * 0.50), "Downloading video: ${(p * 100).toInt()}%");
-      });
-
-      progressCallback(0.70, "Downloading audio track...");
-      await _downloadStream(audioStreamInfo, tempAudioPath, (p) {
-        progressCallback(0.70 + (p * 0.15), "Downloading audio: ${(p * 100).toInt()}%");
-      });
-
-      progressCallback(0.85, "Muxing streams...");
-      final mergeCommand =
-          "-y -i \"$tempVideoPath\" -i \"$tempAudioPath\" -c:v copy -c:a aac -strict experimental \"$outputPath\"";
-
-      final session = await FFmpegKit.execute(mergeCommand);
-      final returnCode = await session.getReturnCode();
-
-      try {
-        await File(tempVideoPath).delete();
-        await File(tempAudioPath).delete();
-      } catch (_) {}
-
-      if (returnCode != null && returnCode.isValueSuccess()) {
-        progressCallback(1.0, "Stream acquisition complete!");
-        return outputPath;
-      } else {
-        throw Exception("Failed to merge audio and video tracks.");
-      }
+    if (useMuxed) {
+      return await _downloadMuxedStream(manifest, outputPath, progressCallback, downloadDir);
     } else {
-      return await _downloadMuxedStream(manifest, outputPath, progressCallback);
+      return await _downloadSeparateStreams(manifest, outputPath, downloadDir, progressCallback);
+    }
+  }
+
+  Future<String> _downloadSeparateStreams(
+    StreamManifest manifest,
+    String outputPath,
+    String downloadDir,
+    Function(double, String) progressCallback,
+  ) async {
+    if (manifest.videoOnly.isEmpty || manifest.audioOnly.isEmpty) {
+      if (manifest.muxed.isNotEmpty) {
+        progressCallback(0.12, "Fallback: Separate streams missing, retrieving standard stream...");
+        return await _downloadMuxedStream(manifest, outputPath, progressCallback, downloadDir);
+      }
+      throw Exception("No playable video or audio streams found.");
+    }
+
+    var videoStreamInfo = manifest.videoOnly.bestQuality;
+    final filtered = manifest.videoOnly.where((s) => s.videoResolution.height <= 1080).toList();
+    if (filtered.isNotEmpty) {
+      filtered.sort((a, b) => a.videoResolution.height.compareTo(b.videoResolution.height));
+      videoStreamInfo = filtered.last;
+    }
+    final audioStreamInfo = manifest.audioOnly.withHighestBitrate();
+
+    final tempVideoPath = path.join(downloadDir, "temp_video.mp4");
+    final tempAudioPath = path.join(downloadDir, "temp_audio.m4a");
+
+    progressCallback(0.15, "Downloading video track...");
+    await _downloadStream(videoStreamInfo, tempVideoPath, (p) {
+      progressCallback(0.15 + (p * 0.50), "Downloading video: ${(p * 100).toInt()}%");
+    });
+
+    progressCallback(0.70, "Downloading audio track...");
+    await _downloadStream(audioStreamInfo, tempAudioPath, (p) {
+      progressCallback(0.70 + (p * 0.15), "Downloading audio: ${(p * 100).toInt()}%");
+    });
+
+    progressCallback(0.85, "Muxing streams...");
+    final mergeCommand =
+        "-y -i \"$tempVideoPath\" -i \"$tempAudioPath\" -c:v copy -c:a aac -strict experimental \"$outputPath\"";
+
+    final session = await FFmpegKit.execute(mergeCommand);
+    final returnCode = await session.getReturnCode();
+
+    try {
+      if (await File(tempVideoPath).exists()) await File(tempVideoPath).delete();
+      if (await File(tempAudioPath).exists()) await File(tempAudioPath).delete();
+    } catch (_) {}
+
+    if (returnCode != null && returnCode.isValueSuccess()) {
+      progressCallback(1.0, "Stream acquisition complete!");
+      return outputPath;
+    } else {
+      throw Exception("Failed to merge audio and video tracks.");
     }
   }
 
@@ -142,9 +175,10 @@ class DownloaderService {
     StreamManifest manifest,
     String outputPath,
     Function(double, String) progressCallback,
+    String downloadDir,
   ) async {
     if (manifest.muxed.isEmpty) {
-      throw Exception("No playable video streams found.");
+      return await _downloadSeparateStreams(manifest, outputPath, downloadDir, progressCallback);
     }
     final muxedStreamInfo = manifest.muxed.bestQuality;
 

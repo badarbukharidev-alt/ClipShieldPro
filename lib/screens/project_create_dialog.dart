@@ -45,7 +45,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
 
   void _onUrlChanged() {
     final text = _urlController.text.trim();
-    if (text.isNotEmpty && text.contains("http")) {
+    if (text.isNotEmpty && _downloaderService.getVideoId(text) != null) {
       _fetchYtMetadata(text);
     } else {
       if (_ytPreviewVideo != null) {
@@ -231,13 +231,13 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                       decoration: BoxDecoration(
-                        color: !isProtect ? AppColors.accentTangerine : AppColors.card,
+                        color: isMode1 ? AppColors.accentTangerine : AppColors.card,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: !isProtect ? AppColors.accentTangerine : AppColors.line,
+                          color: isMode1 ? AppColors.accentTangerine : AppColors.line,
                           width: 1.5,
                         ),
-                        boxShadow: !isProtect
+                        boxShadow: isMode1
                             ? [
                                 BoxShadow(
                                   color: AppColors.accentTangerine.withOpacity(0.3),
@@ -253,7 +253,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                           Icon(
                             Icons.auto_awesome,
                             size: 20,
-                            color: !isProtect ? Colors.white : AppColors.accentTangerine,
+                            color: isMode1 ? Colors.white : AppColors.accentTangerine,
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -261,7 +261,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: !isProtect ? Colors.white : AppColors.ink,
+                              color: isMode1 ? Colors.white : AppColors.ink,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -270,7 +270,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
-                              color: !isProtect ? Colors.white.withOpacity(0.8) : AppColors.mut,
+                              color: isMode1 ? Colors.white.withOpacity(0.8) : AppColors.mut,
                             ),
                           ),
                         ],

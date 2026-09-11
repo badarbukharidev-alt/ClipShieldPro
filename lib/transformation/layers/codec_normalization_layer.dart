@@ -56,9 +56,7 @@ class CodecNormalizationLayer extends TransformationLayer {
     final int gop = 60 + _random.nextInt(61); // 60 to 120
     final int bframes = 2 + _random.nextInt(3); // 2 to 4
     final int refs = 3 + _random.nextInt(3); // 3 to 5
-    final String preset = context.isPreview
-        ? "ultrafast"
-        : (context.quality == 'high' ? "fast" : "ultrafast");
+    const String preset = "ultrafast";
 
     List<String> args = [
       "-c:v",
@@ -66,7 +64,7 @@ class CodecNormalizationLayer extends TransformationLayer {
       "-preset",
       preset,
       "-threads",
-      "4",
+      "0",
       "-crf",
       crf.toString(),
       "-pix_fmt",
@@ -104,7 +102,7 @@ class CodecNormalizationLayer extends TransformationLayer {
         "-preset",
         "ultrafast",
         "-threads",
-        "4",
+        "0",
         "-crf",
         "20",
         "-pix_fmt",

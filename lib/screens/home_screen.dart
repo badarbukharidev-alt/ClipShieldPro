@@ -11,6 +11,7 @@ import 'results_screen.dart';
 import 'settings_screen.dart';
 import 'transform_pipeline_screen.dart';
 import 'song_remover_screen.dart';
+import '../services/render_job_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -206,6 +207,85 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              ValueListenableBuilder<RenderJobState?>(
+                valueListenable: RenderJobService.instance.activeJob,
+                builder: (context, activeJob, child) {
+                  if (activeJob != null && !activeJob.isCompleted && !activeJob.isFailed) {
+                    final int pct = (activeJob.progress * 100).toInt().clamp(0, 100);
+                    return GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Rendering: ${activeJob.title} ($pct%) - ${activeJob.currentStage}")),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.darkCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.accentTangerine.withOpacity(0.5)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    "Rendering in background: ${activeJob.title}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  "$pct%",
+                                  style: const TextStyle(
+                                    color: AppColors.accentTangerine,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: activeJob.progress,
+                                backgroundColor: Colors.white12,
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
+                                minHeight: 4,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Stage: ${activeJob.currentStage}",
+                              style: const TextStyle(color: AppColors.mut, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
 
               // HERO MODE: LONG VIDEO COPYRIGHT REMOVER (TOP HERO CARD)
               GestureDetector(

@@ -79,9 +79,9 @@ class SongRemoverPipeline {
       logCallback("DSP: Fade in ${config.fadeInSec.toStringAsFixed(1)}s");
     }
     if (config.fadeOutSec > 0.1) {
-      // Fade out needs duration info - use a large value, FFmpeg handles it
-      audioFilters.add("areverse,afade=t=in:d=${config.fadeOutSec.toStringAsFixed(1)},areverse");
-      logCallback("DSP: Fade out ${config.fadeOutSec.toStringAsFixed(1)}s");
+      // Fade out disabled as areverse causes performance issues on mobile devices
+      // and duration is unknown for standard afade.
+      logCallback("DSP: Fade out skipped (performance optimization)");
     }
 
     // 10. Normalization
@@ -123,6 +123,8 @@ class SongRemoverPipeline {
 
     return [
       "-y",
+      "-threads", "0",
+      "-framerate", "1",
       "-loop", "1",
       "-i", imagePath,
       "-i", audioPath,
@@ -130,8 +132,8 @@ class SongRemoverPipeline {
       "-c:v", "libx264",
       "-tune", "stillimage",
       "-preset", "ultrafast",
-      "-c:a", "aac",
-      "-b:a", "192k",
+      "-r", "1",
+      "-c:a", "copy",
       "-shortest",
       "-pix_fmt", "yuv420p",
       outputPath,

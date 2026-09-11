@@ -145,6 +145,8 @@ class TransformationPipeline {
 
     List<String> args = [
       "-y",
+      "-threads",
+      "0",
       "-ss",
       start.toStringAsFixed(3),
       "-to",
@@ -196,7 +198,7 @@ class TransformationPipeline {
 
         final String streamLabels = mixStreams.join('');
         complexBuf.write(
-          "${streamLabels}amix=inputs=$mixInputs:duration=first:weights=$weights[aout]"
+          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0:weights=$weights[aout]"
         );
 
         args.addAll([
