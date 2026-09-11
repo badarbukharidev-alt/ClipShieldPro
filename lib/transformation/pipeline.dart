@@ -9,6 +9,9 @@ import 'layers/color_layer.dart';
 import 'layers/gamma_layer.dart';
 import 'layers/audio_conditioning_layer.dart';
 import 'layers/codec_normalization_layer.dart';
+import 'layers/blur_layer.dart';
+import 'layers/background_music_layer.dart';
+import 'layers/reverb_layer.dart';
 
 class TransformationPipeline {
   final HarmonicAudioLayer harmonicAudio = HarmonicAudioLayer();
@@ -20,6 +23,9 @@ class TransformationPipeline {
   final GammaLayer gamma = GammaLayer();
   final AudioConditioningLayer audioConditioning = AudioConditioningLayer();
   final CodecNormalizationLayer codecNormalization = CodecNormalizationLayer();
+  final BlurLayer blur = BlurLayer();
+  final BackgroundMusicLayer backgroundMusic = BackgroundMusicLayer();
+  final ReverbLayer reverb = ReverbLayer();
 
   PipelinePreset _currentPreset = PipelinePreset.balanced;
   PipelinePreset get currentPreset => _currentPreset;
@@ -41,6 +47,9 @@ class TransformationPipeline {
         gamma,
         audioConditioning,
         codecNormalization,
+        blur,
+        backgroundMusic,
+        reverb,
       ];
 
   void applyPreset(PipelinePreset preset) {
@@ -57,6 +66,9 @@ class TransformationPipeline {
         gamma.isEnabled = false;
         audioConditioning.isEnabled = false;
         codecNormalization.isEnabled = true;
+        blur.isEnabled = false;
+        backgroundMusic.isEnabled = false;
+        reverb.isEnabled = false;
         break;
 
       case PipelinePreset.balanced:
@@ -144,27 +156,54 @@ class TransformationPipeline {
     final vfString = vfList.join(',');
     final bool useAudioConditioning =
         audioConditioning.isEnabled && context.hasAudio;
+    final bool useBackgroundMusic =
+        backgroundMusic.isEnabled && context.hasAudio;
 
     if (context.hasAudio) {
       final afString = afList.isNotEmpty
           ? "aformat=sample_rates=44100:channel_layouts=stereo,${afList.join(',')}"
           : "aformat=sample_rates=44100:channel_layouts=stereo";
 
-      if (useAudioConditioning) {
-        final double noiseAmp = audioConditioning.getNoiseAmplitude();
-        final filterComplex =
-            "[0:v]$vfString[vout];"
-            "[0:a]$afString[aprocessed];"
+      if (useAudioConditioning || useBackgroundMusic) {
+        final StringBuffer complexBuf = StringBuffer();
+        complexBuf.write("[0:v]$vfString[vout];");
+        complexBuf.write("[0:a]$afString[aprocessed];");
+        
+        int mixInputs = 1; // [aprocessed]
+        String weights = "1";
+        List<String> mixStreams = ["[aprocessed]"];
+
+        if (useAudioConditioning) {
+          final double noiseAmp = audioConditioning.getNoiseAmplitude();
+          complexBuf.write(
             "anoisesrc=d=${(clipDuration + 5.0).toInt()}:c=white:a=${noiseAmp.toStringAsFixed(10)},aformat=sample_rates=44100:channel_layouts=stereo[n];"
-            "[aprocessed][n]amix=inputs=2:duration=first:weights=1 1[aout]";
+          );
+          mixStreams.add("[n]");
+          mixInputs++;
+          weights += " 1";
+        }
+
+        if (useBackgroundMusic) {
+          final int freq = backgroundMusic.getAmbientFrequency();
+          final double amp = backgroundMusic.getAmbientAmplitude();
+          complexBuf.write(
+            "sine=frequency=$freq:duration=${(clipDuration + 5.0).toInt()}:sample_rate=44100,volume=${amp.toStringAsFixed(8)},aformat=sample_rates=44100:channel_layouts=stereo[bgm];"
+          );
+          mixStreams.add("[bgm]");
+          mixInputs++;
+          weights += " 1";
+        }
+
+        final String streamLabels = mixStreams.join('');
+        complexBuf.write(
+          "${streamLabels}amix=inputs=$mixInputs:duration=first:weights=$weights[aout]"
+        );
 
         args.addAll([
           "-filter_complex",
-          filterComplex,
-          "-map",
-          "[vout]",
-          "-map",
-          "[aout]",
+          complexBuf.toString(),
+          "-map", "[vout]",
+          "-map", "[aout]",
         ]);
       } else {
         final filterComplex =

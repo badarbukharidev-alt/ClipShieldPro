@@ -10,6 +10,7 @@ import 'projects_history_screen.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
 import 'transform_pipeline_screen.dart';
+import 'song_remover_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,6 +63,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   mode: mode,
                   sourceType: sourceType,
                   source: sourcePathOrUrl,
+                ),
+              ),
+            );
+          } else if (mode == AppMode.songRemover) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SongRemoverScreen(
+                  sourcePathOrUrl: sourcePathOrUrl,
+                  sourceType: sourceType,
                 ),
               ),
             );
@@ -351,6 +362,91 @@ class _HomeScreenState extends State<HomeScreen> {
                             SizedBox(width: 6),
                             Text(
                               "Start clipping",
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // THIRD MODE: SONGS REMOVER
+              GestureDetector(
+                onTap: () => _openCreateProjectModal(defaultMode: AppMode.songRemover),
+                child: Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLime,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accentLime.withOpacity(0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              "NEW · AUDIO DSP",
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.music_note, color: Colors.white, size: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Songs Remover",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Process audio with full DSP controls, add cover image, and export as video.",
+                        style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.35),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.music_video, color: AppColors.ink, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              "Process Audio",
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,

@@ -4,6 +4,8 @@ import 'package:path/path.dart' as path;
 import '../transformation/pipeline.dart';
 import '../transformation/layer.dart';
 import 'media_probe_service.dart';
+import '../transformation/song_remover_pipeline.dart';
+import '../models/audio_dsp_config.dart';
 
 class FfmpegEngineService {
   /// Executes a single video transformation render.
@@ -157,5 +159,75 @@ class FfmpegEngineService {
       logCallback("Validation Error: Probe inspection failed ($e).");
       return false;
     }
+  }
+
+  /// Renders audio with DSP processing for Songs Remover module.
+  Future<String> renderSongRemoverAudio({
+    required String inputPath,
+    required String outputPath,
+    required AudioDspConfig config,
+    required Function(double progress, String stage) onProgress,
+    required Function(String log) logCallback,
+  }) async {
+    final pipeline = SongRemoverPipeline();
+    onProgress(0.1, "Building audio DSP chain...");
+
+    final args = pipeline.buildAudioDspArgs(
+      inputPath: inputPath,
+      outputPath: outputPath,
+      config: config,
+      logCallback: logCallback,
+    );
+
+    logCallback("Dispatching audio DSP FFmpeg session...");
+    onProgress(0.3, "Processing audio...");
+
+    final session = await FFmpegKit.executeWithArguments(args);
+    final returnCode = await session.getReturnCode();
+
+    if (returnCode == null || !returnCode.isValueSuccess()) {
+      final logs = await session.getLogsAsString();
+      logCallback("Audio DSP failed: $logs");
+      throw Exception("Audio DSP processing failed");
+    }
+
+    onProgress(0.8, "Audio processing complete!");
+    return outputPath;
+  }
+
+  /// Composes a static cover image + processed audio into a final video.
+  Future<String> composeCoverVideo({
+    required String imagePath,
+    required String audioPath,
+    required String outputPath,
+    required bool isWidescreen,
+    required Function(double progress, String stage) onProgress,
+    required Function(String log) logCallback,
+  }) async {
+    final pipeline = SongRemoverPipeline();
+    onProgress(0.1, "Preparing cover image composition...");
+
+    final args = pipeline.buildImageVideoArgs(
+      imagePath: imagePath,
+      audioPath: audioPath,
+      outputPath: outputPath,
+      isWidescreen: isWidescreen,
+      logCallback: logCallback,
+    );
+
+    logCallback("Dispatching image+audio composition...");
+    onProgress(0.3, "Composing video...");
+
+    final session = await FFmpegKit.executeWithArguments(args);
+    final returnCode = await session.getReturnCode();
+
+    if (returnCode == null || !returnCode.isValueSuccess()) {
+      final logs = await session.getLogsAsString();
+      logCallback("Composition failed: $logs");
+      throw Exception("Cover image + audio composition failed");
+    }
+
+    onProgress(0.9, "Composition complete!");
+    return outputPath;
   }
 }

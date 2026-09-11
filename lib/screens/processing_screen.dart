@@ -58,10 +58,19 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           "Applying audio transformations",
           "Geometric perturbation layer",
           "Color & gamma defense layer",
+          "Blur & ambient layers",
           "Encoding protected output",
-          "Finalizing & thumbnail export",
         ]
-      : const [
+      : widget.project.mode == AppMode.songRemover
+          ? const [
+              "Extracting audio stream",
+              "Applying DSP transformations",
+              "Processing output mode",
+              "Compositing cover image",
+              "Encoding final output",
+              "Generating thumbnail",
+            ]
+          : const [
           "Probing & source verification",
           "Aspect reframing & boundary clamping",
           "Facial centroid subject tracking",

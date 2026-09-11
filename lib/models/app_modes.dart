@@ -1,11 +1,13 @@
 enum AppMode {
   longVideoToShorts,
   transformAndProtect,
+  songRemover,
 }
 
 enum SourceType {
   youtubeUrl,
   localVideo,
+  localAudio,
 }
 
 enum PipelinePreset {

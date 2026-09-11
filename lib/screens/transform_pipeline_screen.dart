@@ -306,11 +306,11 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "MODULAR PROCESSING LAYERS (9)",
+                        "MODULAR PROCESSING LAYERS (12)",
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
                       ),
                       Text(
-                        "${layers.where((l) => l.isEnabled).length}/9 Active",
+                        "${layers.where((l) => l.isEnabled).length}/12 Active",
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accentGrape),
                       ),
                     ],

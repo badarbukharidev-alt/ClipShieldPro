@@ -91,7 +91,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
 
   Future<void> _pickLocalFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.video,
+      type: _selectedMode == AppMode.songRemover ? FileType.any : FileType.video,
       allowMultiple: false,
     );
     if (result != null && result.files.single.path != null) {
@@ -280,6 +280,63 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            // Songs Remover Mode Button
+            GestureDetector(
+              onTap: () => setState(() => _selectedMode = AppMode.songRemover),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: _selectedMode == AppMode.songRemover ? AppColors.accentLime : AppColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _selectedMode == AppMode.songRemover ? AppColors.accentLime : AppColors.line,
+                    width: 1.5,
+                  ),
+                  boxShadow: _selectedMode == AppMode.songRemover
+                      ? [
+                          BoxShadow(
+                            color: AppColors.accentLime.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.music_note,
+                      size: 20,
+                      color: _selectedMode == AppMode.songRemover ? Colors.white : AppColors.accentLime,
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Songs Remover",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _selectedMode == AppMode.songRemover ? Colors.white : AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Audio DSP + Cover Image",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: _selectedMode == AppMode.songRemover ? Colors.white.withOpacity(0.8) : AppColors.mut,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
 
             // Source Tabs (YouTube URL vs Local Upload)
@@ -325,7 +382,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                         ),
                         child: Center(
                           child: Text(
-                            "Upload Video",
+                            _selectedMode == AppMode.songRemover ? "Upload Audio/Video" : "Upload Video",
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -595,7 +652,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: isMode1 ? AppColors.accentTangerine : AppColors.accentGrape,
+                backgroundColor: _selectedMode == AppMode.songRemover ? AppColors.accentLime : (isMode1 ? AppColors.accentTangerine : AppColors.accentGrape),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -603,13 +660,13 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    isMode1 ? Icons.auto_awesome : Icons.tune,
+                    _selectedMode == AppMode.songRemover ? Icons.music_video : (isMode1 ? Icons.auto_awesome : Icons.tune),
                     size: 20,
                     color: Colors.white,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isMode1 ? "Analyze with AI" : "Configure 9-Layer Transform",
+                    _selectedMode == AppMode.songRemover ? "Open Audio DSP Studio" : (isMode1 ? "Analyze with AI" : "Configure 12-Layer Transform"),
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ],
