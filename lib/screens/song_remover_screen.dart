@@ -115,6 +115,10 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
         inputPath: _localPath!,
         outputPath: previewPath,
         config: _config,
+        // The preview must use the same source characteristics as the real
+        // render, otherwise it previews a different chain than it produces.
+        sourceSampleRate: _probeInfo?.audioSampleRate ?? 44100,
+        sourceChannels: _probeInfo?.audioChannels ?? 2,
         logCallback: (_) {},
       );
 

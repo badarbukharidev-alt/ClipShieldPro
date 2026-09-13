@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipShield Pro — On-Device YouTube Clipper & Copyright Bypass Engine</title>
+  <meta name="description" content="AI-Powered On-Device YouTube Short Clipper, 16:9 Widescreen Video Copyright Protection Engine & Audio DSP Studio. 100% offline, private, and ultra-fast.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #F5F2EC;
+      --card: #FFFFFF;
+      --ink: #191722;
+      --mut: #726E7C;
+      --line: rgba(20, 18, 30, 0.08);
+      --line-strong: rgba(20, 18, 30, 0.14);
+
+      /* Primary Brand Color */
+      --accent-tangerine: #FF6A3D;
+      --soft-tangerine: #FFE9E1;
+
+      /* Secondary Accents */
+      --accent-grape: #7C5CFF;
+      --soft-grape: #ECE7FF;
+
+      --accent-lime: #12B56A;
+      --soft-lime: #DCF6E8;
+
+      --accent-ocean: #0AA5E0;
+      --soft-ocean: #DAF0FB;
+
+      --dark-bg: #0F0E13;
+      --dark-card: #191722;
+      --dark-line: rgba(255, 255, 255, 0.1);
+
+      --radius-sm: 12px;
+      --radius-md: 20px;
+      --radius-lg: 28px;
+      --radius-full: 9999px;
+
+      --shadow-soft: 0 10px 30px rgba(25, 23, 34, 0.05);
+      --shadow-hover: 0 18px 42px rgba(25, 23, 34, 0.09);
+      --shadow-primary: 0 12px 28px rgba(255, 106, 61, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.55;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Top Navigation */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(245, 242, 236, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0;
+    }
+
+    .nav-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: var(--accent-tangerine);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(255, 106, 61, 0.32);
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title span {
+      color: var(--accent-tangerine);
+    }
+
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--soft-tangerine);
+      color: var(--accent-tangerine);
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      text-decoration: none;
+      color: var(--mut);
+      font-size: 14.5px;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--ink);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14.5px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      padding: 12px 24px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.22s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent-tangerine);
+      color: #fff;
+      box-shadow: var(--shadow-primary);
+    }
+
+    .btn-primary:hover {
+      background: #f45b2d;
+      transform: translateY(-2px);
+      box-shadow: 0 16px 32px rgba(255, 106, 61, 0.45);
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      color: var(--ink);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .btn-secondary:hover {
+      background: #fff;
+      border-color: rgba(20, 18, 30, 0.22);
+      transform: translateY(-2px);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 68px 0 60px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border: 1px solid var(--line-strong);
+      padding: 6px 16px 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      margin-bottom: 24px;
+    }
+
+    .hero-pill-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-lime);
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px var(--soft-lime);
+    }
+
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 54px;
+      line-height: 1.12;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      max-width: 900px;
+      margin: 0 auto 20px;
+      color: var(--ink);
+    }
+
+    .hero-title em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent-tangerine) 0%, #ff8965 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--mut);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-weight: 500;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--mut);
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+
+    .hero-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Primary Modules Grid (Changed Layout: 3 Distinct Interactive Modes) */
+    .section-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 44px;
+    }
+
+    .section-eyebrow {
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      color: var(--accent-tangerine);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 36px;
+      letter-spacing: -1px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.22;
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      color: var(--mut);
+      font-size: 16px;
+    }
+
+    /* 3 Modes Layout */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 80px;
+    }
+
+    .mode-card {
+      background: var(--card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      padding: 32px 28px;
+      position: relative;
+      transition: all 0.28s ease;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .mode-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(20, 18, 30, 0.16);
+    }
+
+    .mode-badge {
+      align-self: flex-start;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      margin-bottom: 20px;
+    }
+
+    .mode-card.mode-orange .mode-badge {
+      background: var(--soft-tangerine);
+      color: var(--accent-tangerine);
+    }
+
+    .mode-card.mode-grape .mode-badge {
+      background: var(--soft-grape);
+      color: var(--accent-grape);
+    }
+
+    .mode-card.mode-lime .mode-badge {
+      background: var(--soft-lime);
+      color: var(--accent-lime);
+    }
+
+    .mode-icon-box {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .mode-orange .mode-icon-box { background: var(--soft-tangerine); color: var(--accent-tangerine); }
+    .mode-grape .mode-icon-box { background: var(--soft-grape); color: var(--accent-grape); }
+    .mode-lime .mode-icon-box { background: var(--soft-lime); color: var(--accent-lime); }
+
+    .mode-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--ink);
+    }
+
+    .mode-desc {
+      color: var(--mut);
+      font-size: 14.5px;
+      line-height: 1.55;
+      margin-bottom: 24px;
+      flex-grow: 1;
+    }
+
+    .mode-features {
+      list-style: none;
+      border-top: 1px solid var(--line);
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .mode-features li {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mode-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .mode-orange .mode-check { background: var(--soft-tangerine); color: var(--accent-tangerine); }
+    .mode-grape .mode-check { background: var(--soft-grape); color: var(--accent-grape); }
+    .mode-lime .mode-check { background: var(--soft-lime); color: var(--accent-lime); }
+
+    /* Interactive Live Studio Playground Section */
+    .playground-section {
+      background: #FFFFFF;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-soft);
+      padding: 48px 40px;
+      margin-bottom: 80px;
+    }
+
+    .playground-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .preview-phone-card {
+      background: var(--dark-bg);
+      border-radius: 32px;
+      padding: 20px;
+      color: #fff;
+      box-shadow: 0 30px 60px rgba(15, 14, 19, 0.28);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .phone-screen {
+      background: var(--dark-card);
+      border-radius: 20px;
+      padding: 24px 20px;
+      border: 1px solid var(--dark-line);
+    }
+
+    .phone-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .phone-pill {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-lime);
+      background: rgba(18, 181, 106, 0.16);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .dsp-slider-item {
+      margin-bottom: 16px;
+    }
+
+    .dsp-slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #ccc;
+    }
+
+    .dsp-slider-val {
+      color: var(--accent-tangerine);
+      font-weight: 800;
+      font-family: monospace;
+    }
+
+    .range-input {
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+      -webkit-appearance: none;
+      accent-color: var(--accent-tangerine);
+    }
+
+    .waveform-box {
+      height: 64px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 0 16px;
+      margin-top: 18px;
+    }
+
+    .wave-bar {
+      flex: 1;
+      background: var(--accent-tangerine);
+      border-radius: 2px;
+      transition: height 0.2s ease;
+      min-height: 4px;
+    }
+
+    /* 12 Layers Breakdown */
+    .layers-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 80px;
+    }
+
+    .layer-card {
+      background: var(--card);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      padding: 18px;
+      transition: all 0.2s;
+    }
+
+    .layer-card:hover {
+      border-color: var(--accent-tangerine);
+      transform: translateY(-2px);
+    }
+
+    .layer-num {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--accent-tangerine);
+      background: var(--soft-tangerine);
+      padding: 2px 7px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+
+    .layer-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+
+    .layer-text {
+      font-size: 12.5px;
+      color: var(--mut);
+      line-height: 1.45;
+    }
+
+    /* Pricing / Licensing */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 80px;
+      align-items: stretch;
+    }
+
+    .pricing-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 36px 30px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border: 2px solid var(--accent-tangerine);
+      box-shadow: 0 16px 38px rgba(255, 106, 61, 0.16);
+    }
+
+    .pricing-popular-tag {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent-tangerine);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.8px;
+    }
+
+    .tier-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .tier-price {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .tier-price span {
+      font-size: 15px;
+      color: var(--mut);
+      font-weight: 500;
+    }
+
+    .tier-desc {
+      font-size: 14px;
+      color: var(--mut);
+      margin-bottom: 24px;
+      flex-grow: 1;
+    }
+
+    /* Download Box */
+    .download-banner {
+      background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-card) 100%);
+      color: #fff;
+      border-radius: var(--radius-lg);
+      padding: 56px 44px;
+      text-align: center;
+      margin-bottom: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .download-banner h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 40px;
+      margin-bottom: 14px;
+      letter-spacing: -1px;
+    }
+
+    .download-banner p {
+      color: #a5a1b0;
+      font-size: 17px;
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 40px 0;
+      color: var(--mut);
+      font-size: 14px;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .modes-grid, .pricing-grid, .playground-layout {
+        grid-template-columns: 1fr;
+      }
+      .layers-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .hero-title {
+        font-size: 40px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .layers-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-title {
+        font-size: 32px;
+      }
+      .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="container nav-wrap">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2Z" fill="#FFFFFF"/>
+            <path d="M10 11L14 13.5L10 16V11Z" fill="#FF6A3D"/>
+          </svg>
+        </div>
+        <div class="brand-title">ClipShield <span>Pro</span></div>
+        <span class="nav-badge">v1.2.2</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#modes" class="nav-link">Core Modes</a>
+        <a href="#dsp" class="nav-link">Audio Studio</a>
+        <a href="#layers" class="nav-link">12-Layer Defense</a>
+        <a href="#license" class="nav-link">Licensing</a>
+      </nav>
+
+      <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+        </svg>
+        Download APK (176 MB)
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-pill">
+        <div class="hero-pill-dot"></div>
+        <span>v1.2.2 Offline Production Release &bull; 100% On-Device Engine</span>
+      </div>
+
+      <h1 class="hero-title">
+        The Ultimate On-Device Studio for <em>YouTube Automation</em>
+      </h1>
+
+      <p class="hero-subtitle">
+        Clip viral shorts with AI, bypass visual and acoustic copyright tracking with an on-device 12-layer DSP engine, and master songs with precision sliders — completely private and free of cloud API fees.
+      </p>
+
+      <div class="hero-cta-group">
+        <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary" style="font-size: 16px; padding: 15px 32px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+          </svg>
+          Direct APK Download
+        </a>
+
+        <a href="https://wa.me/923079031153?text=Hello%20ClipShield%20Pro%20Admin" target="_blank" class="btn btn-secondary" style="font-size: 16px; padding: 15px 28px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#12B56A">
+            <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
+          </svg>
+          Get Activation Key (WhatsApp)
+        </a>
+      </div>
+
+      <div class="hero-meta">
+        <span>⚡ Hardware Multi-Thread FFmpeg</span>
+        <span>🔒 Zero Cloud Uploads</span>
+        <span>📺 16:9 & 9:16 Preservation</span>
+        <span>📱 Android 8.0+ Ready</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 Primary Execution Modes (Simplified & Intuitive Layout) -->
+  <section class="container" id="modes">
+    <div class="section-header">
+      <span class="section-eyebrow">Modular Architecture</span>
+      <h2 class="section-title">Three Dedicated Creative Workflows</h2>
+      <p class="section-desc">Everything YouTube automation creators need to extract, protect, and publish high-retention media in seconds.</p>
+    </div>
+
+    <div class="modes-grid">
+      <!-- Mode 1: Long Video Copyright Remover -->
+      <div class="mode-card mode-orange">
+        <span class="mode-badge">CORE WORKFLOW</span>
+        <div class="mode-icon-box">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2ZM12 4.15L18 6.4V11C18 15.25 15.42 19.08 12 19.93C8.58 19.08 6 15.25 6 11V6.4L12 4.15Z"/>
+          </svg>
+        </div>
+        <h3 class="mode-title">Copyright Remover</h3>
+        <p class="mode-desc">Preserves original 16:9 widescreen canvas while passing through a 12-layer geometric and spectral perturbation pipeline.</p>
+        <ul class="mode-features">
+          <li><span class="mode-check">&check;</span> 16:9 Widescreen Aspect Preservation</li>
+          <li><span class="mode-check">&check;</span> Signed-Jitter Color & Dynamic Range</li>
+          <li><span class="mode-check">&check;</span> 5-Band Harmonic Audio Decorrelation</li>
+          <li><span class="mode-check">&check;</span> Hardware Fused Video Filters (Fast)</li>
+        </ul>
+      </div>
+
+      <!-- Mode 2: Long Video to Shorts -->
+      <div class="mode-card mode-grape">
+        <span class="mode-badge">VIRAL CLIPPING</span>
+        <div class="mode-icon-box">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM10 16V8L16 12L10 16Z"/>
+          </svg>
+        </div>
+        <h3 class="mode-title">Long Video &rarr; Shorts</h3>
+        <p class="mode-desc">Turns podcast episodes, streams, and lectures into viral 9:16 Shorts with automated hook detection and face centering.</p>
+        <ul class="mode-features">
+          <li><span class="mode-check">&check;</span> AI Transcript & Hook Analysis</li>
+          <li><span class="mode-check">&check;</span> Facial Centroid Subject Tracking</li>
+          <li><span class="mode-check">&check;</span> Instant 9:16 Vertical Reframing</li>
+          <li><span class="mode-check">&check;</span> Batch Queue Background Rendering</li>
+        </ul>
+      </div>
+
+      <!-- Mode 3: Song Remover & Audio DSP Studio -->
+      <div class="mode-card mode-lime">
+        <span class="mode-badge">AUDIO STUDIO</span>
+        <div class="mode-icon-box">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3V13.55C11.41 13.21 10.73 13 10 13C7.79 13 6 14.79 6 17C6 19.21 7.79 21 10 21C12.21 21 14 19.21 14 17V7H18V3H12Z"/>
+          </svg>
+        </div>
+        <h3 class="mode-title">Songs Remover (DSP)</h3>
+        <p class="mode-desc">Fine-tune audio with 10 DSP parameter sliders, isolate stems (Full Mix, Vocal, Instrumental), and attach custom cover art.</p>
+        <ul class="mode-features">
+          <li><span class="mode-check">&check;</span> Pitch, Tempo, EQ & Reverb Sliders</li>
+          <li><span class="mode-check">&check;</span> ITU-R BS.1770 Loudness Normalizer</li>
+          <li><span class="mode-check">&check;</span> Instant 10s Audio Preview</li>
+          <li><span class="mode-check">&check;</span> 16:9 / 9:16 Cover Image Video Synthesizer</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Studio Playground -->
+  <section class="container" id="dsp">
+    <div class="playground-section">
+      <div class="playground-layout">
+        <div>
+          <span class="section-eyebrow">Real-Time DSP Engine</span>
+          <h2 class="section-title">Full Master Audio Controls at Your Fingertips</h2>
+          <p class="section-desc" style="margin-bottom: 24px;">
+            Adjust sliders to apply micro-shifts. The changes bypass YouTube Content ID and automated acoustic fingerprinting while keeping speech sounding completely clear and natural.
+          </p>
+
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
+            <span style="background: var(--soft-lime); color: var(--accent-lime); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">&plusmn;0.5-1.5 dB Volume</span>
+            <span style="background: var(--soft-tangerine); color: var(--accent-tangerine); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">&plusmn;1-2% Tempo Shift</span>
+            <span style="background: var(--soft-grape); color: var(--accent-grape); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">5-Band Equalizer</span>
+          </div>
+
+          <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary">
+            Try Audio DSP Studio
+          </a>
+        </div>
+
+        <!-- Simulated Mobile Interface -->
+        <div class="preview-phone-card">
+          <div class="phone-screen">
+            <div class="phone-top">
+              <div>
+                <div style="font-size: 11px; color: #999; font-weight: 700;">LIVE ON-DEVICE DSP</div>
+                <div style="font-size: 16px; font-weight: 800;">Audio Processing Unit</div>
+              </div>
+              <span class="phone-pill">ACTIVE &bull; 44.1 kHz</span>
+            </div>
+
+            <!-- Sliders -->
+            <div class="dsp-slider-item">
+              <div class="dsp-slider-header">
+                <span>Volume Shift</span>
+                <span class="dsp-slider-val" id="val-vol">+1.2 dB</span>
+              </div>
+              <input type="range" min="-3" max="3" step="0.1" value="1.2" class="range-input" oninput="document.getElementById('val-vol').innerText = (this.value > 0 ? '+' : '') + this.value + ' dB'; animateBars();">
+            </div>
+
+            <div class="dsp-slider-item">
+              <div class="dsp-slider-header">
+                <span>5-Band EQ Gain</span>
+                <span class="dsp-slider-val" id="val-eq">&plusmn;1.5 dB</span>
+              </div>
+              <input type="range" min="0" max="4" step="0.1" value="1.5" class="range-input" oninput="document.getElementById('val-eq').innerText = '&plusmn;' + this.value + ' dB'; animateBars();">
+            </div>
+
+            <div class="dsp-slider-item">
+              <div class="dsp-slider-header">
+                <span>Tempo Variance</span>
+                <span class="dsp-slider-val" id="val-tempo">+1.0%</span>
+              </div>
+              <input type="range" min="-5" max="5" step="0.1" value="1.0" class="range-input" oninput="document.getElementById('val-tempo').innerText = (this.value > 0 ? '+' : '') + this.value + '%'; animateBars();">
+            </div>
+
+            <div class="dsp-slider-item">
+              <div class="dsp-slider-header">
+                <span>Pitch Micro-Modulation</span>
+                <span class="dsp-slider-val" id="val-pitch">+0.6%</span>
+              </div>
+              <input type="range" min="-3" max="3" step="0.1" value="0.6" class="range-input" oninput="document.getElementById('val-pitch').innerText = (this.value > 0 ? '+' : '') + this.value + '%'; animateBars();">
+            </div>
+
+            <!-- Visualizer Waveform -->
+            <div class="waveform-box" id="waveform">
+              <div class="wave-bar" style="height: 24px;"></div>
+              <div class="wave-bar" style="height: 48px;"></div>
+              <div class="wave-bar" style="height: 32px;"></div>
+              <div class="wave-bar" style="height: 52px;"></div>
+              <div class="wave-bar" style="height: 40px;"></div>
+              <div class="wave-bar" style="height: 58px;"></div>
+              <div class="wave-bar" style="height: 36px;"></div>
+              <div class="wave-bar" style="height: 46px;"></div>
+              <div class="wave-bar" style="height: 28px;"></div>
+              <div class="wave-bar" style="height: 50px;"></div>
+              <div class="wave-bar" style="height: 38px;"></div>
+              <div class="wave-bar" style="height: 22px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12-Layer Defense Architecture -->
+  <section class="container" id="layers">
+    <div class="section-header">
+      <span class="section-eyebrow">Deep Defense Stack</span>
+      <h2 class="section-title">12 Mathematical Transformation Layers</h2>
+      <p class="section-desc">Each layer introduces microscopic, inaudible, and imperceptible variations that thoroughly decouple the output fingerprint from the source.</p>
+    </div>
+
+    <div class="layers-grid">
+      <div class="layer-card">
+        <span class="layer-num">01</span>
+        <div class="layer-title">Harmonic Modulation</div>
+        <div class="layer-text">Micro-pitch shifting (&plusmn;0.4 to 1.5 semitones) without altering speech speed.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">02</span>
+        <div class="layer-title">5-Band Parametric EQ</div>
+        <div class="layer-text">Selective frequency curve reshaping between 80Hz and 15kHz.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">03</span>
+        <div class="layer-title">Spatial Decorrelation</div>
+        <div class="layer-text">Subtle stereo phase delays for soundstage widening without comb filtering.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">04</span>
+        <div class="layer-title">Geometric Trimming</div>
+        <div class="layer-text">Sub-pixel canvas offset and dynamic micro-crop perimeter shifting.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">05</span>
+        <div class="layer-title">Bicubic Resampling</div>
+        <div class="layer-text">Square pixel aspect normalization (`setsar=1`) and crisp scaling.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">06</span>
+        <div class="layer-title">Color Defense</div>
+        <div class="layer-text">Signed-jitter hue rotation (&plusmn;4&deg; to 9&deg;) and contrast perturbation.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">07</span>
+        <div class="layer-title">Gamma Calibration</div>
+        <div class="layer-text">Dynamic mid-tone and shadow curve adjustments avoiding visible degradation.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">08</span>
+        <div class="layer-title">Audio Conditioning</div>
+        <div class="layer-text">Spectral dithering and in-line aphaser audio signature dispersal.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">09</span>
+        <div class="layer-title">Codec Normalization</div>
+        <div class="layer-text">Complete metadata purge, NLE encoder spoofing, and GOP randomization.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">10</span>
+        <div class="layer-title">Gaussian/Box Blur</div>
+        <div class="layer-text">Sub-pixel softening for pixel-level visual fingerprint disruption.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">11</span>
+        <div class="layer-title">Ambient Tone Layer</div>
+        <div class="layer-text">Inaudible -35dB acoustic noise floor shifting audio spectral hashes.</div>
+      </div>
+
+      <div class="layer-card">
+        <span class="layer-num">12</span>
+        <div class="layer-title">Micro-Reverb Defense</div>
+        <div class="layer-text">Imperceptible 10-25ms reverb tail for audio waveform disruption.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Licensing & Key Generation -->
+  <section class="container" id="license">
+    <div class="section-header">
+      <span class="section-eyebrow">Simple Licensing</span>
+      <h2 class="section-title">Hardware-Bound Offline Activation</h2>
+      <p class="section-desc">Every key is cryptographically signed with HMAC-SHA256 tied to your unique Device ID. Fully offline, no phone-home servers.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Tier 1: 1 Month -->
+      <div class="pricing-card">
+        <div class="tier-name">1 Month Pass</div>
+        <div class="tier-price">30 <span>Days</span></div>
+        <p class="tier-desc">Ideal for agency creators testing out viral content strategies or batching shorts for clients.</p>
+        <ul class="mode-features" style="margin-bottom: 24px;">
+          <li><span class="mode-check">&check;</span> 30 Days Unrestricted Access</li>
+          <li><span class="mode-check">&check;</span> Unlimited Copyright Remover</li>
+          <li><span class="mode-check">&check;</span> Unlimited Shorts & Songs</li>
+        </ul>
+        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%201%20Month%20License" target="_blank" class="btn btn-secondary">Get 1 Month Key</a>
+      </div>
+
+      <!-- Tier 2: Lifetime (Featured) -->
+      <div class="pricing-card featured">
+        <span class="pricing-popular-tag">MOST POPULAR</span>
+        <div class="tier-name">Lifetime Pro</div>
+        <div class="tier-price">Permanent <span>Access</span></div>
+        <p class="tier-desc">The ultimate choice for serious YouTube automation channels and high-output editors.</p>
+        <ul class="mode-features" style="margin-bottom: 24px;">
+          <li><span class="mode-check">&check;</span> Lifetime Device Activation</li>
+          <li><span class="mode-check">&check;</span> All Future v1.x & v2.x Updates</li>
+          <li><span class="mode-check">&check;</span> Priority WhatsApp VIP Support</li>
+          <li><span class="mode-check">&check;</span> Unlimited Everything</li>
+        </ul>
+        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%20Lifetime%20License" target="_blank" class="btn btn-primary">Get Lifetime Key</a>
+      </div>
+
+      <!-- Tier 3: Video Pack -->
+      <div class="pricing-card">
+        <div class="tier-name">Video Pack</div>
+        <div class="tier-price">Per-Clip <span>Credits</span></div>
+        <p class="tier-desc">Pay as you go. Decrements one credit only after a genuinely completed, verified export.</p>
+        <ul class="mode-features" style="margin-bottom: 24px;">
+          <li><span class="mode-check">&check;</span> Configurable 5, 10, or 25 Videos</li>
+          <li><span class="mode-check">&check;</span> No Expiration Date</li>
+          <li><span class="mode-check">&check;</span> Safe Render Guarantee</li>
+        </ul>
+        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%20Video%20Pack" target="_blank" class="btn btn-secondary">Get Video Pack</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Call-to-Action Banner -->
+  <section class="container">
+    <div class="download-banner">
+      <h2>Start Automating Your Channel Today</h2>
+      <p>Download ClipShield Pro v1.2.2 directly to your Android phone. No subscriptions, no cloud queue waits, and no telemetry.</p>
+
+      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary" style="font-size: 16px; padding: 16px 36px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+          </svg>
+          Download v1.2.2 APK (176 MB)
+        </a>
+
+        <a href="https://github.com/badarbukharidev-alt/ClipShieldPro" target="_blank" class="btn btn-secondary" style="background: rgba(255,255,255,0.08); color: #fff; border-color: rgba(255,255,255,0.18);">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-content">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 24px; height: 24px; background: var(--accent-tangerine); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold;">CS</div>
+        <span style="font-weight: 700; color: var(--ink);">ClipShield Pro</span>
+        <span>&bull; Built for Creators</span>
+      </div>
+
+      <div>
+        WhatsApp Support: <a href="https://wa.me/923079031153" style="color: var(--accent-tangerine); font-weight: 700; text-decoration: none;">+92 307 9031153</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function animateBars() {
+      const bars = document.querySelectorAll('.wave-bar');
+      bars.forEach(bar => {
+        const randomH = Math.floor(Math.random() * 45) + 15;
+        bar.style.height = randomH + 'px';
+      });
+    }
+
+    // Auto subtle pulse on visualizer
+    setInterval(() => {
+      const bars = document.querySelectorAll('.wave-bar');
+      bars.forEach((bar, idx) => {
+        const offset = Math.sin(Date.now() / 300 + idx) * 12 + 28;
+        bar.style.height = Math.max(8, offset) + 'px';
+      });
+    }, 180);
+  </script>
+</body>
+</html>

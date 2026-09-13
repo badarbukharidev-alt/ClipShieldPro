@@ -227,6 +227,8 @@ class FfmpegEngineService {
     required String outputPath,
     required AudioDspConfig config,
     double? audioDuration,
+    int sourceSampleRate = 44100,
+    int sourceChannels = 2,
     required Function(double progress, String stage) onProgress,
     required Function(String log) logCallback,
   }) async {
@@ -238,6 +240,8 @@ class FfmpegEngineService {
       outputPath: outputPath,
       config: config,
       audioDuration: audioDuration,
+      sourceSampleRate: sourceSampleRate,
+      sourceChannels: sourceChannels,
       logCallback: logCallback,
     );
 

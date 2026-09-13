@@ -649,6 +649,8 @@ class RenderJobService {
         outputPath: audioPath,
         config: config,
         audioDuration: request.probeInfo.duration,
+        sourceSampleRate: request.probeInfo.audioSampleRate,
+        sourceChannels: request.probeInfo.audioChannels,
         onProgress: (p, s) {
           if (_cancelRequests.contains(projectId)) return;
           update(state.copyWith(progress: 0.1 + (p * 0.4), currentStage: 'Processing audio'));

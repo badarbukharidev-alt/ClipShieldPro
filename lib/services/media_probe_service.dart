@@ -8,6 +8,13 @@ class MediaProbeInfo {
   final double fps;
   final String format;
 
+  /// Audio channel count (1 = mono, 2 = stereo). 0 when there is no audio.
+  final int audioChannels;
+
+  /// Audio sample rate in Hz. Needed because pitch shifting via asetrate is
+  /// relative to the *source* rate, not a fixed 44100.
+  final int audioSampleRate;
+
   MediaProbeInfo({
     required this.duration,
     required this.width,
@@ -15,7 +22,12 @@ class MediaProbeInfo {
     required this.hasAudio,
     this.fps = 30.0,
     this.format = "mp4",
+    this.audioChannels = 0,
+    this.audioSampleRate = 44100,
   });
+
+  /// Centre-channel cancellation needs two genuinely distinct channels.
+  bool get isStereo => audioChannels >= 2;
 
   bool get isLandscape => width > height;
   bool get isPortrait => height >= width;
@@ -37,6 +49,8 @@ class MediaProbeService {
     int height = 0;
     bool hasAudio = false;
     double fps = 30.0;
+    int audioChannels = 0;
+    int audioSampleRate = 44100;
 
     final streams = info.getStreams();
     for (var stream in streams) {
@@ -53,6 +67,20 @@ class MediaProbeService {
         }
       } else if (type == "audio") {
         hasAudio = true;
+        final props = stream.getAllProperties();
+        final rawChannels = props?['channels'];
+        if (rawChannels is num) {
+          audioChannels = rawChannels.toInt();
+        } else if (rawChannels != null) {
+          audioChannels = int.tryParse(rawChannels.toString()) ?? 0;
+        }
+        if (audioChannels <= 0) {
+          // Fall back to the layout string when the channel count is absent.
+          final layout = stream.getChannelLayout()?.toLowerCase() ?? '';
+          audioChannels = layout.contains('mono') ? 1 : (layout.isEmpty ? 2 : 2);
+        }
+        audioSampleRate =
+            int.tryParse(stream.getSampleRate() ?? '') ?? audioSampleRate;
       }
     }
 
@@ -63,6 +91,8 @@ class MediaProbeService {
       hasAudio: hasAudio,
       fps: fps,
       format: info.getFormat() ?? "mp4",
+      audioChannels: audioChannels,
+      audioSampleRate: audioSampleRate > 0 ? audioSampleRate : 44100,
     );
   }
 }

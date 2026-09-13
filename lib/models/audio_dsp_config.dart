@@ -89,9 +89,18 @@ class AudioDspConfig {
       fadeInSec: map['fadeInSec']?.toDouble() ?? 1.5,
       fadeOutSec: map['fadeOutSec']?.toDouble() ?? 2.0,
       normalization: map['normalization'] ?? true,
-      outputMode: map['outputMode'] != null ? AudioOutputMode.values[map['outputMode']] : AudioOutputMode.fullMix,
+      outputMode: _outputModeFromIndex(map['outputMode']),
     );
   }
+}
+
+/// Index lookup that cannot throw on unknown or out-of-range stored values.
+AudioOutputMode _outputModeFromIndex(dynamic raw) {
+  final int? index = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+  if (index == null || index < 0 || index >= AudioOutputMode.values.length) {
+    return AudioOutputMode.fullMix;
+  }
+  return AudioOutputMode.values[index];
 }
 
 enum AudioOutputMode {
@@ -106,9 +115,9 @@ extension AudioOutputModeExt on AudioOutputMode {
       case AudioOutputMode.fullMix:
         return 'Full Mix';
       case AudioOutputMode.vocalOnly:
-        return 'Vocal Only';
+        return 'Vocal Focus';
       case AudioOutputMode.instrumentalOnly:
-        return 'Instrumental Only';
+        return 'Instrumental';
     }
   }
 
@@ -117,9 +126,9 @@ extension AudioOutputModeExt on AudioOutputMode {
       case AudioOutputMode.fullMix:
         return 'Process entire audio with all DSP effects';
       case AudioOutputMode.vocalOnly:
-        return 'Isolate and process vocals only';
+        return 'Emphasise centred vocals (approximate, not true isolation)';
       case AudioOutputMode.instrumentalOnly:
-        return 'Remove vocals, keep instrumental';
+        return 'Karaoke centre-cancellation; needs a stereo source';
     }
   }
 }
