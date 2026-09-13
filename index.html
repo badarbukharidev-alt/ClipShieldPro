@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ClipShield Pro — On-Device YouTube Clipper & Copyright Bypass Engine</title>
-  <meta name="description" content="AI-Powered On-Device YouTube Short Clipper, 16:9 Widescreen Video Copyright Protection Engine & Audio DSP Studio. 100% offline, private, and ultra-fast.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ClipShield Pro — Mobile App Dashboard UI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -16,1099 +15,1082 @@
       --ink: #191722;
       --mut: #726E7C;
       --line: rgba(20, 18, 30, 0.08);
-      --line-strong: rgba(20, 18, 30, 0.14);
+      --line-strong: rgba(20, 18, 30, 0.16);
 
-      /* Primary Brand Color */
       --accent-tangerine: #FF6A3D;
       --soft-tangerine: #FFE9E1;
 
-      /* Secondary Accents */
       --accent-grape: #7C5CFF;
       --soft-grape: #ECE7FF;
 
       --accent-lime: #12B56A;
       --soft-lime: #DCF6E8;
 
-      --accent-ocean: #0AA5E0;
-      --soft-ocean: #DAF0FB;
-
-      --dark-bg: #0F0E13;
       --dark-card: #191722;
-      --dark-line: rgba(255, 255, 255, 0.1);
+      --dark-bg: #0F0E13;
 
       --radius-sm: 12px;
-      --radius-md: 20px;
-      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-lg: 24px;
       --radius-full: 9999px;
 
-      --shadow-soft: 0 10px 30px rgba(25, 23, 34, 0.05);
-      --shadow-hover: 0 18px 42px rgba(25, 23, 34, 0.09);
-      --shadow-primary: 0 12px 28px rgba(255, 106, 61, 0.35);
+      --shadow-sm: 0 4px 12px rgba(25, 23, 34, 0.04);
+      --shadow-md: 0 10px 24px rgba(25, 23, 34, 0.08);
+      --shadow-accent: 0 8px 20px rgba(255, 106, 61, 0.35);
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
-      background-color: var(--bg);
+      background-color: #E7E3DA;
       color: var(--ink);
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.55;
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* Container */
-    .container {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
-
-    /* Top Navigation */
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(245, 242, 236, 0.88);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--line);
-      padding: 16px 0;
-    }
-
-    .nav-wrap {
+      min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      padding: 20px 10px;
     }
 
-    .brand {
+    /* Top Preview Bar for Desktop Browser */
+    .viewport-switch {
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 12px;
-      text-decoration: none;
-      color: var(--ink);
-    }
-
-    .brand-icon {
-      width: 42px;
-      height: 42px;
-      background: var(--accent-tangerine);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 6px 16px rgba(255, 106, 61, 0.32);
-    }
-
-    .brand-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 21px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .brand-title span {
-      color: var(--accent-tangerine);
-    }
-
-    .nav-badge {
-      font-size: 11px;
-      font-weight: 800;
-      background: var(--soft-tangerine);
-      color: var(--accent-tangerine);
-      padding: 3px 9px;
-      border-radius: var(--radius-full);
-      letter-spacing: 0.5px;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 32px;
-    }
-
-    .nav-link {
-      text-decoration: none;
-      color: var(--mut);
-      font-size: 14.5px;
-      font-weight: 600;
-      transition: color 0.2s;
-    }
-
-    .nav-link:hover {
-      color: var(--ink);
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 14.5px;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      padding: 12px 24px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.22s ease;
-      border: none;
-    }
-
-    .btn-primary {
-      background: var(--accent-tangerine);
-      color: #fff;
-      box-shadow: var(--shadow-primary);
-    }
-
-    .btn-primary:hover {
-      background: #f45b2d;
-      transform: translateY(-2px);
-      box-shadow: 0 16px 32px rgba(255, 106, 61, 0.45);
-    }
-
-    .btn-secondary {
-      background: var(--card);
-      color: var(--ink);
-      border: 1px solid var(--line-strong);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .btn-secondary:hover {
-      background: #fff;
-      border-color: rgba(20, 18, 30, 0.22);
-      transform: translateY(-2px);
-    }
-
-    /* Hero Section */
-    .hero {
-      padding: 68px 0 60px;
-      text-align: center;
-      position: relative;
-    }
-
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #fff;
-      border: 1px solid var(--line-strong);
-      padding: 6px 16px 6px 12px;
-      border-radius: var(--radius-full);
       font-size: 13px;
       font-weight: 700;
-      color: var(--ink);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-      margin-bottom: 24px;
-    }
-
-    .hero-pill-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--accent-lime);
-      border-radius: 50%;
-      box-shadow: 0 0 0 3px var(--soft-lime);
-    }
-
-    .hero-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 54px;
-      line-height: 1.12;
-      font-weight: 700;
-      letter-spacing: -1.5px;
-      max-width: 900px;
-      margin: 0 auto 20px;
-      color: var(--ink);
-    }
-
-    .hero-title em {
-      font-style: normal;
-      background: linear-gradient(135deg, var(--accent-tangerine) 0%, #ff8965 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .hero-subtitle {
-      font-size: 18px;
-      line-height: 1.6;
       color: var(--mut);
-      max-width: 680px;
-      margin: 0 auto 36px;
-      font-weight: 500;
     }
 
-    .hero-cta-group {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    .hero-meta {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      font-size: 13px;
-      color: var(--mut);
-      font-weight: 600;
-      flex-wrap: wrap;
-    }
-
-    .hero-meta span {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Primary Modules Grid (Changed Layout: 3 Distinct Interactive Modes) */
-    .section-header {
-      text-align: center;
-      max-width: 640px;
-      margin: 0 auto 44px;
-    }
-
-    .section-eyebrow {
-      text-transform: uppercase;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 1.4px;
-      color: var(--accent-tangerine);
-      margin-bottom: 10px;
-      display: block;
-    }
-
-    .section-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 36px;
-      letter-spacing: -1px;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1.22;
-      margin-bottom: 12px;
-    }
-
-    .section-desc {
-      color: var(--mut);
-      font-size: 16px;
-    }
-
-    /* 3 Modes Layout */
-    .modes-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-bottom: 80px;
-    }
-
-    .mode-card {
-      background: var(--card);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--line);
-      padding: 32px 28px;
-      position: relative;
-      transition: all 0.28s ease;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow-soft);
-    }
-
-    .mode-card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-hover);
-      border-color: rgba(20, 18, 30, 0.16);
-    }
-
-    .mode-badge {
-      align-self: flex-start;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      padding: 4px 10px;
-      border-radius: var(--radius-full);
-      margin-bottom: 20px;
-    }
-
-    .mode-card.mode-orange .mode-badge {
-      background: var(--soft-tangerine);
-      color: var(--accent-tangerine);
-    }
-
-    .mode-card.mode-grape .mode-badge {
-      background: var(--soft-grape);
-      color: var(--accent-grape);
-    }
-
-    .mode-card.mode-lime .mode-badge {
-      background: var(--soft-lime);
-      color: var(--accent-lime);
-    }
-
-    .mode-icon-box {
-      width: 54px;
-      height: 54px;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    .mode-orange .mode-icon-box { background: var(--soft-tangerine); color: var(--accent-tangerine); }
-    .mode-grape .mode-icon-box { background: var(--soft-grape); color: var(--accent-grape); }
-    .mode-lime .mode-icon-box { background: var(--soft-lime); color: var(--accent-lime); }
-
-    .mode-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: var(--ink);
-    }
-
-    .mode-desc {
-      color: var(--mut);
-      font-size: 14.5px;
-      line-height: 1.55;
-      margin-bottom: 24px;
-      flex-grow: 1;
-    }
-
-    .mode-features {
-      list-style: none;
-      border-top: 1px solid var(--line);
-      padding-top: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 11px;
-    }
-
-    .mode-features li {
-      font-size: 13.5px;
-      font-weight: 600;
-      color: var(--ink);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .mode-check {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 11px;
-      font-weight: bold;
-    }
-
-    .mode-orange .mode-check { background: var(--soft-tangerine); color: var(--accent-tangerine); }
-    .mode-grape .mode-check { background: var(--soft-grape); color: var(--accent-grape); }
-    .mode-lime .mode-check { background: var(--soft-lime); color: var(--accent-lime); }
-
-    /* Interactive Live Studio Playground Section */
-    .playground-section {
+    .viewport-btn {
       background: #FFFFFF;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow-soft);
-      padding: 48px 40px;
-      margin-bottom: 80px;
-    }
-
-    .playground-layout {
-      display: grid;
-      grid-template-columns: 1fr 1.15fr;
-      gap: 40px;
-      align-items: center;
-    }
-
-    .preview-phone-card {
-      background: var(--dark-bg);
-      border-radius: 32px;
-      padding: 20px;
-      color: #fff;
-      box-shadow: 0 30px 60px rgba(15, 14, 19, 0.28);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .phone-screen {
-      background: var(--dark-card);
-      border-radius: 20px;
-      padding: 24px 20px;
-      border: 1px solid var(--dark-line);
-    }
-
-    .phone-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .phone-pill {
-      font-size: 11px;
+      border: 1px solid var(--line-strong);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
       font-weight: 700;
-      color: var(--accent-lime);
-      background: rgba(18, 181, 106, 0.16);
-      padding: 4px 10px;
-      border-radius: 20px;
-    }
-
-    .dsp-slider-item {
-      margin-bottom: 16px;
-    }
-
-    .dsp-slider-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12.5px;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: #ccc;
-    }
-
-    .dsp-slider-val {
-      color: var(--accent-tangerine);
-      font-weight: 800;
-      font-family: monospace;
-    }
-
-    .range-input {
-      width: 100%;
-      height: 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.12);
-      outline: none;
-      -webkit-appearance: none;
-      accent-color: var(--accent-tangerine);
-    }
-
-    .waveform-box {
-      height: 64px;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      padding: 0 16px;
-      margin-top: 18px;
-    }
-
-    .wave-bar {
-      flex: 1;
-      background: var(--accent-tangerine);
-      border-radius: 2px;
-      transition: height 0.2s ease;
-      min-height: 4px;
-    }
-
-    /* 12 Layers Breakdown */
-    .layers-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 80px;
-    }
-
-    .layer-card {
-      background: var(--card);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--line);
-      padding: 18px;
+      cursor: pointer;
+      color: var(--ink);
       transition: all 0.2s;
     }
 
-    .layer-card:hover {
+    .viewport-btn.active {
+      background: var(--accent-tangerine);
+      color: #fff;
       border-color: var(--accent-tangerine);
-      transform: translateY(-2px);
     }
 
-    .layer-num {
+    /* Mobile Phone Shell */
+    .phone-container {
+      width: 100%;
+      max-width: 420px;
+      height: 890px;
+      background: var(--bg);
+      border-radius: 44px;
+      box-shadow: 0 35px 80px rgba(25, 23, 34, 0.25), 0 0 0 10px #191722, 0 0 0 12px rgba(25, 23, 34, 0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Fullscreen mode on small screens */
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+        background: var(--bg);
+      }
+      .viewport-switch {
+        display: none;
+      }
+      .phone-container {
+        max-width: 100%;
+        height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
+    /* Mobile Status Bar */
+    .status-bar {
+      height: 44px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      background: var(--bg);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .camera-notch {
+      width: 12px;
+      height: 12px;
+      background: #000;
+      border-radius: 50%;
+    }
+
+    /* Scrollable App Body */
+    .app-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 12px 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .app-body::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    /* App Header */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-badge {
+      width: 42px;
+      height: 42px;
+      background: var(--accent-tangerine);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 14px rgba(255, 106, 61, 0.3);
+    }
+
+    .header-title-block h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+
+    .header-title-block h1 span {
+      color: var(--accent-tangerine);
+    }
+
+    .license-pill {
+      font-size: 10.5px;
+      font-weight: 800;
+      background: var(--soft-lime);
+      color: var(--accent-lime);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 3px;
+    }
+
+    .license-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--accent-lime);
+      border-radius: 50%;
+    }
+
+    .settings-trigger {
+      width: 38px;
+      height: 38px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Quick One-Tap Input Card (The Easiest Way to Start) */
+    .quick-start-card {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-label {
       font-size: 11px;
       font-weight: 800;
-      color: var(--accent-tangerine);
-      background: var(--soft-tangerine);
-      padding: 2px 7px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--mut);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .layer-title {
-      font-size: 14.5px;
-      font-weight: 700;
-      margin-bottom: 4px;
+    .url-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      padding: 4px 6px 4px 12px;
+      transition: border-color 0.2s;
+    }
+
+    .url-input-wrap:focus-within {
+      border-color: var(--accent-tangerine);
+      background: #FFFFFF;
+    }
+
+    .url-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
       color: var(--ink);
     }
 
-    .layer-text {
+    .url-input::placeholder {
+      color: #9A96A4;
+      font-weight: 500;
+    }
+
+    .paste-btn {
+      background: var(--soft-tangerine);
+      color: var(--accent-tangerine);
+      border: none;
+      border-radius: 10px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .or-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0;
+      color: var(--mut);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .or-divider::before, .or-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .browse-files-btn {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px dashed var(--line-strong);
+      border-radius: var(--radius-md);
+      padding: 11px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .browse-files-btn:hover {
+      background: #EDEAE3;
+      border-color: var(--ink);
+    }
+
+    /* Mode Selection Tabs (Super Clear & Compact) */
+    .modes-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modes-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: rgba(20, 18, 30, 0.05);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      gap: 4px;
+    }
+
+    .mode-tab-btn {
+      border: none;
+      background: transparent;
+      padding: 10px 6px;
+      border-radius: 14px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--mut);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.22s ease;
+    }
+
+    .mode-tab-btn.active {
+      background: #FFFFFF;
+      color: var(--ink);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .mode-tab-btn.active.mode-orange {
+      color: var(--accent-tangerine);
+    }
+
+    .mode-tab-btn.active.mode-grape {
+      color: var(--accent-grape);
+    }
+
+    .mode-tab-btn.active.mode-lime {
+      color: var(--accent-lime);
+    }
+
+    /* Active Mode Detail Box */
+    .mode-detail-card {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .mode-detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .mode-badge-pill {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .pill-orange { background: var(--soft-tangerine); color: var(--accent-tangerine); }
+    .pill-grape { background: var(--soft-grape); color: var(--accent-grape); }
+    .pill-lime { background: var(--soft-lime); color: var(--accent-lime); }
+
+    .mode-detail-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      margin-top: 4px;
+    }
+
+    .mode-detail-desc {
       font-size: 12.5px;
       color: var(--mut);
       line-height: 1.45;
     }
 
-    /* Pricing / Licensing */
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-bottom: 80px;
-      align-items: stretch;
+    /* Dynamic Quick Mode Controls */
+    .mode-options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 700;
     }
 
-    .pricing-card {
-      background: var(--card);
+    .preset-chips {
+      display: flex;
+      gap: 6px;
+    }
+
+    .preset-chip {
+      background: #FFFFFF;
       border: 1px solid var(--line);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+    .preset-chip.active {
+      background: var(--ink);
+      color: #FFFFFF;
+      border-color: var(--ink);
+    }
+
+    /* Start Execution Action Button */
+    .launch-btn {
+      width: 100%;
+      border: none;
+      background: var(--accent-tangerine);
+      color: #FFFFFF;
       border-radius: var(--radius-md);
-      padding: 36px 30px;
+      padding: 15px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: var(--shadow-accent);
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .launch-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Live Render Progress Banner (Single Source of Truth) */
+    .render-banner {
+      background: var(--dark-card);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      color: #FFFFFF;
       display: flex;
       flex-direction: column;
-      position: relative;
+      gap: 8px;
+      border: 1px solid rgba(255, 106, 61, 0.4);
+      cursor: pointer;
     }
 
-    .pricing-card.featured {
-      border: 2px solid var(--accent-tangerine);
-      box-shadow: 0 16px 38px rgba(255, 106, 61, 0.16);
-    }
-
-    .pricing-popular-tag {
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent-tangerine);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 4px 14px;
-      border-radius: 20px;
-      letter-spacing: 0.8px;
-    }
-
-    .tier-name {
-      font-size: 18px;
+    .render-banner-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
       font-weight: 700;
-      margin-bottom: 8px;
     }
 
-    .tier-price {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 38px;
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: 12px;
-    }
-
-    .tier-price span {
-      font-size: 15px;
-      color: var(--mut);
-      font-weight: 500;
-    }
-
-    .tier-desc {
-      font-size: 14px;
-      color: var(--mut);
-      margin-bottom: 24px;
-      flex-grow: 1;
-    }
-
-    /* Download Box */
-    .download-banner {
-      background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-card) 100%);
-      color: #fff;
-      border-radius: var(--radius-lg);
-      padding: 56px 44px;
-      text-align: center;
-      margin-bottom: 80px;
-      position: relative;
+    .render-progress-track {
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
       overflow: hidden;
     }
 
-    .download-banner h2 {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 40px;
-      margin-bottom: 14px;
-      letter-spacing: -1px;
+    .render-progress-fill {
+      height: 100%;
+      width: 68%;
+      background: var(--accent-tangerine);
+      border-radius: 4px;
+      transition: width 0.3s ease;
     }
 
-    .download-banner p {
-      color: #a5a1b0;
-      font-size: 17px;
-      max-width: 600px;
-      margin: 0 auto 32px;
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid var(--line);
-      padding: 40px 0;
-      color: var(--mut);
-      font-size: 14px;
-    }
-
-    .footer-content {
+    .render-stage-text {
+      font-size: 11px;
+      color: #A5A1B0;
       display: flex;
       justify-content: space-between;
+    }
+
+    /* Recent Projects Horizontal Cards */
+    .recent-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .recent-header {
+      display: flex;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
+      justify-content: space-between;
     }
 
-    /* Responsive */
-    @media (max-width: 992px) {
-      .modes-grid, .pricing-grid, .playground-layout {
-        grid-template-columns: 1fr;
-      }
-      .layers-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .hero-title {
-        font-size: 40px;
-      }
+    .recent-header h3 {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--ink);
     }
 
-    @media (max-width: 600px) {
-      .layers-grid {
-        grid-template-columns: 1fr;
-      }
-      .hero-title {
-        font-size: 32px;
-      }
-      .nav-links {
-        display: none;
-      }
+    .see-all-btn {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-tangerine);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .recent-cards-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .recent-cards-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .project-card-mini {
+      flex: 0 0 160px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+    }
+
+    .project-card-thumb {
+      height: 90px;
+      background: #252230;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #fff;
+    }
+
+    .thumb-dur {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .project-card-info {
+      padding: 8px 10px;
+    }
+
+    .project-title-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .project-date-text {
+      font-size: 10.5px;
+      color: var(--mut);
+      margin-top: 2px;
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      height: 68px;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 12px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--mut);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: color 0.15s;
+    }
+
+    .nav-item.active {
+      color: var(--accent-tangerine);
+    }
+
+    .nav-item-center {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-tangerine);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(255, 106, 61, 0.4);
+      cursor: pointer;
+      border: none;
+      transform: translateY(-10px);
+    }
+
+    /* Modal dialog (Quick Info) */
+    .toast-popup {
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      right: 20px;
+      background: var(--dark-card);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-md);
+      transform: translateY(120%);
+      transition: transform 0.3s ease;
+      z-index: 50;
+    }
+
+    .toast-popup.visible {
+      transform: translateY(0);
     }
   </style>
 </head>
 <body>
 
-  <!-- Navigation Bar -->
-  <header>
-    <div class="container nav-wrap">
-      <a href="#" class="brand">
-        <div class="brand-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2Z" fill="#FFFFFF"/>
-            <path d="M10 11L14 13.5L10 16V11Z" fill="#FF6A3D"/>
-          </svg>
-        </div>
-        <div class="brand-title">ClipShield <span>Pro</span></div>
-        <span class="nav-badge">v1.2.2</span>
-      </a>
+  <!-- Desktop View Mode Toggle -->
+  <div class="viewport-switch">
+    <span>ClipShield Pro v1.2.2 Mobile Dashboard UI</span>
+    <button class="viewport-btn active" onclick="setFrameSize('phone')">📱 Mobile View</button>
+    <button class="viewport-btn" onclick="setFrameSize('tablet')">📲 Tablet View</button>
+  </div>
 
-      <nav class="nav-links">
-        <a href="#modes" class="nav-link">Core Modes</a>
-        <a href="#dsp" class="nav-link">Audio Studio</a>
-        <a href="#layers" class="nav-link">12-Layer Defense</a>
-        <a href="#license" class="nav-link">Licensing</a>
-      </nav>
+  <!-- Mobile Screen Container -->
+  <div class="phone-container" id="phoneBox">
 
-      <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-        </svg>
-        Download APK (176 MB)
-      </a>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="container">
-      <div class="hero-pill">
-        <div class="hero-pill-dot"></div>
-        <span>v1.2.2 Offline Production Release &bull; 100% On-Device Engine</span>
-      </div>
-
-      <h1 class="hero-title">
-        The Ultimate On-Device Studio for <em>YouTube Automation</em>
-      </h1>
-
-      <p class="hero-subtitle">
-        Clip viral shorts with AI, bypass visual and acoustic copyright tracking with an on-device 12-layer DSP engine, and master songs with precision sliders — completely private and free of cloud API fees.
-      </p>
-
-      <div class="hero-cta-group">
-        <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary" style="font-size: 16px; padding: 15px 32px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-          </svg>
-          Direct APK Download
-        </a>
-
-        <a href="https://wa.me/923079031153?text=Hello%20ClipShield%20Pro%20Admin" target="_blank" class="btn btn-secondary" style="font-size: 16px; padding: 15px 28px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#12B56A">
-            <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
-          </svg>
-          Get Activation Key (WhatsApp)
-        </a>
-      </div>
-
-      <div class="hero-meta">
-        <span>⚡ Hardware Multi-Thread FFmpeg</span>
-        <span>🔒 Zero Cloud Uploads</span>
-        <span>📺 16:9 & 9:16 Preservation</span>
-        <span>📱 Android 8.0+ Ready</span>
+    <!-- Mobile Status Bar -->
+    <div class="status-bar">
+      <span>09:41</span>
+      <div class="camera-notch"></div>
+      <div style="display: flex; gap: 5px; align-items: center;">
+        <svg width="15" height="11" viewBox="0 0 17 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="#191722"/><rect x="4.5" y="4.5" width="3" height="7.5" rx="1" fill="#191722"/><rect x="9" y="2" width="3" height="10" rx="1" fill="#191722"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="#191722"/></svg>
+        <span style="font-size: 11px;">5G</span>
       </div>
     </div>
-  </section>
 
-  <!-- 3 Primary Execution Modes (Simplified & Intuitive Layout) -->
-  <section class="container" id="modes">
-    <div class="section-header">
-      <span class="section-eyebrow">Modular Architecture</span>
-      <h2 class="section-title">Three Dedicated Creative Workflows</h2>
-      <p class="section-desc">Everything YouTube automation creators need to extract, protect, and publish high-retention media in seconds.</p>
-    </div>
+    <!-- Scrollable Body -->
+    <div class="app-body">
 
-    <div class="modes-grid">
-      <!-- Mode 1: Long Video Copyright Remover -->
-      <div class="mode-card mode-orange">
-        <span class="mode-badge">CORE WORKFLOW</span>
-        <div class="mode-icon-box">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2ZM12 4.15L18 6.4V11C18 15.25 15.42 19.08 12 19.93C8.58 19.08 6 15.25 6 11V6.4L12 4.15Z"/>
-          </svg>
+      <!-- Header -->
+      <div class="app-header">
+        <div class="header-left">
+          <div class="brand-logo-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2Z" fill="#FFFFFF"/>
+              <path d="M10 11L14 13.5L10 16V11Z" fill="#FF6A3D"/>
+            </svg>
+          </div>
+          <div class="header-title-block">
+            <h1>ClipShield <span>Studio</span></h1>
+            <div class="license-pill">
+              <span class="license-dot"></span>
+              <span>LIFETIME PRO ACTIVE</span>
+            </div>
+          </div>
         </div>
-        <h3 class="mode-title">Copyright Remover</h3>
-        <p class="mode-desc">Preserves original 16:9 widescreen canvas while passing through a 12-layer geometric and spectral perturbation pipeline.</p>
-        <ul class="mode-features">
-          <li><span class="mode-check">&check;</span> 16:9 Widescreen Aspect Preservation</li>
-          <li><span class="mode-check">&check;</span> Signed-Jitter Color & Dynamic Range</li>
-          <li><span class="mode-check">&check;</span> 5-Band Harmonic Audio Decorrelation</li>
-          <li><span class="mode-check">&check;</span> Hardware Fused Video Filters (Fast)</li>
-        </ul>
+
+        <button class="settings-trigger" title="Admin / Settings" onclick="showToast('Admin Settings • Master Key Authenticated')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191722" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
       </div>
 
-      <!-- Mode 2: Long Video to Shorts -->
-      <div class="mode-card mode-grape">
-        <span class="mode-badge">VIRAL CLIPPING</span>
-        <div class="mode-icon-box">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM10 16V8L16 12L10 16Z"/>
-          </svg>
+      <!-- Quick Start Box (The 1-Step Media Input) -->
+      <div class="quick-start-card">
+        <div class="card-label">
+          <span>Fast Input</span>
+          <span style="color: var(--accent-tangerine); font-weight: 700;">YouTube / Shorts / Local</span>
         </div>
-        <h3 class="mode-title">Long Video &rarr; Shorts</h3>
-        <p class="mode-desc">Turns podcast episodes, streams, and lectures into viral 9:16 Shorts with automated hook detection and face centering.</p>
-        <ul class="mode-features">
-          <li><span class="mode-check">&check;</span> AI Transcript & Hook Analysis</li>
-          <li><span class="mode-check">&check;</span> Facial Centroid Subject Tracking</li>
-          <li><span class="mode-check">&check;</span> Instant 9:16 Vertical Reframing</li>
-          <li><span class="mode-check">&check;</span> Batch Queue Background Rendering</li>
-        </ul>
+
+        <div class="url-input-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#FF0000">
+            <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+          </svg>
+          <input type="text" id="urlInput" class="url-input" placeholder="Paste YouTube link (https://...)">
+          <button class="paste-btn" onclick="pasteSampleUrl()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/>
+            </svg>
+            Paste
+          </button>
+        </div>
+
+        <div class="or-divider">OR</div>
+
+        <button class="browse-files-btn" onclick="showToast('Device Gallery Opened: Select MP4, MOV, or MP3')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+          Choose Video or Audio from Storage
+        </button>
       </div>
 
-      <!-- Mode 3: Song Remover & Audio DSP Studio -->
-      <div class="mode-card mode-lime">
-        <span class="mode-badge">AUDIO STUDIO</span>
-        <div class="mode-icon-box">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 3V13.55C11.41 13.21 10.73 13 10 13C7.79 13 6 14.79 6 17C6 19.21 7.79 21 10 21C12.21 21 14 19.21 14 17V7H18V3H12Z"/>
-          </svg>
+      <!-- Mode Selector (Compact, Intuitive Tabs) -->
+      <div class="modes-container">
+        <div class="card-label">
+          <span>Choose Action</span>
+          <span id="activeModeLabel" style="color: var(--accent-tangerine);">16:9 Copyright Remover</span>
         </div>
-        <h3 class="mode-title">Songs Remover (DSP)</h3>
-        <p class="mode-desc">Fine-tune audio with 10 DSP parameter sliders, isolate stems (Full Mix, Vocal, Instrumental), and attach custom cover art.</p>
-        <ul class="mode-features">
-          <li><span class="mode-check">&check;</span> Pitch, Tempo, EQ & Reverb Sliders</li>
-          <li><span class="mode-check">&check;</span> ITU-R BS.1770 Loudness Normalizer</li>
-          <li><span class="mode-check">&check;</span> Instant 10s Audio Preview</li>
-          <li><span class="mode-check">&check;</span> 16:9 / 9:16 Cover Image Video Synthesizer</li>
-        </ul>
-      </div>
-    </div>
-  </section>
 
-  <!-- Interactive Studio Playground -->
-  <section class="container" id="dsp">
-    <div class="playground-section">
-      <div class="playground-layout">
-        <div>
-          <span class="section-eyebrow">Real-Time DSP Engine</span>
-          <h2 class="section-title">Full Master Audio Controls at Your Fingertips</h2>
-          <p class="section-desc" style="margin-bottom: 24px;">
-            Adjust sliders to apply micro-shifts. The changes bypass YouTube Content ID and automated acoustic fingerprinting while keeping speech sounding completely clear and natural.
+        <div class="modes-tabs">
+          <button class="mode-tab-btn active mode-orange" id="tab-transform" onclick="selectMode('transform')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2Z"/>
+            </svg>
+            <span>Copyright</span>
+          </button>
+
+          <button class="mode-tab-btn" id="tab-shorts" onclick="selectMode('shorts')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM10 16V8L16 12L10 16Z"/>
+            </svg>
+            <span>AI Shorts</span>
+          </button>
+
+          <button class="mode-tab-btn" id="tab-songs" onclick="selectMode('songs')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3V13.55C11.41 13.21 10.73 13 10 13C7.79 13 6 14.79 6 17C6 19.21 7.79 21 10 21C12.21 21 14 19.21 14 17V7H18V3H12Z"/>
+            </svg>
+            <span>Song DSP</span>
+          </button>
+        </div>
+
+        <!-- Mode Detail & Fast Parameters Card -->
+        <div class="mode-detail-card" id="modeDetailCard">
+          <div class="mode-detail-header">
+            <div>
+              <span class="mode-badge-pill pill-orange" id="modeBadge">16:9 Widescreen Stream</span>
+              <div class="mode-detail-title" id="modeTitle">Long Video Copyright Remover</div>
+            </div>
+          </div>
+
+          <p class="mode-detail-desc" id="modeDesc">
+            Applies 12-layer geometric, chromatic, and acoustic signed-jitter perturbation without shrinking or reframing to 9:16.
           </p>
 
-          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
-            <span style="background: var(--soft-lime); color: var(--accent-lime); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">&plusmn;0.5-1.5 dB Volume</span>
-            <span style="background: var(--soft-tangerine); color: var(--accent-tangerine); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">&plusmn;1-2% Tempo Shift</span>
-            <span style="background: var(--soft-grape); color: var(--accent-grape); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700;">5-Band Equalizer</span>
-          </div>
-
-          <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary">
-            Try Audio DSP Studio
-          </a>
-        </div>
-
-        <!-- Simulated Mobile Interface -->
-        <div class="preview-phone-card">
-          <div class="phone-screen">
-            <div class="phone-top">
-              <div>
-                <div style="font-size: 11px; color: #999; font-weight: 700;">LIVE ON-DEVICE DSP</div>
-                <div style="font-size: 16px; font-weight: 800;">Audio Processing Unit</div>
-              </div>
-              <span class="phone-pill">ACTIVE &bull; 44.1 kHz</span>
-            </div>
-
-            <!-- Sliders -->
-            <div class="dsp-slider-item">
-              <div class="dsp-slider-header">
-                <span>Volume Shift</span>
-                <span class="dsp-slider-val" id="val-vol">+1.2 dB</span>
-              </div>
-              <input type="range" min="-3" max="3" step="0.1" value="1.2" class="range-input" oninput="document.getElementById('val-vol').innerText = (this.value > 0 ? '+' : '') + this.value + ' dB'; animateBars();">
-            </div>
-
-            <div class="dsp-slider-item">
-              <div class="dsp-slider-header">
-                <span>5-Band EQ Gain</span>
-                <span class="dsp-slider-val" id="val-eq">&plusmn;1.5 dB</span>
-              </div>
-              <input type="range" min="0" max="4" step="0.1" value="1.5" class="range-input" oninput="document.getElementById('val-eq').innerText = '&plusmn;' + this.value + ' dB'; animateBars();">
-            </div>
-
-            <div class="dsp-slider-item">
-              <div class="dsp-slider-header">
-                <span>Tempo Variance</span>
-                <span class="dsp-slider-val" id="val-tempo">+1.0%</span>
-              </div>
-              <input type="range" min="-5" max="5" step="0.1" value="1.0" class="range-input" oninput="document.getElementById('val-tempo').innerText = (this.value > 0 ? '+' : '') + this.value + '%'; animateBars();">
-            </div>
-
-            <div class="dsp-slider-item">
-              <div class="dsp-slider-header">
-                <span>Pitch Micro-Modulation</span>
-                <span class="dsp-slider-val" id="val-pitch">+0.6%</span>
-              </div>
-              <input type="range" min="-3" max="3" step="0.1" value="0.6" class="range-input" oninput="document.getElementById('val-pitch').innerText = (this.value > 0 ? '+' : '') + this.value + '%'; animateBars();">
-            </div>
-
-            <!-- Visualizer Waveform -->
-            <div class="waveform-box" id="waveform">
-              <div class="wave-bar" style="height: 24px;"></div>
-              <div class="wave-bar" style="height: 48px;"></div>
-              <div class="wave-bar" style="height: 32px;"></div>
-              <div class="wave-bar" style="height: 52px;"></div>
-              <div class="wave-bar" style="height: 40px;"></div>
-              <div class="wave-bar" style="height: 58px;"></div>
-              <div class="wave-bar" style="height: 36px;"></div>
-              <div class="wave-bar" style="height: 46px;"></div>
-              <div class="wave-bar" style="height: 28px;"></div>
-              <div class="wave-bar" style="height: 50px;"></div>
-              <div class="wave-bar" style="height: 38px;"></div>
-              <div class="wave-bar" style="height: 22px;"></div>
+          <!-- Quick Option Switcher -->
+          <div class="mode-options-row">
+            <span>Processing Preset</span>
+            <div class="preset-chips">
+              <span class="preset-chip" onclick="setChip(this)">Fast</span>
+              <span class="preset-chip active" onclick="setChip(this)">Balanced</span>
+              <span class="preset-chip" onclick="setChip(this)">Deep</span>
             </div>
           </div>
+
+          <!-- Direct Execution Button -->
+          <button class="launch-btn" id="launchBtn" onclick="triggerExecution()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <span id="launchBtnText">Start Copyright Protection</span>
+          </button>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- 12-Layer Defense Architecture -->
-  <section class="container" id="layers">
-    <div class="section-header">
-      <span class="section-eyebrow">Deep Defense Stack</span>
-      <h2 class="section-title">12 Mathematical Transformation Layers</h2>
-      <p class="section-desc">Each layer introduces microscopic, inaudible, and imperceptible variations that thoroughly decouple the output fingerprint from the source.</p>
-    </div>
-
-    <div class="layers-grid">
-      <div class="layer-card">
-        <span class="layer-num">01</span>
-        <div class="layer-title">Harmonic Modulation</div>
-        <div class="layer-text">Micro-pitch shifting (&plusmn;0.4 to 1.5 semitones) without altering speech speed.</div>
+      <!-- Live In-Progress Render Card -->
+      <div class="render-banner" onclick="showToast('Opening live render details...')">
+        <div class="render-banner-top">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; background: var(--accent-tangerine); border-radius: 50%; animation: pulse 1s infinite;"></div>
+            <span>Rendering in Background</span>
+          </div>
+          <span style="color: var(--accent-tangerine); font-weight: 800;">74%</span>
+        </div>
+        <div class="render-progress-track">
+          <div class="render-progress-fill"></div>
+        </div>
+        <div class="render-stage-text">
+          <span>Exporting: Joe_Rogan_Ep2104.mp4</span>
+          <span>16:9 &bull; Clip 1/1</span>
+        </div>
       </div>
 
-      <div class="layer-card">
-        <span class="layer-num">02</span>
-        <div class="layer-title">5-Band Parametric EQ</div>
-        <div class="layer-text">Selective frequency curve reshaping between 80Hz and 15kHz.</div>
+      <!-- Recent Projects Mini Carousel -->
+      <div class="recent-section">
+        <div class="recent-header">
+          <h3>Recent Projects</h3>
+          <a class="see-all-btn" onclick="showToast('Navigating to full Projects History tab')">See all (14)</a>
+        </div>
+
+        <div class="recent-cards-scroll">
+          <!-- Card 1 -->
+          <div class="project-card-mini" onclick="showToast('Opening Completed Project: Huberman_Lab_Focus')">
+            <div class="project-card-thumb">
+              <span class="thumb-badge" style="background: var(--accent-tangerine);">16:9 WIDE</span>
+              <span class="thumb-dur">12:40</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" opacity="0.85"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <div class="project-card-info">
+              <div class="project-title-text">Huberman_Lab_Focus</div>
+              <div class="project-date-text">Ready &bull; 2h ago</div>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="project-card-mini" onclick="showToast('Opening Completed Shorts: Lex_Fridman_AI')">
+            <div class="project-card-thumb">
+              <span class="thumb-badge" style="background: var(--accent-grape);">9:16 SHORTS</span>
+              <span class="thumb-dur">0:58</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" opacity="0.85"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <div class="project-card-info">
+              <div class="project-title-text">Lex_Fridman_AI</div>
+              <div class="project-date-text">5 Clips &bull; Yesterday</div>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="project-card-mini" onclick="showToast('Opening Completed Song: Lofi_Synth_Master')">
+            <div class="project-card-thumb">
+              <span class="thumb-badge" style="background: var(--accent-lime);">SONG DSP</span>
+              <span class="thumb-dur">03:15</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" opacity="0.85"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <div class="project-card-info">
+              <div class="project-title-text">Lofi_Synth_Master</div>
+              <div class="project-date-text">Stem Cleaned</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="layer-card">
-        <span class="layer-num">03</span>
-        <div class="layer-title">Spatial Decorrelation</div>
-        <div class="layer-text">Subtle stereo phase delays for soundstage widening without comb filtering.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">04</span>
-        <div class="layer-title">Geometric Trimming</div>
-        <div class="layer-text">Sub-pixel canvas offset and dynamic micro-crop perimeter shifting.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">05</span>
-        <div class="layer-title">Bicubic Resampling</div>
-        <div class="layer-text">Square pixel aspect normalization (`setsar=1`) and crisp scaling.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">06</span>
-        <div class="layer-title">Color Defense</div>
-        <div class="layer-text">Signed-jitter hue rotation (&plusmn;4&deg; to 9&deg;) and contrast perturbation.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">07</span>
-        <div class="layer-title">Gamma Calibration</div>
-        <div class="layer-text">Dynamic mid-tone and shadow curve adjustments avoiding visible degradation.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">08</span>
-        <div class="layer-title">Audio Conditioning</div>
-        <div class="layer-text">Spectral dithering and in-line aphaser audio signature dispersal.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">09</span>
-        <div class="layer-title">Codec Normalization</div>
-        <div class="layer-text">Complete metadata purge, NLE encoder spoofing, and GOP randomization.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">10</span>
-        <div class="layer-title">Gaussian/Box Blur</div>
-        <div class="layer-text">Sub-pixel softening for pixel-level visual fingerprint disruption.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">11</span>
-        <div class="layer-title">Ambient Tone Layer</div>
-        <div class="layer-text">Inaudible -35dB acoustic noise floor shifting audio spectral hashes.</div>
-      </div>
-
-      <div class="layer-card">
-        <span class="layer-num">12</span>
-        <div class="layer-title">Micro-Reverb Defense</div>
-        <div class="layer-text">Imperceptible 10-25ms reverb tail for audio waveform disruption.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Licensing & Key Generation -->
-  <section class="container" id="license">
-    <div class="section-header">
-      <span class="section-eyebrow">Simple Licensing</span>
-      <h2 class="section-title">Hardware-Bound Offline Activation</h2>
-      <p class="section-desc">Every key is cryptographically signed with HMAC-SHA256 tied to your unique Device ID. Fully offline, no phone-home servers.</p>
     </div>
 
-    <div class="pricing-grid">
-      <!-- Tier 1: 1 Month -->
-      <div class="pricing-card">
-        <div class="tier-name">1 Month Pass</div>
-        <div class="tier-price">30 <span>Days</span></div>
-        <p class="tier-desc">Ideal for agency creators testing out viral content strategies or batching shorts for clients.</p>
-        <ul class="mode-features" style="margin-bottom: 24px;">
-          <li><span class="mode-check">&check;</span> 30 Days Unrestricted Access</li>
-          <li><span class="mode-check">&check;</span> Unlimited Copyright Remover</li>
-          <li><span class="mode-check">&check;</span> Unlimited Shorts & Songs</li>
-        </ul>
-        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%201%20Month%20License" target="_blank" class="btn btn-secondary">Get 1 Month Key</a>
-      </div>
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="setNav(this)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        <span>Home</span>
+      </button>
 
-      <!-- Tier 2: Lifetime (Featured) -->
-      <div class="pricing-card featured">
-        <span class="pricing-popular-tag">MOST POPULAR</span>
-        <div class="tier-name">Lifetime Pro</div>
-        <div class="tier-price">Permanent <span>Access</span></div>
-        <p class="tier-desc">The ultimate choice for serious YouTube automation channels and high-output editors.</p>
-        <ul class="mode-features" style="margin-bottom: 24px;">
-          <li><span class="mode-check">&check;</span> Lifetime Device Activation</li>
-          <li><span class="mode-check">&check;</span> All Future v1.x & v2.x Updates</li>
-          <li><span class="mode-check">&check;</span> Priority WhatsApp VIP Support</li>
-          <li><span class="mode-check">&check;</span> Unlimited Everything</li>
-        </ul>
-        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%20Lifetime%20License" target="_blank" class="btn btn-primary">Get Lifetime Key</a>
-      </div>
+      <button class="nav-item" onclick="setNav(this); showToast('Opened Projects History tab')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+          <line x1="7" y1="2" x2="7" y2="22"></line>
+          <line x1="17" y1="2" x2="17" y2="22"></line>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+        </svg>
+        <span>Projects</span>
+      </button>
 
-      <!-- Tier 3: Video Pack -->
-      <div class="pricing-card">
-        <div class="tier-name">Video Pack</div>
-        <div class="tier-price">Per-Clip <span>Credits</span></div>
-        <p class="tier-desc">Pay as you go. Decrements one credit only after a genuinely completed, verified export.</p>
-        <ul class="mode-features" style="margin-bottom: 24px;">
-          <li><span class="mode-check">&check;</span> Configurable 5, 10, or 25 Videos</li>
-          <li><span class="mode-check">&check;</span> No Expiration Date</li>
-          <li><span class="mode-check">&check;</span> Safe Render Guarantee</li>
-        </ul>
-        <a href="https://wa.me/923079031153?text=I%20want%20to%20buy%20ClipShield%20Pro%20Video%20Pack" target="_blank" class="btn btn-secondary">Get Video Pack</a>
-      </div>
+      <!-- Center Action Button -->
+      <button class="nav-item-center" onclick="pasteSampleUrl(); showToast('Ready to start project!')">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
+      <button class="nav-item" onclick="setNav(this); showToast('Opened Engine Studio tab')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        <span>Layers</span>
+      </button>
+
+      <button class="nav-item" onclick="setNav(this); showToast('Opened Settings & License tab')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <!-- Toast Notification -->
+    <div class="toast-popup" id="toastBox">
+      <span id="toastMsg">Action triggered</span>
+      <span style="color: var(--accent-tangerine); cursor: pointer;" onclick="hideToast()">&times;</span>
     </div>
-  </section>
 
-  <!-- Download Call-to-Action Banner -->
-  <section class="container">
-    <div class="download-banner">
-      <h2>Start Automating Your Channel Today</h2>
-      <p>Download ClipShield Pro v1.2.2 directly to your Android phone. No subscriptions, no cloud queue waits, and no telemetry.</p>
-
-      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-        <a href="https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk" class="btn btn-primary" style="font-size: 16px; padding: 16px 36px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-          </svg>
-          Download v1.2.2 APK (176 MB)
-        </a>
-
-        <a href="https://github.com/badarbukharidev-alt/ClipShieldPro" target="_blank" class="btn btn-secondary" style="background: rgba(255,255,255,0.08); color: #fff; border-color: rgba(255,255,255,0.18);">
-          View on GitHub
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer>
-    <div class="container footer-content">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 24px; height: 24px; background: var(--accent-tangerine); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold;">CS</div>
-        <span style="font-weight: 700; color: var(--ink);">ClipShield Pro</span>
-        <span>&bull; Built for Creators</span>
-      </div>
-
-      <div>
-        WhatsApp Support: <a href="https://wa.me/923079031153" style="color: var(--accent-tangerine); font-weight: 700; text-decoration: none;">+92 307 9031153</a>
-      </div>
-    </div>
-  </footer>
+  </div>
 
   <script>
-    function animateBars() {
-      const bars = document.querySelectorAll('.wave-bar');
-      bars.forEach(bar => {
-        const randomH = Math.floor(Math.random() * 45) + 15;
-        bar.style.height = randomH + 'px';
+    // Mode Configuration
+    const modes = {
+      transform: {
+        label: "16:9 Copyright Remover",
+        badge: "16:9 Widescreen Stream",
+        badgeClass: "pill-orange",
+        title: "Long Video Copyright Remover",
+        desc: "Preserves native 16:9 widescreen canvas while passing through 12-layer geometric, chromatic, and acoustic signed-jitter perturbation.",
+        btnText: "Start Copyright Protection",
+        btnColor: "var(--accent-tangerine)",
+        activeClass: "mode-orange"
+      },
+      shorts: {
+        label: "Long Video → Shorts",
+        badge: "9:16 Vertical AI Clipper",
+        badgeClass: "pill-grape",
+        title: "Long Video to Shorts (AI)",
+        desc: "Extracts high-retention viral clips from full videos using automated transcript hooks and facial centroid subject tracking.",
+        btnText: "Extract Viral Shorts",
+        btnColor: "var(--accent-grape)",
+        activeClass: "mode-grape"
+      },
+      songs: {
+        label: "Songs Remover & DSP",
+        badge: "Audio DSP & Stem Studio",
+        badgeClass: "pill-lime",
+        title: "Songs Remover & Audio DSP",
+        desc: "Adjust volume, 5-band EQ, tempo, pitch, reverb, and ITU loudness normalization. Attach cover image and synthesize 16:9 or 9:16 video.",
+        btnText: "Launch Audio DSP Studio",
+        btnColor: "var(--accent-lime)",
+        activeClass: "mode-lime"
+      }
+    };
+
+    let currentMode = 'transform';
+
+    function selectMode(modeKey) {
+      currentMode = modeKey;
+      const m = modes[modeKey];
+
+      // Update tab buttons
+      document.querySelectorAll('.mode-tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'mode-orange', 'mode-grape', 'mode-lime');
       });
+
+      const activeBtn = document.getElementById('tab-' + modeKey);
+      activeBtn.classList.add('active', m.activeClass);
+
+      // Update Detail Card
+      document.getElementById('activeModeLabel').innerText = m.label;
+      document.getElementById('activeModeLabel').style.color = m.btnColor;
+
+      const badge = document.getElementById('modeBadge');
+      badge.className = 'mode-badge-pill ' + m.badgeClass;
+      badge.innerText = m.badge;
+
+      document.getElementById('modeTitle').innerText = m.title;
+      document.getElementById('modeDesc').innerText = m.desc;
+
+      const launch = document.getElementById('launchBtn');
+      launch.style.background = m.btnColor;
+      document.getElementById('launchBtnText').innerText = m.btnText;
     }
 
-    // Auto subtle pulse on visualizer
-    setInterval(() => {
-      const bars = document.querySelectorAll('.wave-bar');
-      bars.forEach((bar, idx) => {
-        const offset = Math.sin(Date.now() / 300 + idx) * 12 + 28;
-        bar.style.height = Math.max(8, offset) + 'px';
-      });
-    }, 180);
+    function pasteSampleUrl() {
+      const input = document.getElementById('urlInput');
+      input.value = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+      showToast("YouTube link pasted into input field!");
+    }
+
+    function setChip(el) {
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function setNav(el) {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function triggerExecution() {
+      const url = document.getElementById('urlInput').value.trim();
+      const m = modes[currentMode];
+      if (url) {
+        showToast("Starting " + m.title + " for: " + url.substring(0, 28) + "...");
+      } else {
+        showToast("Please paste a link or choose a video first!");
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toastBox');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('visible');
+      }, 3000);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBox').classList.remove('visible');
+    }
+
+    function setFrameSize(type) {
+      const box = document.getElementById('phoneBox');
+      const buttons = document.querySelectorAll('.viewport-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+
+      if (type === 'tablet') {
+        box.style.maxWidth = '580px';
+        buttons[1].classList.add('active');
+      } else {
+        box.style.maxWidth = '420px';
+        buttons[0].classList.add('active');
+      }
+    }
   </script>
 </body>
 </html>
