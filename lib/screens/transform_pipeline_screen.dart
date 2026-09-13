@@ -19,10 +19,15 @@ class TransformPipelineScreen extends StatefulWidget {
   final String sourceVideoPathOrUrl;
   final SourceType sourceType;
 
+  /// Preset chosen on the dashboard, so the choice the user already made is not
+  /// asked for a second time.
+  final PipelinePreset initialPreset;
+
   const TransformPipelineScreen({
     super.key,
     required this.sourceVideoPathOrUrl,
     required this.sourceType,
+    this.initialPreset = PipelinePreset.balanced,
   });
 
   @override
@@ -39,7 +44,7 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   bool _isLoading = true;
   String _loadingMessage = "Inspecting media streams...";
 
-  PipelinePreset _selectedPreset = PipelinePreset.balanced;
+  late PipelinePreset _selectedPreset = widget.initialPreset;
   double _globalIntensity = 0.5;
   final AspectRatioOption _aspectRatio = AspectRatioOption.original169;
   bool _isPreviewGenerating = false;
@@ -47,6 +52,9 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   @override
   void initState() {
     super.initState();
+    // Honour the preset picked on the dashboard, including its layer config.
+    _pipeline.applyPreset(widget.initialPreset);
+    _globalIntensity = _pipeline.globalIntensity;
     _initializeSource();
   }
 
