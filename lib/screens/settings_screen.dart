@@ -27,10 +27,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _deviceId = "CS-DEV-SCANNING";
   bool _obscureKeys = true;
 
+  int _adminTapCount = 0;
+  DateTime? _lastAdminTapTime;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+  }
+
+  void _handleAdminSecretTap() {
+    final now = DateTime.now();
+    if (_lastAdminTapTime == null || now.difference(_lastAdminTapTime!).inSeconds > 2) {
+      _adminTapCount = 1;
+    } else {
+      _adminTapCount++;
+    }
+    _lastAdminTapTime = now;
+
+    if (_adminTapCount >= 5) {
+      _adminTapCount = 0;
+      _promptAdminPasscode();
+    } else if (_adminTapCount >= 2) {
+      final remaining = 5 - _adminTapCount;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 1),
+          content: Text("Developer mode: tap $remaining more times"),
+          backgroundColor: AppColors.darkCard,
+        ),
+      );
+    }
+  }
+
+  Future<void> _promptAdminPasscode() async {
+    final pinController = TextEditingController();
+    final bool? isAuthed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.security, color: AppColors.accentTangerine, size: 24),
+            SizedBox(width: 10),
+            Text("Admin Authentication", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Enter master admin passcode to access license key generator:",
+              style: TextStyle(color: AppColors.mut, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              autofocus: true,
+              obscureText: true,
+              keyboardType: TextInputType.text,
+              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 3, fontSize: 16),
+              decoration: InputDecoration(
+                hintText: "Admin Passcode",
+                filled: true,
+                fillColor: AppColors.bg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.line)),
+                prefixIcon: const Icon(Icons.lock_outline, color: AppColors.mut),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.mut)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentTangerine,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              final pin = pinController.text.trim();
+              if (pin == "7860" || pin == "9922" || pin == "admin2026") {
+                Navigator.pop(ctx, true);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Access Denied: Incorrect Admin Passcode"),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                Navigator.pop(ctx, false);
+              }
+            },
+            child: const Text("Unlock"),
+          ),
+        ],
+      ),
+    );
+
+    if (isAuthed == true && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminLicenseScreen(isAuthenticated: true)),
+      );
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -116,20 +222,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text("Settings", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
         centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: "Admin Access",
+            icon: const Icon(Icons.shield_outlined, color: AppColors.mut, size: 20),
+            onPressed: _promptAdminPasscode,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Profile Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.line),
-              ),
+            // User Profile Card with Developer Secret Tap
+            GestureDetector(
+              onTap: _handleAdminSecretTap,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.line),
+                ),
               child: Row(
                 children: [
                   Container(
@@ -170,7 +285,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 24),
 
             // License & Activation Group
             const Text(
@@ -312,43 +428,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Admin Key Generator Tile
-            InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminLicenseScreen()),
-                );
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.softTangerine,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.accentTangerine.withOpacity(0.35)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.admin_panel_settings_rounded, color: AppColors.accentTangerine, size: 24),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Admin Key Generator", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppColors.ink)),
-                          SizedBox(height: 2),
-                          Text("Generate Monthly, Lifetime & Video Pack keys", style: TextStyle(fontSize: 11, color: AppColors.mut)),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accentTangerine),
-                  ],
-                ),
               ),
             ),
             const SizedBox(height: 24),

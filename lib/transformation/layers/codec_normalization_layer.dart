@@ -55,7 +55,6 @@ class CodecNormalizationLayer extends TransformationLayer {
         : (context.quality == 'fast' ? 22 : 18 + _random.nextInt(3));
     final int gop = 60 + _random.nextInt(61); // 60 to 120
     final int bframes = 2 + _random.nextInt(3); // 2 to 4
-    final int refs = 3 + _random.nextInt(3); // 3 to 5
     const String preset = "ultrafast";
 
     List<String> args = [
@@ -63,22 +62,20 @@ class CodecNormalizationLayer extends TransformationLayer {
       "libx264",
       "-preset",
       preset,
-      "-threads",
-      "0",
       "-crf",
       crf.toString(),
       "-pix_fmt",
       "yuv420p",
-      "-x264-params",
-      "keyint=$gop:min-keyint=${gop ~/ 2}:bframes=$bframes:ref=$refs",
+      "-g",
+      gop.toString(),
+      "-bf",
+      bframes.toString(),
       "-map_metadata",
       "-1",
       "-metadata",
       "encoder=$encoder",
       "-metadata",
       "creation_time=$timeStamp",
-      "-movflags",
-      "+faststart",
     ];
 
     if (context.hasAudio) {

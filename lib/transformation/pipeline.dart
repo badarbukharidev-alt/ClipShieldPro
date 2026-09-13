@@ -160,70 +160,24 @@ class TransformationPipeline {
     args.addAll(["-i", inputPath]);
 
     final vfString = vfList.join(',');
-    final bool useAudioConditioning =
-        audioConditioning.isEnabled && context.hasAudio;
-    final bool useBackgroundMusic =
-        backgroundMusic.isEnabled && context.hasAudio;
 
     if (context.hasAudio) {
       final afString = afList.isNotEmpty
           ? "aformat=sample_rates=44100:channel_layouts=stereo,${afList.join(',')}"
           : "aformat=sample_rates=44100:channel_layouts=stereo";
 
-      if (useAudioConditioning || useBackgroundMusic) {
-        final StringBuffer complexBuf = StringBuffer();
-        complexBuf.write("[0:v]$vfString[vout];");
-        complexBuf.write("[0:a]$afString[aprocessed];");
-        
-        int mixInputs = 1; // [aprocessed]
-        String weights = "1";
-        List<String> mixStreams = ["[aprocessed]"];
+      final filterComplex =
+          "[0:v]$vfString[vout];"
+          "[0:a]$afString[aout]";
 
-        if (useAudioConditioning) {
-          final double noiseAmp = audioConditioning.getNoiseAmplitude();
-          complexBuf.write(
-            "anoisesrc=d=${(clipDuration + 5.0).toInt()}:c=white:a=${noiseAmp.toStringAsFixed(10)},aformat=sample_rates=44100:channel_layouts=stereo[n];"
-          );
-          mixStreams.add("[n]");
-          mixInputs++;
-        }
-
-        if (useBackgroundMusic) {
-          final int freq = backgroundMusic.getAmbientFrequency();
-          final double amp = backgroundMusic.getAmbientAmplitude();
-          complexBuf.write(
-            "sine=frequency=$freq:duration=${(clipDuration + 5.0).toInt()}:sample_rate=44100,volume=${amp.toStringAsFixed(8)},aformat=sample_rates=44100:channel_layouts=stereo[bgm];"
-          );
-          mixStreams.add("[bgm]");
-          mixInputs++;
-        }
-
-        final String streamLabels = mixStreams.join('');
-        complexBuf.write(
-          "${streamLabels}amix=inputs=$mixInputs:duration=first:dropout_transition=0[aout]"
-        );
-
-        args.addAll([
-          "-filter_complex",
-          complexBuf.toString(),
-          "-map", "[vout]",
-          "-map", "[aout]",
-          "-shortest",
-        ]);
-      } else {
-        final filterComplex =
-            "[0:v]$vfString[vout];"
-            "[0:a]$afString[aout]";
-
-        args.addAll([
-          "-filter_complex",
-          filterComplex,
-          "-map",
-          "[vout]",
-          "-map",
-          "[aout]",
-        ]);
-      }
+      args.addAll([
+        "-filter_complex",
+        filterComplex,
+        "-map",
+        "[vout]",
+        "-map",
+        "[aout]",
+      ]);
     } else {
       args.addAll([
         "-filter_complex",

@@ -9,8 +9,8 @@ class BackgroundMusicLayer extends TransformationLayer {
 
   @override int get layerNumber => 11;
   @override String get name => "Background Ambient Layer";
-  @override String get subtitle => "Ultra-low volume ambient tone for audio signature shift";
-  @override String get description => "Generates a subtle ambient background tone at -35dB to -28dB to shift audio fingerprint without being perceptible.";
+  @override String get subtitle => "In-line acoustic tone modulation for audio signature shift";
+  @override String get description => "Applies subtle dynamic acoustic tone modulation and harmonic presence to shift audio fingerprint without perceptible distortion.";
 
   @override
   bool validate(FilterContext context) {
@@ -31,20 +31,28 @@ class BackgroundMusicLayer extends TransformationLayer {
     if (!context.hasAudio) {
       return FilterResult(logMessage: "Layer 11: No audio stream. Skipped.");
     }
-    final int freq = getAmbientFrequency();
-    final double db = customVolumeDb ?? (-35.0 + (intensity * 7.0));
-    final double amp = getAmbientAmplitude();
+    
+    // In-line acoustic ambient warmth and stereo presence
+    // Eliminates external sine synthesis and amix duration mismatches
+    final double bassGain = 0.4 + (intensity * 0.4); // +0.4 to +0.8 dB subtle low-end presence
+    final double trebleGain = -0.3 - (intensity * 0.3); // -0.3 to -0.6 dB gentle air damping
 
     return FilterResult(
-      logMessage: "Layer 11 applied: Ambient tone ${freq}Hz at ${db.toStringAsFixed(1)}dB (amp: ${amp.toStringAsExponential(2)}).",
+      audioFilters: [
+        "bass=g=${bassGain.toStringAsFixed(2)}:f=110:w=0.6",
+        "treble=g=${trebleGain.toStringAsFixed(2)}:f=12000:w=0.6",
+      ],
+      logMessage: "Layer 11 applied: In-line acoustic tone modulation (bass: +${bassGain.toStringAsFixed(1)}dB, treble: ${trebleGain.toStringAsFixed(1)}dB).",
     );
   }
 
   @override
   FilterResult fallback(FilterContext context) {
     return FilterResult(
+      audioFilters: ["volume=0.999"],
       logMessage: "Layer 11 fallback: Ambient layer bypassed.",
       isFallback: true,
     );
   }
 }
+

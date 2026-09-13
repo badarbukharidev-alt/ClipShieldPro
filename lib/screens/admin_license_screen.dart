@@ -5,7 +5,8 @@ import '../services/license_service.dart';
 import '../theme/app_theme.dart';
 
 class AdminLicenseScreen extends StatefulWidget {
-  const AdminLicenseScreen({super.key});
+  final bool isAuthenticated;
+  const AdminLicenseScreen({super.key, this.isAuthenticated = false});
 
   @override
   State<AdminLicenseScreen> createState() => _AdminLicenseScreenState();
@@ -21,6 +22,21 @@ class _AdminLicenseScreenState extends State<AdminLicenseScreen> {
 
   String? _generatedKey;
   String? _generatedDetails;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Access Denied: Admin authentication required."), backgroundColor: AppColors.error),
+          );
+          Navigator.pop(context);
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {

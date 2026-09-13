@@ -199,43 +199,53 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         final outName = "ClipShield_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.mp4";
         final outPath = path.join(outputDir.path, outName);
 
-        await _ffmpegService.renderClip(
-          inputPath: widget.sourceVideoPath,
-          outputPath: outPath,
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          pipeline: widget.pipeline,
-          context: filterContext,
-          onProgress: (p, stage) {
-            if (!_isCanceled) {
-              final double overallProgress = baseWeight + (p * clipWeight);
-              RenderJobService.instance.updateProgress(overallProgress, stage);
-              if (mounted) {
-                setState(() {
-                  _totalProgress = overallProgress;
-                });
+        try {
+          await _ffmpegService.renderClip(
+            inputPath: widget.sourceVideoPath,
+            outputPath: outPath,
+            startTime: clip.startTime,
+            endTime: clip.endTime,
+            pipeline: widget.pipeline,
+            context: filterContext,
+            onProgress: (p, stage) {
+              if (!_isCanceled) {
+                final double overallProgress = baseWeight + (p * clipWeight);
+                RenderJobService.instance.updateProgress(overallProgress, stage);
+                if (mounted) {
+                  setState(() {
+                    _totalProgress = overallProgress;
+                  });
+                }
               }
-            }
-          },
-          logCallback: _addLog,
-        );
+            },
+            logCallback: _addLog,
+          );
+        } catch (clipErr) {
+          _addLog("Clip render attempt notice: $clipErr");
+        }
 
-        // 4. Extract Thumbnail
-        final thumbName = "thumb_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.jpg";
-        final thumbPath = path.join(outputDir.path, thumbName);
-        try {
-          await _ffmpegService.extractThumbnail(videoPath: outPath, thumbnailPath: thumbPath);
-          clip.thumbnailPath = thumbPath;
-        } catch (_) {}
+        // Check physical file existence and health on disk
+        final outputFile = File(outPath);
+        if (await outputFile.exists() && await outputFile.length() > 1024) {
+          clip.outputPath = outPath;
+          clip.isRendered = true;
+          renderedPaths.add(outPath);
 
-        clip.outputPath = outPath;
-        clip.isRendered = true;
-        renderedPaths.add(outPath);
+          // 4. Extract Thumbnail
+          final thumbName = "thumb_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.jpg";
+          final thumbPath = path.join(outputDir.path, thumbName);
+          try {
+            await _ffmpegService.extractThumbnail(videoPath: outPath, thumbnailPath: thumbPath);
+            clip.thumbnailPath = thumbPath;
+          } catch (_) {}
 
-        // Auto-export directly to Android device gallery
-        try {
-          await GalleryExportService.exportToPublicGallery(outPath);
-        } catch (_) {}
+          // Auto-export directly to Android device gallery
+          try {
+            await GalleryExportService.exportToPublicGallery(outPath);
+          } catch (_) {}
+        } else {
+          _addLog("Clip ${i + 1} output file was not produced.");
+        }
       }
 
       if (_isCanceled) {

@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import '../layer.dart';
 
 class SpatialAudioLayer extends TransformationLayer {
@@ -52,7 +52,6 @@ class SpatialAudioLayer extends TransformationLayer {
     return FilterResult(
       audioFilters: [
         "adelay=$lDelay|$rDelay",
-        "asetpts=N/SR/TB",
       ],
       logMessage:
           "Layer 3 applied: Spatial delay L: ${lDelay}ms, R: ${rDelay}ms.",
