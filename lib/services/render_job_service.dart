@@ -18,6 +18,7 @@ import 'gallery_export_service.dart';
 import 'license_service.dart';
 import 'media_probe_service.dart';
 import 'project_storage_service.dart';
+import 'render_foreground_service.dart';
 import 'subject_tracker_service.dart';
 
 /// Canonical lifecycle of a render job. This is the single source of truth for
@@ -304,6 +305,15 @@ class RenderJobService {
   void _emit(RenderJobState state) {
     jobs.value = Map<String, RenderJobState>.from(jobs.value)..[state.projectId] = state;
     _recomputeActive();
+
+    if (state.isActive) {
+      final int remaining = _queue.length;
+      final String suffix = remaining > 0 ? ' · $remaining queued' : '';
+      unawaited(RenderForegroundService.instance.update(
+        title: 'Rendering ${state.title}',
+        text: '${state.progressPercent}% · ${state.currentStage}$suffix',
+      ));
+    }
   }
 
   void _recomputeActive() {
@@ -329,6 +339,14 @@ class RenderJobService {
   Future<void> _pump() async {
     if (_isPumping) return;
     _isPumping = true;
+
+    // Held for the whole drain, not per job, so the process is never released
+    // between two queued renders.
+    await RenderForegroundService.instance.start(
+      title: 'ClipShield is rendering',
+      text: 'Preparing render queue...',
+    );
+
     try {
       while (_queue.isNotEmpty) {
         final request = _queue.removeAt(0);
@@ -370,6 +388,7 @@ class RenderJobService {
     } finally {
       _isPumping = false;
       _recomputeActive();
+      await RenderForegroundService.instance.stop();
     }
   }
 

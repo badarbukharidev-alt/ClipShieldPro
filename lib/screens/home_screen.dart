@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Dashboard composer state
   AppMode _mode = AppMode.transformAndProtect;
-  PipelinePreset _preset = PipelinePreset.fast;
+  PipelinePreset _preset = PipelinePreset.balanced;
   final TextEditingController _urlController = TextEditingController();
   final FocusNode _urlFocus = FocusNode();
   final DownloaderService _downloader = DownloaderService();
@@ -251,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _hasSource =>
       _pickedFilePath != null || _urlController.text.trim().isNotEmpty;
 
-  void _start() {
+  Future<void> _start() async {
     final url = _urlController.text.trim();
 
     if (_pickedFilePath == null && url.isEmpty) {
@@ -261,10 +261,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final bool isLocal = _pickedFilePath != null;
-    if (!isLocal && _downloader.getVideoId(url) == null) {
+    final String? videoId = isLocal ? null : _downloader.getVideoId(url);
+    if (!isLocal && videoId == null) {
       _toast("That does not look like a YouTube video or Shorts link");
       return;
     }
+
+    // Hitting start before the debounced lookup finished would otherwise attach
+    // no metadata to the project at all, leaving the results screen empty.
+    if (!isLocal && _metadata == null) {
+      _metaDebounce?.cancel();
+      setState(() => _isFetchingMeta = true);
+      final meta = await _downloader.fetchMetadata(url);
+      if (!mounted) return;
+      setState(() {
+        _metadata = meta;
+        _metaForUrl = meta == null ? null : videoId;
+        _isFetchingMeta = false;
+      });
+    }
+    if (!mounted) return;
 
     final String source = isLocal ? _pickedFilePath! : url;
     final SourceType sourceType = isLocal

@@ -2,7 +2,7 @@ name: clipshield
 description: "ClipShield Pro: AI-powered on-device YouTube short clipper and video copyright bypass utility."
 publish_to: 'none'
 
-version: 1.2.5+8
+version: 1.2.6+9
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

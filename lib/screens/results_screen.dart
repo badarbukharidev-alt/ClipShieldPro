@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
+import '../models/source_metadata.dart';
 import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
@@ -32,6 +33,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
   List<ClipItem> get _readyClips => widget.renderedClips
       .where((c) => c.isRendered && c.outputPath != null && File(c.outputPath!).existsSync())
       .toList();
+
+  /// Metadata captured when the source link was pasted, if this project had one.
+  SourceMetadata? get _sourceMeta => widget.project.sourceMetadata;
 
   bool get _isGenuinelyReady =>
       widget.project.status == ProjectStatus.done && _readyClips.isNotEmpty;
@@ -68,54 +72,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (paths.isNotEmpty) {
       await Share.shareXFiles(paths, text: text);
     }
-  }
-
-  void _openMetadataSheet() {
-    final meta = widget.project.sourceMetadata;
-    if (meta == null) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 44,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.line,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-                  child: SourceMetadataPanel(
-                    metadata: meta,
-                    accent: widget.project.isWidescreen
-                        ? AppColors.accentGrape
-                        : AppColors.accentTangerine,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _openPreview(BuildContext context, ClipItem clip) {
@@ -181,7 +137,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -243,9 +199,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
               const SizedBox(height: 18),
 
               // Content View: 16:9 Widescreen Cards or 9:16 Shorts Grid
-              Expanded(
-                child: isWidescreen
+              Builder(
+                builder: (context) => isWidescreen
                     ? ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: _readyClips.length,
                         itemBuilder: (context, index) {
                           final clip = _readyClips[index];
@@ -366,6 +324,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         },
                       )
                     : GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 0.58,
@@ -477,27 +437,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Source metadata is only worth surfacing for long-form sources,
-              // where the title, description and tags are reusable.
-              if (widget.project.sourceMetadata?.isLongForm == true)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _openMetadataSheet,
-                      icon: const Icon(Icons.article_outlined, size: 18),
-                      label: const Text(
-                        "Source title, description, tags & thumbnail",
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46),
-                      ),
-                    ),
-                  ),
-                ),
-
               // Rich Social Sharing Options
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -512,6 +451,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
 
+              // Source metadata, shown inline after sharing so the title,
+              // description, tags and thumbnail are right there when publishing.
+              if (_sourceMeta != null) ...[
+                const SizedBox(height: 6),
+                SourceMetadataPanel(
+                  metadata: _sourceMeta!,
+                  accent: widget.project.isWidescreen
+                      ? AppColors.accentGrape
+                      : AppColors.accentTangerine,
+                ),
+              ],
+
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () {
@@ -519,6 +470,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 },
                 child: const Text("Done", style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w700, fontSize: 15)),
               ),
+              const SizedBox(height: 12),
             ],
           ),
         ),

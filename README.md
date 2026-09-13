@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.5)
+# 🛡️ ClipShield Pro (v1.2.6)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.5-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.6-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.5.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)**
+📥 **[Download ClipShieldPro-v1.2.6.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.5.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.6.apk)
 
 ---
 
@@ -54,6 +54,28 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.6
+
+**Renders now survive the app being closed, and source metadata is on the results screen itself.**
+
+- 🔋 **Jobs keep running when the app is closed**:
+  - Rendering happens on the main isolate, so Android was free to kill the process the moment the app left the screen — silently abandoning a half-finished render.
+  - A foreground service is now held for exactly as long as the render queue is busy, started when the queue goes from idle to busy and released when it drains. This covers **all three job types**: Copyright, AI Shorts and Song DSP, since they share one queue.
+  - The service is held across the whole drain rather than per job, so the process is never released between two queued renders.
+  - `android:stopWithTask="false"` keeps the service alive when the task is swiped away from recents, and `POST_NOTIFICATIONS` was added for the Android 13+ progress notification.
+  - The notification shows the live project title, percentage, current stage and how many jobs are still queued. Repeated identical text is skipped so it is not rewritten on every FFmpeg statistics callback.
+  - A denied notification permission never fails the render — the service falls back silently rather than taking the job down with it.
+- 📋 **Source metadata is shown inline on the "video ready" screen**:
+  - Previously it sat behind a disclosure button and only appeared for long-form sources, which is why it looked like it was missing entirely.
+  - The title, description, tags and thumbnail now render directly on the results screen alongside the sharing options, for **any** YouTube source.
+  - The results screen was restructured to scroll as one page (the clip list now sizes to its content) so the panel has somewhere to live.
+- 🔗 **Metadata can no longer be lost to a race**: hitting Start before the debounced link lookup finished used to attach no metadata to the project at all. Start now waits for the lookup to complete first.
+- 🎚️ **Balanced is the default processing preset**, matching the reference design.
+
+- ✅ **Tests**: adds `test/results_metadata_test.dart` verifying the metadata panel renders inline on a genuinely-ready project, is absent when a project has none, and is no longer hidden behind a button — plus a default-preset assertion. Suite is **64/64** green.
 
 ---
 

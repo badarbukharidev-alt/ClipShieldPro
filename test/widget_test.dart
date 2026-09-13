@@ -65,6 +65,17 @@ void main() {
     expect(find.text("Open Song DSP"), findsOneWidget);
   });
 
+  testWidgets('balanced is the default processing preset',
+      (WidgetTester tester) async {
+    await pumpDashboard(tester);
+
+    // The chip styling encodes selection: the active chip is filled with ink.
+    final balanced = tester.widget<Text>(find.text("Balanced"));
+    final fast = tester.widget<Text>(find.text("Fast"));
+    expect(balanced.style?.color, Colors.white);
+    expect(fast.style?.color, isNot(Colors.white));
+  });
+
   testWidgets('the preset row only appears where it is wired through',
       (WidgetTester tester) async {
     await pumpDashboard(tester);
