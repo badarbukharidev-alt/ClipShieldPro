@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.8)
+# 🛡️ ClipShield Pro (v1.2.9)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.8-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.8.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.9-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.8.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.8.apk)**
+📥 **[Download ClipShieldPro-v1.2.9.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.8.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.8.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.9.apk)
 
 ---
 
@@ -54,6 +54,38 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.9
+
+### 🎁 Tasks now actually appear
+
+Tasks created in the admin panel were never reaching the app: `TaskApiService.apiSecret` was still its placeholder, so the client treated itself as unconfigured and never called the API at all.
+
+The secret is now **injected at build time** rather than committed, because **this repository is public** — a hardcoded secret here would be readable by anyone. Build with:
+
+```bash
+tools/build_release.sh
+```
+
+which reads it from the gitignored `android/api_secret.txt` and passes `--dart-define=CLIPSHIELD_API_SECRET=…`. The same value must be set as `API_SECRET` in the panel's `inc/config.php`. Build without it and the task system stays disabled rather than sending signatures that can never verify.
+
+### 🧭 Free Videos in the footer
+
+Tasks are now a first-class destination in the bottom navigation (Home · Projects · **Free** · Settings) instead of only being reachable from a dashboard card. The bar was rebuilt with `Expanded` items so a fourth destination cannot push it past the screen edge — the existing 360 dp overflow test caught that regression before it shipped.
+
+### 🎨 Solid colours, no gloss
+
+- **Action tabs are solid**: the active tab is a filled block of its own accent with white icon and label; the others are flat white with a coloured icon. No translucent fills, no coloured glow.
+- Removed the **gradient and drop-shadow** from the render canvas, the radial wash behind the progress ring, the gradient on the Free Videos balance card, and the translucent fills on task icons and buttons.
+- A disabled call-to-action is now a flat neutral rather than a faded tint of its accent.
+
+### 📊 Install statistics in the admin panel
+
+New **Stats** page: total installs, new today / this week / this month, active devices over 24 h / 7 d / 30 d, dormant devices, a 30-day daily chart, a 12-month chart, and the spread of app versions in the field. Charts are plain CSS with no charting dependency.
+
+> Installs are counted from a device's first contact with the API, so the figure is a **floor, not an exact count** — a phone that never reaches the server is never counted, and uninstalls are not detectable at all. Because device IDs derive from `ANDROID_ID`, a reinstall reuses the same row rather than counting twice.
 
 ---
 

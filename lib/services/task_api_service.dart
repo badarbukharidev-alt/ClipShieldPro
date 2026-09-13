@@ -20,14 +20,23 @@ class TaskApiService {
   /// Panel base URL. The endpoint is `<base>/api/v1.php`.
   static const String baseUrl = 'https://clipshieldpro.toolsfinity.io';
 
-  /// Must be byte-identical to API_SECRET in inc/config.php.
-  static const String apiSecret = 'CHANGE_ME_TO_A_64_CHAR_RANDOM_HEX_STRING';
+  /// Must be byte-identical to API_SECRET in the panel's inc/config.php.
+  ///
+  /// Injected at build time rather than committed, because this repository is
+  /// public — a hardcoded secret here would be readable by anyone. Build with:
+  ///
+  ///   flutter build apk --release --dart-define=CLIPSHIELD_API_SECRET=<secret>
+  ///
+  /// or run tools/build_release.sh, which reads it from the gitignored
+  /// android/api_secret.txt. Without it the task system stays disabled rather
+  /// than hammering the API with signatures that can never verify.
+  static const String apiSecret =
+      String.fromEnvironment('CLIPSHIELD_API_SECRET', defaultValue: '');
 
   /// Reported to the panel so you can see which build a device is on.
-  static const String appVersion = '1.2.7';
+  static const String appVersion = '1.2.9';
 
-  static bool get isConfigured =>
-      apiSecret != 'CHANGE_ME_TO_A_64_CHAR_RANDOM_HEX_STRING' && apiSecret.length >= 32;
+  static bool get isConfigured => apiSecret.length >= 32;
 
   final Dio _dio = Dio(BaseOptions(
     baseUrl: baseUrl,

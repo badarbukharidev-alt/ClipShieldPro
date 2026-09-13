@@ -232,11 +232,7 @@ class _TasksScreenState extends State<TasksScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E1E28), Color(0xFF14141E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.darkCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +301,7 @@ class _TasksScreenState extends State<TasksScreen> {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: task.claimed ? AppColors.line : accent.withOpacity(0.35),
+          color: task.claimed ? AppColors.line : accent,
           width: task.claimed ? 1 : 1.4,
         ),
       ),
@@ -317,12 +313,12 @@ class _TasksScreenState extends State<TasksScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(task.claimed ? 0.08 : 0.14),
+                  color: task.claimed ? AppColors.bg : accent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   task.claimed ? Icons.check_rounded : _iconFor(task.icon),
-                  color: task.claimed ? AppColors.accentLime : accent,
+                  color: task.claimed ? AppColors.accentLime : Colors.white,
                   size: 22,
                 ),
               ),
@@ -379,7 +375,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     label: Text(opened ? 'Open again' : 'Open'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: accent,
-                      side: BorderSide(color: accent.withOpacity(0.5)),
+                      side: BorderSide(color: accent),
                       minimumSize: const Size.fromHeight(42),
                     ),
                   ),

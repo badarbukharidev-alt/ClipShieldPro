@@ -297,46 +297,17 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           decoration: BoxDecoration(
             color: AppColors.darkCard,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.accentTangerine.withOpacity(0.18),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1E1E28), Color(0xFF14141E)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Positioned.fill(
-                child: Center(
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.accentTangerine.withOpacity(0.25),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               SizedBox(
                 width: 96,
                 height: 96,
                 child: CircularProgressIndicator(
                   value: job.progress > 0 ? job.progress : null,
                   strokeWidth: 6,
-                  backgroundColor: Colors.white.withOpacity(0.08),
+                  backgroundColor: Colors.white12,
                   valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
                 ),
               ),
@@ -356,7 +327,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.accentTangerine.withOpacity(0.2),
+                      color: AppColors.accentTangerine,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -401,7 +372,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                           shape: BoxShape.circle,
                           color: isDone
                               ? AppColors.accentTangerine
-                              : (isActive ? AppColors.softTangerine : AppColors.line.withOpacity(0.3)),
+                              : (isActive ? AppColors.softTangerine : AppColors.line),
                         ),
                         child: isDone
                             ? const Icon(Icons.check, size: 15, color: Colors.white)

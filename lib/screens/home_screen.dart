@@ -181,7 +181,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Debounced so pasting character-by-character does not spam the network.
     _metaDebounce?.cancel();
-    _metaDebounce = Timer(const Duration(milliseconds: 350), () => _fetchMeta(url, id));
+    _metaDebounce =
+        Timer(const Duration(milliseconds: 350), () => _fetchMeta(url, id));
   }
 
   Future<void> _fetchMeta(String url, String id) async {
@@ -361,12 +362,16 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentTangerine),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.accentTangerine),
             ),
             SizedBox(width: 12),
             Text(
               "Fetching video details...",
-              style: TextStyle(fontSize: 12.5, color: AppColors.mut, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.mut,
+                  fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -382,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _spec.accent.withOpacity(0.45)),
+        border: Border.all(color: _spec.accent),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,7 +409,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: AppColors.mut, size: 20),
                       ),
                       loadingBuilder: (context, child, progress) =>
-                          progress == null ? child : Container(color: AppColors.darkCard),
+                          progress == null
+                              ? child
+                              : Container(color: AppColors.darkCard),
                     ),
             ),
           ),
@@ -432,13 +439,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         meta.author,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.mut),
                       ),
                     ),
                     if (meta.durationSeconds > 0) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: _spec.soft,
                           borderRadius: BorderRadius.circular(6),
@@ -516,7 +525,8 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(left: 14, right: 6),
             child: Row(
               children: [
-                const Icon(Icons.smart_display, color: Color(0xFFFF0033), size: 22),
+                const Icon(Icons.smart_display,
+                    color: Color(0xFFFF0033), size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
@@ -525,12 +535,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     keyboardType: TextInputType.url,
                     textInputAction: TextInputAction.go,
                     onSubmitted: (_) => _start(),
-                    style: const TextStyle(fontSize: 13.5, color: AppColors.ink),
+                    style:
+                        const TextStyle(fontSize: 13.5, color: AppColors.ink),
                     decoration: const InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
                       hintText: "Paste YouTube link (https://...)",
-                      hintStyle: TextStyle(fontSize: 13.5, color: AppColors.mut),
+                      hintStyle:
+                          TextStyle(fontSize: 13.5, color: AppColors.mut),
                       contentPadding: EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
@@ -541,7 +553,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: const Text("Paste"),
                   style: TextButton.styleFrom(
                     foregroundColor: _spec.accent,
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w800),
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     minimumSize: const Size(0, 40),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -615,7 +628,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => setState(() => _pickedFilePath = null),
-                      child: const Icon(Icons.close, size: 17, color: AppColors.mut),
+                      child: const Icon(Icons.close,
+                          size: 17, color: AppColors.mut),
                     ),
                   ],
                 ],
@@ -647,28 +661,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSel ? spec.soft : Colors.transparent,
+                  // Solid fill for the active tab, flat outline for the others.
+                  // No translucency, gradient or glow.
+                  color: isSel ? spec.accent : AppColors.card,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: isSel ? spec.accent : Colors.transparent,
+                    color: isSel ? spec.accent : AppColors.line,
                     width: 1.4,
                   ),
-                  boxShadow: isSel
-                      ? [
-                          BoxShadow(
-                            color: spec.accent.withOpacity(0.22),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
                 ),
                 child: Column(
                   children: [
                     Icon(
                       spec.icon,
                       size: 20,
-                      color: isSel ? spec.accent : spec.accent.withOpacity(0.55),
+                      color: isSel ? Colors.white : spec.accent,
                     ),
                     const SizedBox(height: 5),
                     Text(
@@ -676,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: isSel ? FontWeight.w800 : FontWeight.w700,
-                        color: isSel ? spec.accent : AppColors.ink.withOpacity(0.65),
+                        color: isSel ? Colors.white : AppColors.ink,
                       ),
                     ),
                   ],
@@ -721,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: spec.accent.withOpacity(0.35), width: 1.4),
+        border: Border.all(color: spec.accent, width: 1.4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,9 +762,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             spec.description,
-            style: const TextStyle(fontSize: 13, color: AppColors.mut, height: 1.45),
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.mut, height: 1.45),
           ),
-
           if (spec.supportsPreset) ...[
             const SizedBox(height: 16),
             Container(
@@ -797,22 +804,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _start,
             icon: const Icon(Icons.play_arrow_rounded, size: 22),
             label: Text(
               spec.cta,
-              style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+              style:
+                  const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  _hasSource ? spec.accent : spec.accent.withOpacity(0.55),
+              backgroundColor: _hasSource ? spec.accent : AppColors.line,
+              disabledBackgroundColor: AppColors.line,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(56),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
             ),
           ),
         ],
@@ -881,10 +889,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: job.status == RenderJobStatus.queued ? null : job.progress,
+                    value: job.status == RenderJobStatus.queued
+                        ? null
+                        : job.progress,
                     backgroundColor: Colors.white12,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.accentTangerine),
                     minHeight: 5,
                   ),
                 ),
@@ -896,13 +906,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         "Exporting: ${job.title}",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.mut, fontSize: 12),
+                        style:
+                            const TextStyle(color: AppColors.mut, fontSize: 12),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       "Clip ${job.renderedClips + 1}/${job.totalClips}",
-                      style: const TextStyle(color: AppColors.mut, fontSize: 12),
+                      style:
+                          const TextStyle(color: AppColors.mut, fontSize: 12),
                     ),
                   ],
                 ),
@@ -932,20 +944,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isPro) return const SizedBox.shrink();
 
     return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TasksScreen()),
-        );
-        if (mounted) setState(() {});
-      },
+      onTap: () => setState(() => _currentNavIndex = 3),
       child: Container(
         margin: const EdgeInsets.only(top: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.accentLime.withOpacity(0.4), width: 1.4),
+          border: Border.all(color: AppColors.accentLime, width: 1.4),
         ),
         child: Row(
           children: [
@@ -1015,7 +1021,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   if (unit.isNotEmpty)
-                    Text(unit, style: const TextStyle(fontSize: 15, color: AppColors.mut)),
+                    Text(unit,
+                        style: const TextStyle(
+                            fontSize: 15, color: AppColors.mut)),
                 ],
               ),
               const SizedBox(height: 2),
@@ -1066,7 +1074,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 32,
                         height: 32,
                         color: AppColors.accentTangerine,
-                        child: const Icon(Icons.shield, color: Colors.white, size: 18),
+                        child: const Icon(Icons.shield,
+                            color: Colors.white, size: 18),
                       ),
                     ),
                   ),
@@ -1094,7 +1103,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: BoxShape.circle,
                         color: AppColors.darkCard,
                       ),
-                      child: const Icon(Icons.person, color: Colors.white70, size: 20),
+                      child: const Icon(Icons.person,
+                          color: Colors.white70, size: 20),
                     ),
                   ),
                 ],
@@ -1176,7 +1186,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_recentProjects.isEmpty)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(20),
@@ -1220,13 +1231,13 @@ class _HomeScreenState extends State<HomeScreen> {
         color: AppColors.card,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: SafeArea(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(0, Icons.home_filled, "Home"),
             _buildNavItem(1, Icons.video_collection_outlined, "Projects"),
+            _buildNavItem(3, Icons.card_giftcard_rounded, "Free"),
             _buildNavItem(2, Icons.settings_outlined, "Settings"),
           ],
         ),
@@ -1236,25 +1247,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final bool isSel = _currentNavIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _currentNavIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: isSel ? AppColors.accentTangerine : AppColors.mut, size: 24),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isSel ? AppColors.accentTangerine : AppColors.mut,
+    // Expanded gives every destination an equal share, so adding a fourth item
+    // cannot push the bar past the screen width.
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentNavIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                  size: 24),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1262,8 +1282,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecentProjectCard(ProjectItem project) {
     final bool isMode1 = project.mode == AppMode.longVideoToShorts;
-    final bool hasThumb =
-        project.thumbnailPath != null && File(project.thumbnailPath!).existsSync();
+    final bool hasThumb = project.thumbnailPath != null &&
+        File(project.thumbnailPath!).existsSync();
 
     return GestureDetector(
       onTap: () {
@@ -1274,7 +1294,8 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
               builder: (context) => ResultsScreen(
                 project: project,
-                renderedClips: project.clips.where((c) => c.isRendered).toList(),
+                renderedClips:
+                    project.clips.where((c) => c.isRendered).toList(),
               ),
             ),
           );
@@ -1321,7 +1342,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (!hasThumb)
                     Icon(
                       isMode1 ? Icons.auto_awesome : Icons.security,
-                      color: isMode1 ? AppColors.accentTangerine : AppColors.accentGrape,
+                      color: isMode1
+                          ? AppColors.accentTangerine
+                          : AppColors.accentGrape,
                       size: 24,
                     ),
                 ],
@@ -1367,8 +1390,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ? "${live.statusLabel.toUpperCase()} ${live.progressPercent}%"
                               : project.statusLabel.toUpperCase();
                           return Container(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
                               color: c.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
@@ -1385,7 +1408,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       const Spacer(),
-                      const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.mut),
+                      const Icon(Icons.arrow_forward_ios,
+                          size: 12, color: AppColors.mut),
                     ],
                   ),
                 ],
@@ -1402,6 +1426,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final Widget body = switch (_currentNavIndex) {
       1 => const ProjectsHistoryScreen(),
       2 => const SettingsScreen(),
+      3 => const TasksScreen(),
       _ => _buildDashboard(),
     };
 
