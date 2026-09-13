@@ -86,20 +86,17 @@ class FfmpegEngineService {
         if (await outputFile.exists()) await outputFile.delete();
       } catch (_) {}
 
-      final fallbackArgs = [
-        "-y",
-        "-threads", "0",
-        if (startTime > 0.01) ...["-ss", startTime.toStringAsFixed(3)],
-        "-i", inputPath,
-        if (clipDuration > 0.01) ...["-t", clipDuration.toStringAsFixed(3)],
-        "-vf", "scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic,boxblur=1:1",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
-        if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
-        outputPath,
-      ];
+      // The recovery encode must still transform. A plain rescale would hand
+      // back a file that is visually and audibly identical to the source while
+      // being presented to the user as a protected export.
+      final fallbackArgs = pipeline.buildResilientArgs(
+        inputPath: inputPath,
+        outputPath: outputPath,
+        start: startTime,
+        end: endTime,
+        context: context,
+        logCallback: logCallback,
+      );
       final fallbackSession = await FFmpegKit.executeWithArguments(fallbackArgs);
       final fbCode = await fallbackSession.getReturnCode();
 
@@ -229,6 +226,7 @@ class FfmpegEngineService {
     required String inputPath,
     required String outputPath,
     required AudioDspConfig config,
+    double? audioDuration,
     required Function(double progress, String stage) onProgress,
     required Function(String log) logCallback,
   }) async {
@@ -239,6 +237,7 @@ class FfmpegEngineService {
       inputPath: inputPath,
       outputPath: outputPath,
       config: config,
+      audioDuration: audioDuration,
       logCallback: logCallback,
     );
 

@@ -58,6 +58,40 @@ class AudioDspConfig {
       outputMode: outputMode ?? this.outputMode,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'volumeDb': volumeDb,
+      'eqGainDb': eqGainDb,
+      'tempoPercent': tempoPercent,
+      'pitchPercent': pitchPercent,
+      'stereoPanning': stereoPanning,
+      'compressionRatio': compressionRatio,
+      'reverbMix': reverbMix,
+      'delayMs': delayMs,
+      'fadeInSec': fadeInSec,
+      'fadeOutSec': fadeOutSec,
+      'normalization': normalization,
+      'outputMode': outputMode.index,
+    };
+  }
+
+  factory AudioDspConfig.fromMap(Map<String, dynamic> map) {
+    return AudioDspConfig(
+      volumeDb: map['volumeDb']?.toDouble() ?? 1.0,
+      eqGainDb: map['eqGainDb']?.toDouble() ?? 1.5,
+      tempoPercent: map['tempoPercent']?.toDouble() ?? 1.0,
+      pitchPercent: map['pitchPercent']?.toDouble() ?? 0.5,
+      stereoPanning: map['stereoPanning']?.toDouble() ?? 0.0,
+      compressionRatio: map['compressionRatio']?.toDouble() ?? 1.8,
+      reverbMix: map['reverbMix']?.toDouble() ?? 0.05,
+      delayMs: map['delayMs']?.toDouble() ?? 10.0,
+      fadeInSec: map['fadeInSec']?.toDouble() ?? 1.5,
+      fadeOutSec: map['fadeOutSec']?.toDouble() ?? 2.0,
+      normalization: map['normalization'] ?? true,
+      outputMode: map['outputMode'] != null ? AudioOutputMode.values[map['outputMode']] : AudioOutputMode.fullMix,
+    );
+  }
 }
 
 enum AudioOutputMode {

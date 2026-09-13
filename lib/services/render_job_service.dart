@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
@@ -7,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/app_modes.dart';
+import '../models/audio_dsp_config.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../transformation/layer.dart';
@@ -371,7 +373,33 @@ class RenderJobService {
     }
   }
 
+  /// Output geometry for widescreen / copyright-remover renders.
+  ///
+  /// The source aspect ratio is preserved exactly and the result is only ever
+  /// downscaled to fit the quality ceiling, so a 16:9 input always produces a
+  /// 16:9 output and can never be reframed into a vertical canvas. Blindly
+  /// forcing 1920x1080 would stretch any source that is not already 16:9.
+  static (int, int) widescreenOutputSize(MediaProbeInfo probe, String quality) {
+    final int maxW = quality == 'high' ? 1920 : 1280;
+    final int maxH = quality == 'high' ? 1080 : 720;
+    final int srcW = probe.width > 0 ? probe.width : maxW;
+    final int srcH = probe.height > 0 ? probe.height : maxH;
+
+    final double fit = math.min(maxW / srcW, maxH / srcH);
+    final double scale = fit > 1.0 ? 1.0 : fit; // never upscale past the source
+
+    int w = (srcW * scale).round();
+    int h = (srcH * scale).round();
+    if (w.isOdd) w -= 1; // H.264 requires even dimensions
+    if (h.isOdd) h -= 1;
+    return (math.max(w, 2), math.max(h, 2));
+  }
+
   Future<void> _runJob(_RenderJobRequest request) async {
+    if (request.project.mode == AppMode.songRemover) {
+      return _runSongRemoverJob(request);
+    }
+
     final project = request.project;
     final projectId = project.id;
     final tracker = SubjectTrackerService();
@@ -413,6 +441,10 @@ class RenderJobService {
         final double clipWeight = 1.0 / totalClips;
 
         _log(projectId, 'Processing clip ${i + 1}/$totalClips: ${clip.title}');
+        if (isWidescreenMode) {
+          _log(projectId,
+              'Widescreen mode: preserving source aspect ${request.probeInfo.width}x${request.probeInfo.height}.');
+        }
         update(state.copyWith(
           progress: baseWeight,
           currentStage: 'Clip ${i + 1} of $totalClips - preparing',
@@ -445,8 +477,9 @@ class RenderJobService {
         final int outW;
         final int outH;
         if (isWidescreenMode) {
-          outW = request.quality == 'high' ? 1920 : 1280;
-          outH = request.quality == 'high' ? 1080 : 720;
+          final size = widescreenOutputSize(request.probeInfo, request.quality);
+          outW = size.$1;
+          outH = size.$2;
         } else {
           outW = request.quality == 'high' ? 1080 : 720;
           outH = request.quality == 'high' ? 1920 : 1280;
@@ -573,6 +606,123 @@ class RenderJobService {
       }
     } finally {
       tracker.dispose();
+    }
+  }
+
+  Future<void> _runSongRemoverJob(_RenderJobRequest request) async {
+    final project = request.project;
+    final projectId = project.id;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    
+    RenderJobState state = jobs.value[projectId]!;
+    void update(RenderJobState next) {
+      state = next;
+      _emit(next);
+    }
+    
+    update(state.copyWith(
+      status: RenderJobStatus.rendering,
+      currentStage: 'Preparing render session',
+      progress: 0.0,
+    ));
+    project.status = ProjectStatus.rendering;
+    await ProjectStorageService.saveProject(project);
+    
+    try {
+      final config = AudioDspConfig.fromMap(project.settings['dspConfig'] ?? {});
+      final String? coverImagePath = project.settings['coverImagePath'];
+      final bool isWidescreen = project.settings['isWidescreen'] ?? true;
+      
+      final appDir = await getApplicationDocumentsDirectory();
+      final outputDir = Directory(path.join(appDir.path, 'ClipShield_Songs'));
+      if (!await outputDir.exists()) {
+        await outputDir.create(recursive: true);
+      }
+      
+      final audioPath = path.join(outputDir.path, 'processed_audio_$ts.m4a');
+      final videoPath = path.join(outputDir.path, 'ClipShield_Song_$ts.mp4');
+      final thumbPath = path.join(outputDir.path, 'thumb_$ts.jpg');
+      
+      update(state.copyWith(progress: 0.1, currentStage: 'Processing audio'));
+      await _ffmpegService.renderSongRemoverAudio(
+        inputPath: request.sourceVideoPath,
+        outputPath: audioPath,
+        config: config,
+        audioDuration: request.probeInfo.duration,
+        onProgress: (p, s) {
+          if (_cancelRequests.contains(projectId)) return;
+          update(state.copyWith(progress: 0.1 + (p * 0.4), currentStage: 'Processing audio'));
+        },
+        logCallback: (m) => _log(projectId, m),
+      );
+      
+      if (_cancelRequests.contains(projectId)) throw Exception("Canceled");
+      
+      update(state.copyWith(progress: 0.5, currentStage: 'Composing video'));
+      await _ffmpegService.composeCoverVideo(
+        imagePath: coverImagePath!,
+        audioPath: audioPath,
+        outputPath: videoPath,
+        isWidescreen: isWidescreen,
+        onProgress: (p, s) {
+          if (_cancelRequests.contains(projectId)) return;
+          update(state.copyWith(progress: 0.5 + (p * 0.4), currentStage: 'Composing video'));
+        },
+        logCallback: (m) => _log(projectId, m),
+      );
+      
+      if (_cancelRequests.contains(projectId)) throw Exception("Canceled");
+      
+      update(state.copyWith(progress: 0.9, currentStage: 'Extracting thumbnail'));
+      try {
+        await _ffmpegService.extractThumbnail(videoPath: videoPath, thumbnailPath: thumbPath);
+      } catch (_) {}
+      
+      final composed = File(videoPath);
+      if (!await composed.exists() || await composed.length() <= 1024) {
+        throw Exception("Encoder produced no usable output file.");
+      }
+      
+      update(state.copyWith(progress: 0.95, currentStage: 'Exporting to gallery'));
+      try {
+        await GalleryExportService.exportToPublicGallery(videoPath);
+      } catch (_) {}
+      
+      final clip = request.clipsToRender.first;
+      clip.outputPath = videoPath;
+      clip.thumbnailPath = thumbPath;
+      clip.isRendered = true;
+      
+      project.clips = [clip];
+      project.outputPaths = [videoPath];
+      project.thumbnailPath = thumbPath;
+      
+      await LicenseService.instance.consumeTrial();
+      await _finalize(
+        projectId,
+        state.copyWith(
+          status: RenderJobStatus.completed,
+          progress: 1.0,
+          currentStage: 'Completed',
+          renderedClips: 1,
+          outputPaths: [videoPath],
+        ),
+        project: project,
+      );
+    } catch (e) {
+      if (_cancelRequests.contains(projectId)) {
+        await _finalize(
+          projectId,
+          state.copyWith(status: RenderJobStatus.canceled, currentStage: 'Canceled', error: null),
+          project: project,
+        );
+      } else {
+        await _finalize(
+          projectId,
+          state.copyWith(status: RenderJobStatus.failed, currentStage: 'Failed', error: e.toString()),
+          project: project,
+        );
+      }
     }
   }
 

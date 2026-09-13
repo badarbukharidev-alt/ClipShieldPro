@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import '../layer.dart';
 
 class ParametricEqLayer extends TransformationLayer {
@@ -37,15 +37,15 @@ class ParametricEqLayer extends TransformationLayer {
 
     final bands = [80, 400, 2000, 8000, 15000];
     List<String> eqFilters = [];
-    final double maxGain = 1.0 + (intensity * 1.0); // 1.0 to 2.0 dB
+    // Each band gets a guaranteed minimum gain so the spectral signature always
+    // moves; a near-zero draw would leave the band untouched.
+    final double maxGain = 1.2 + (intensity * 1.6); // 1.2 to 2.8 dB
 
     for (final freq in bands) {
-      final double gain = customGains?[freq] ??
-          ((_random.nextDouble() * (2.0 * maxGain)) - maxGain);
-      if (gain.abs() > 0.05) {
-        eqFilters.add(
-            "equalizer=f=$freq:width_type=q:width=1:g=${gain.toStringAsFixed(2)}");
-      }
+      final double gain =
+          customGains?[freq] ?? signedJitter(_random, 0.8, maxGain);
+      eqFilters.add(
+          "equalizer=f=$freq:width_type=q:width=1:g=${gain.toStringAsFixed(2)}");
     }
 
     return FilterResult(

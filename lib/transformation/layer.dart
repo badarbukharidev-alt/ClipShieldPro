@@ -1,4 +1,6 @@
-﻿class FilterContext {
+import 'dart:math';
+
+class FilterContext {
   final int sourceWidth;
   final int sourceHeight;
   final double duration;
@@ -20,6 +22,20 @@
     this.cropCoordinates,
     this.isPreview = false,
   });
+}
+
+/// Returns a random value whose magnitude is at least [minMagnitude] and at most
+/// [maxMagnitude], with a random sign.
+///
+/// Layers must never draw a perturbation straight from a zero-centred uniform
+/// range: such a draw regularly lands near zero, producing a render that is
+/// effectively identical to the source. Every transformation gets a guaranteed
+/// floor so no output is ever an accidental passthrough.
+double signedJitter(Random random, double minMagnitude, double maxMagnitude) {
+  final double lo = minMagnitude.abs();
+  final double hi = maxMagnitude.abs() < lo ? lo : maxMagnitude.abs();
+  final double magnitude = lo + (random.nextDouble() * (hi - lo));
+  return random.nextBool() ? magnitude : -magnitude;
 }
 
 class FilterResult {

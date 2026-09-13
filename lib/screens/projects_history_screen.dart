@@ -218,152 +218,206 @@ class _ProjectsHistoryScreenState extends State<ProjectsHistoryScreen> {
         ? "${job?.renderedClips ?? p.renderedClipsCount}/${job?.totalClips ?? p.clipsCount} clips · ${p.aspectRatio.label}"
         : "${p.clipsCount} clip${p.clipsCount == 1 ? '' : 's'} · ${p.aspectRatio.label}";
 
-    return GestureDetector(
-      onTap: () => _openProject(p),
-      child: Container(
+    return Dismissible(
+      key: ValueKey(p.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.error,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isLive ? Colors.orange.withOpacity(0.5) : AppColors.line),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 74,
-                  decoration: BoxDecoration(
-                    color: AppColors.darkCard,
-                    borderRadius: BorderRadius.circular(12),
-                    image: hasThumb
-                        ? DecorationImage(
-                            image: FileImage(File(p.thumbnailPath!)),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Project'),
+            content: const Text('Are you sure you want to delete this project and all its generated files?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+      },
+      onDismissed: (direction) async {
+        for (final path in p.outputPaths) {
+          final file = File(path);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        }
+        if (p.thumbnailPath != null) {
+          final thumb = File(p.thumbnailPath!);
+          if (await thumb.exists()) {
+            await thumb.delete();
+          }
+        }
+        await ProjectStorageService.deleteProject(p.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Project deleted')),
+          );
+        }
+      },
+      child: GestureDetector(
+        onTap: () => _openProject(p),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isLive ? Colors.orange.withOpacity(0.5) : AppColors.line),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      color: AppColors.darkCard,
+                      borderRadius: BorderRadius.circular(12),
+                      image: hasThumb
+                          ? DecorationImage(
+                              image: FileImage(File(p.thumbnailPath!)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (!hasThumb)
+                          Icon(
+                            isSong ? Icons.music_note : (isMode1 ? Icons.auto_awesome : Icons.security),
+                            color: isSong
+                                ? Colors.green
+                                : (isMode1 ? AppColors.accentTangerine : AppColors.accentGrape),
+                            size: 22,
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (!hasThumb)
-                        Icon(
-                          isSong ? Icons.music_note : (isMode1 ? Icons.auto_awesome : Icons.security),
-                          color: isSong
-                              ? Colors.green
-                              : (isMode1 ? AppColors.accentTangerine : AppColors.accentGrape),
-                          size: 22,
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isSong
-                                  ? Colors.green.withOpacity(0.15)
-                                  : (isMode1 ? AppColors.softTangerine : AppColors.softGrape),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              isSong ? "SONGS" : (isMode1 ? "SHORTS" : "TRANSFORM"),
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
                                 color: isSong
-                                    ? Colors.green
-                                    : (isMode1 ? AppColors.accentTangerine : AppColors.accentGrape),
+                                    ? Colors.green.withOpacity(0.15)
+                                    : (isMode1 ? AppColors.softTangerine : AppColors.softGrape),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isSong ? "SONGS" : (isMode1 ? "SHORTS" : "TRANSFORM"),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: isSong
+                                      ? Colors.green
+                                      : (isMode1 ? AppColors.accentTangerine : AppColors.accentGrape),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            p.formattedDate,
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        p.title,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
+                            const SizedBox(width: 6),
+                            Text(
+                              p.formattedDate,
+                              style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        const SizedBox(height: 6),
+                        Text(
+                          p.title,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(fontSize: 12, color: AppColors.mut),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: statusColor,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(fontSize: 12, color: AppColors.mut),
-                      ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+              if (isLive) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: job.status == RenderJobStatus.queued ? null : job.progress,
+                    backgroundColor: AppColors.line,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+                    minHeight: 4,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: statusColor,
-                    ),
+                    job.currentStage,
+                    style: const TextStyle(fontSize: 11, color: AppColors.mut),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
-            ),
-            if (isLive) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: job.status == RenderJobStatus.queued ? null : job.progress,
-                  backgroundColor: AppColors.line,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
-                  minHeight: 4,
+              if (!isLive && p.status == ProjectStatus.failed && p.renderError != null) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    p.renderError!,
+                    style: const TextStyle(fontSize: 11, color: AppColors.error),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  job.currentStage,
-                  style: const TextStyle(fontSize: 11, color: AppColors.mut),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              ],
             ],
-            if (!isLive && p.status == ProjectStatus.failed && p.renderError != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  p.renderError!,
-                  style: const TextStyle(fontSize: 11, color: AppColors.error),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

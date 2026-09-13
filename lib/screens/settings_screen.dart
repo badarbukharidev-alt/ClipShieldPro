@@ -61,73 +61,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Master passcode for the offline admin key generator.
+  static const String _adminPasscode = r"B@dar85299211";
+
   Future<void> _promptAdminPasscode() async {
     final pinController = TextEditingController();
+
+    void submit(BuildContext ctx) {
+      final ok = pinController.text.trim() == _adminPasscode;
+      Navigator.pop(ctx, ok);
+    }
+
     final bool? isAuthed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.security, color: AppColors.accentTangerine, size: 24),
-            SizedBox(width: 10),
-            Text("Admin Authentication", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-          ],
-        ),
+        contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Enter master admin passcode to access license key generator:",
-              style: TextStyle(color: AppColors.mut, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
             TextField(
               controller: pinController,
               autofocus: true,
               obscureText: true,
               keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.go,
+              onSubmitted: (_) => submit(ctx),
               style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 3, fontSize: 16),
               decoration: InputDecoration(
-                hintText: "Admin Passcode",
                 filled: true,
                 fillColor: AppColors.bg,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.line)),
-                prefixIcon: const Icon(Icons.lock_outline, color: AppColors.mut),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.line),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentTangerine,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => submit(ctx),
+                child: const Text("Unlock"),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel", style: TextStyle(color: AppColors.mut)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentTangerine,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              final pin = pinController.text.trim();
-              if (pin == "7860" || pin == "9922" || pin == "admin2026") {
-                Navigator.pop(ctx, true);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Access Denied: Incorrect Admin Passcode"),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-                Navigator.pop(ctx, false);
-              }
-            },
-            child: const Text("Unlock"),
-          ),
-        ],
       ),
     );
 
@@ -637,14 +623,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           if (val != null) setState(() => _exportQuality = val);
                         },
                       ),
-                    ],
-                  ),
-                  const Divider(height: 20, color: AppColors.line),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Target Social Canvas", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                      Text("9:16 Vertical", style: TextStyle(color: AppColors.mut, fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],

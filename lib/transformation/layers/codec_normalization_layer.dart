@@ -50,11 +50,16 @@ class CodecNormalizationLayer extends TransformationLayer {
     final String timeStamp =
         "${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}T${hour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}Z";
 
+    // CRF 16-18 at ultrafast produced ~10 Mbit/s files; the extra bits cost write
+    // time, gallery-copy time and upload time without visible benefit at these
+    // transformation strengths. These values roughly halve the output size.
     final int crf = context.quality == 'high'
-        ? 16 + _random.nextInt(3)
-        : (context.quality == 'fast' ? 22 : 18 + _random.nextInt(3));
+        ? 20 + _random.nextInt(2)
+        : (context.quality == 'fast' ? 25 : 22 + _random.nextInt(2));
     final int gop = 60 + _random.nextInt(61); // 60 to 120
-    final int bframes = 2 + _random.nextInt(3); // 2 to 4
+    // B-frames are the most expensive part of the ultrafast preset's search;
+    // pinning to 2 keeps compression while cutting encode time.
+    const int bframes = 2;
     const String preset = "ultrafast";
 
     List<String> args = [
@@ -104,8 +109,6 @@ class CodecNormalizationLayer extends TransformationLayer {
         "20",
         "-pix_fmt",
         "yuv420p",
-        "-movflags",
-        "+faststart",
         if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
       ],
       logMessage: "Layer 9 fallback: Default H.264 profile applied.",

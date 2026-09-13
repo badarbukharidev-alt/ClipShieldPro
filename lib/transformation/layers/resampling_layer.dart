@@ -36,12 +36,13 @@ class ResamplingLayer extends TransformationLayer {
     final int w = forcedWidth ?? context.targetWidth;
     final int h = forcedHeight ?? context.targetHeight;
 
-    // Bicubic interpolation for crisp scaling without blurring
-    final String scaleFilter = "scale=$w:$h:flags=bicubic";
-
+    // Bicubic interpolation for crisp scaling without blurring. setsar=1 forces
+    // square pixels so the display aspect ratio is exactly w:h -- without it the
+    // micro-crop from layer 4 leaves a skewed SAR and a 16:9 source can be
+    // presented as something other than 16:9.
     return FilterResult(
-      videoFilters: [scaleFilter],
-      logMessage: "Layer 5 applied: High-fidelity bicubic resampling to ${w}x$h.",
+      videoFilters: ["scale=$w:$h:flags=bicubic", "setsar=1"],
+      logMessage: "Layer 5 applied: High-fidelity bicubic resampling to ${w}x$h (square pixels).",
     );
   }
 
@@ -55,7 +56,7 @@ class ResamplingLayer extends TransformationLayer {
         : 1280;
 
     return FilterResult(
-      videoFilters: ["scale=$safeW:$safeH"],
+      videoFilters: ["scale=$safeW:$safeH", "setsar=1"],
       logMessage: "Layer 5 fallback: Standard bilinear scale to ${safeW}x$safeH.",
       isFallback: true,
     );

@@ -109,6 +109,134 @@ class TransformationPipeline {
     return true;
   }
 
+  /// Fuses consecutive `eq=` filter instances into one.
+  ///
+  /// The colour and gamma layers each emit their own `eq=`, which costs an extra
+  /// full-frame pass per filter instance. Merging them is behaviourally
+  /// identical (eq options are independent multipliers) and measurably faster on
+  /// high-resolution sources.
+  static List<String> fuseVideoFilters(List<String> filters) {
+    final List<String> fused = [];
+    final List<String> pendingEq = [];
+
+    void flushEq() {
+      if (pendingEq.isEmpty) return;
+      final options = pendingEq
+          .map((f) => f.substring(3)) // strip the leading "eq="
+          .where((o) => o.isNotEmpty)
+          .join(':');
+      fused.add('eq=$options');
+      pendingEq.clear();
+    }
+
+    for (final filter in filters) {
+      if (filter.startsWith('eq=')) {
+        pendingEq.add(filter);
+      } else {
+        flushEq();
+        fused.add(filter);
+      }
+    }
+    flushEq();
+    return fused;
+  }
+
+  /// Builds a deliberately simple command that still performs a real
+  /// transformation.
+  ///
+  /// This is the recovery path when the full filtergraph fails. It must never
+  /// degrade into a plain re-encode: handing back a visually and audibly
+  /// identical file labelled "protected" is worse than failing, because the user
+  /// has no way to tell the difference. Every layer contributes its `fallback()`
+  /// filters, which are conservative but never neutral.
+  List<String> buildResilientArgs({
+    required String inputPath,
+    required String outputPath,
+    required double start,
+    required double end,
+    required FilterContext context,
+    required Function(String) logCallback,
+  }) {
+    final double clipDuration = end - start;
+
+    List<String> vfList = [];
+    List<String> afList = [];
+
+    for (final layer in allLayers) {
+      if (!layer.isEnabled) continue;
+      try {
+        final res = layer.fallback(context);
+        vfList.addAll(res.videoFilters);
+        afList.addAll(res.audioFilters);
+      } catch (_) {
+        // A layer that cannot even produce its fallback is simply skipped.
+      }
+    }
+
+    vfList = fuseVideoFilters(vfList);
+    if (vfList.isEmpty) {
+      vfList = [
+        "scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic",
+        "setsar=1",
+        "hue=h=5:s=1.03",
+        "eq=contrast=1.03:gamma=1.03",
+      ];
+    }
+
+    final List<String> args = [
+      "-y",
+      "-threads",
+      "0",
+      if (start > 0.01) ...["-ss", start.toStringAsFixed(3)],
+      if (clipDuration > 0.01) ...["-t", clipDuration.toStringAsFixed(3)],
+      "-i",
+      inputPath,
+    ];
+
+    final vfString = vfList.join(',');
+    logCallback("Resilient video chain: $vfString");
+
+    if (context.hasAudio && afList.isNotEmpty) {
+      final afString =
+          "aformat=sample_rates=44100:channel_layouts=stereo,${afList.join(',')}";
+      logCallback("Resilient audio chain: $afString");
+      args.addAll([
+        "-filter_complex",
+        "[0:v]$vfString[vout];[0:a]$afString[aout]",
+        "-map",
+        "[vout]",
+        "-map",
+        "[aout]",
+      ]);
+    } else {
+      args.addAll([
+        "-filter_complex",
+        "[0:v]$vfString[vout]",
+        "-map",
+        "[vout]",
+      ]);
+    }
+
+    args.addAll([
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "23",
+      "-pix_fmt",
+      "yuv420p",
+      "-bf",
+      "2",
+      "-map_metadata",
+      "-1",
+      if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
+      outputPath,
+    ]);
+
+    return args;
+  }
+
   /// Compiles the complete command arguments array for FFmpeg execution
   List<String> buildFfmpegArgs({
     required String inputPath,
@@ -159,7 +287,18 @@ class TransformationPipeline {
 
     args.addAll(["-i", inputPath]);
 
+    vfList = fuseVideoFilters(vfList);
+    if (vfList.isEmpty) {
+      // An empty chain would compile to the invalid "[0:v][vout]" and, worse,
+      // would mean nothing was transformed at all.
+      vfList = ["scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic", "setsar=1"];
+      logCallback("No video layers produced filters; applied baseline resample.");
+    }
     final vfString = vfList.join(',');
+    logCallback("Video chain (${vfList.length} filters): $vfString");
+    if (context.hasAudio) {
+      logCallback("Audio chain (${afList.length} filters): ${afList.join(',')}");
+    }
 
     if (context.hasAudio) {
       final afString = afList.isNotEmpty

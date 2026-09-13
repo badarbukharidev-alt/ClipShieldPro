@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import '../layer.dart';
 
 class HarmonicAudioLayer extends TransformationLayer {
@@ -37,8 +37,10 @@ class HarmonicAudioLayer extends TransformationLayer {
       return FilterResult(logMessage: "Layer 1: No audio stream detected. Skipped.");
     }
 
-    final double semitones = customSemitones ??
-        ((_random.nextDouble() * 2.0 - 1.0) * (0.5 + intensity * 1.0)); // bounded +- 1.5
+    // Guaranteed audible shift: never less than 0.4 semitones, never more than
+    // 1.5, so speech stays natural but the waveform is genuinely different.
+    final double semitones =
+        customSemitones ?? signedJitter(_random, 0.4, 0.5 + (intensity * 1.0));
     final double factor = pow(2.0, semitones / 12.0).toDouble();
 
     final String rateFilter =
@@ -53,9 +55,18 @@ class HarmonicAudioLayer extends TransformationLayer {
 
   @override
   FilterResult fallback(FilterContext context) {
+    // A neutral resample would leave the audio fingerprint untouched, so the
+    // fallback still performs a real pitch shift.
+    final double semitones = signedJitter(_random, 0.4, 0.8);
+    final double factor = pow(2.0, semitones / 12.0).toDouble();
     return FilterResult(
-      audioFilters: ["aformat=sample_rates=44100"],
-      logMessage: "Layer 1 fallback: Neutral audio resampling applied.",
+      audioFilters: [
+        "asetrate=r=44100*${factor.toStringAsFixed(5)}",
+        "aformat=sample_rates=44100",
+        "atempo=${(1.0 / factor).toStringAsFixed(5)}",
+      ],
+      logMessage:
+          "Layer 1 fallback: Baseline pitch shift ${semitones.toStringAsFixed(2)} semitones.",
       isFallback: true,
     );
   }

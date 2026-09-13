@@ -9,6 +9,7 @@ class SongRemoverPipeline {
     required String inputPath,
     required String outputPath,
     required AudioDspConfig config,
+    double? audioDuration,
     required Function(String) logCallback,
   }) {
     logCallback("--- Compiling Songs Remover Audio DSP Chain ---");
@@ -78,10 +79,10 @@ class SongRemoverPipeline {
       audioFilters.add("afade=t=in:st=0:d=${config.fadeInSec.toStringAsFixed(1)}");
       logCallback("DSP: Fade in ${config.fadeInSec.toStringAsFixed(1)}s");
     }
-    if (config.fadeOutSec > 0.1) {
-      // Fade out disabled as areverse causes performance issues on mobile devices
-      // and duration is unknown for standard afade.
-      logCallback("DSP: Fade out skipped (performance optimization)");
+    if (config.fadeOutSec > 0.1 && audioDuration != null && audioDuration > config.fadeOutSec) {
+      final double fadeStart = audioDuration - config.fadeOutSec;
+      audioFilters.add("afade=t=out:st=${fadeStart.toStringAsFixed(2)}:d=${config.fadeOutSec.toStringAsFixed(1)}");
+      logCallback("DSP: Fade out ${config.fadeOutSec.toStringAsFixed(1)}s starting at ${fadeStart.toStringAsFixed(1)}s");
     }
 
     // 10. Normalization

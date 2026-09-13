@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import '../layer.dart';
 
 class GammaLayer extends TransformationLayer {
@@ -32,9 +32,8 @@ class GammaLayer extends TransformationLayer {
 
   @override
   FilterResult apply(FilterContext context) {
-    final double maxDelta = 0.01 + (intensity * 0.02); // 0.01 to 0.03
     final double gamma = customGamma ??
-        (1.0 + ((_random.nextDouble() * (2.0 * maxDelta)) - maxDelta));
+        (1.0 + signedJitter(_random, 0.03, 0.03 + (intensity * 0.04)));
 
     final String gammaFilter = "eq=gamma=${gamma.toStringAsFixed(4)}";
 
@@ -47,9 +46,11 @@ class GammaLayer extends TransformationLayer {
 
   @override
   FilterResult fallback(FilterContext context) {
+    final double gamma = 1.0 + signedJitter(_random, 0.03, 0.05);
     return FilterResult(
-      videoFilters: ["eq=gamma=1.0"],
-      logMessage: "Layer 7 fallback: Neutral gamma curve.",
+      videoFilters: ["eq=gamma=${gamma.toStringAsFixed(4)}"],
+      logMessage:
+          "Layer 7 fallback: Baseline gamma shift to ${gamma.toStringAsFixed(3)}.",
       isFallback: true,
     );
   }

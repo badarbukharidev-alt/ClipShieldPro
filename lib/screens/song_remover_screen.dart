@@ -9,13 +9,14 @@ import '../models/audio_dsp_config.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../services/downloader_service.dart';
-import '../services/ffmpeg_engine_service.dart';
 import '../services/media_probe_service.dart';
 import '../transformation/song_remover_pipeline.dart';
-import '../services/project_storage_service.dart';
-import '../services/gallery_export_service.dart';
 import '../theme/app_theme.dart';
-import 'results_screen.dart';
+import '../services/license_service.dart';
+import '../services/render_job_service.dart';
+import '../transformation/pipeline.dart';
+import 'activation_dialog.dart';
+import 'processing_screen.dart';
 
 class SongRemoverScreen extends StatefulWidget {
   final String sourcePathOrUrl;
@@ -33,7 +34,6 @@ class SongRemoverScreen extends StatefulWidget {
 
 class _SongRemoverScreenState extends State<SongRemoverScreen> {
   final DownloaderService _downloader = DownloaderService();
-  final FfmpegEngineService _ffmpegService = FfmpegEngineService();
   final SongRemoverPipeline _pipeline = SongRemoverPipeline();
 
   final AudioDspConfig _config = AudioDspConfig();
@@ -149,12 +149,16 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
       return;
     }
 
-    setState(() => _isRendering = true);
+    final hasLicense = LicenseService.instance.canRender();
+    if (!hasLicense) {
+      if (!mounted) return;
+      showDialog(context: context, builder: (_) => const ActivationDialog());
+      return;
+    }
 
+    setState(() => _isRendering = true);
     final ts = DateTime.now().millisecondsSinceEpoch;
 
-    // Register the project up front so it is visible in Projects History with a
-    // truthful "rendering" status for the whole duration of the job.
     final project = ProjectItem(
       id: "song_proj_$ts",
       mode: AppMode.songRemover,
@@ -165,88 +169,46 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
       preset: PipelinePreset.balanced,
       aspectRatio: _isWidescreen ? AspectRatioOption.original169 : AspectRatioOption.vertical916,
     );
-    project.status = ProjectStatus.rendering;
-    await ProjectStorageService.saveProject(project);
+    project.settings['dspConfig'] = _config.toMap();
+    project.settings['coverImagePath'] = _coverImagePath;
+    project.settings['isWidescreen'] = _isWidescreen;
+
+    final clip = ClipItem(
+      id: "song_$ts",
+      title: "Processed Audio Export",
+      duration: "${_probeInfo?.duration.toInt() ?? 0}s",
+      startTime: 0.0,
+      endTime: _probeInfo?.duration ?? 0.0,
+      score: 100,
+      tag: "Song",
+    );
 
     try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final outputDir = Directory(path.join(appDir.path, "ClipShield_Songs"));
-      if (!await outputDir.exists()) await outputDir.create(recursive: true);
-
-      // Step 1: Process audio with DSP chain
-      final audioPath = path.join(outputDir.path, "processed_audio_$ts.m4a");
-      await _ffmpegService.renderSongRemoverAudio(
-        inputPath: _localPath!,
-        outputPath: audioPath,
-        config: _config,
-        onProgress: (p, s) {},
-        logCallback: (_) {},
+      final projectId = await RenderJobService.instance.submit(
+        project: project,
+        sourceVideoPath: _localPath!,
+        probeInfo: _probeInfo!,
+        clipsToRender: [clip],
+        pipeline: TransformationPipeline(),
+        aspectRatio: project.aspectRatio,
+        enableSubjectTracking: false,
       );
-
-      // Step 2: Compose cover image + audio → video
-      final videoPath = path.join(outputDir.path, "ClipShield_Song_$ts.mp4");
-      await _ffmpegService.composeCoverVideo(
-        imagePath: _coverImagePath!,
-        audioPath: audioPath,
-        outputPath: videoPath,
-        isWidescreen: _isWidescreen,
-        onProgress: (p, s) {},
-        logCallback: (_) {},
-      );
-
-      // Step 3: Generate thumbnail
-      final thumbPath = path.join(outputDir.path, "thumb_$ts.jpg");
-      try {
-        await _ffmpegService.extractThumbnail(videoPath: videoPath, thumbnailPath: thumbPath);
-      } catch (_) {}
-
-      final composed = File(videoPath);
-      if (!await composed.exists() || await composed.length() <= 1024) {
-        throw Exception("Encoder produced no usable output file.");
-      }
-
-      final clip = ClipItem(
-        id: "song_$ts",
-        title: "Processed Audio Export",
-        duration: "${_probeInfo?.duration.toInt() ?? 0}s",
-        startTime: 0.0,
-        endTime: _probeInfo?.duration ?? 0.0,
-        score: 100,
-        tag: "Song",
-      );
-      clip.outputPath = videoPath;
-      clip.thumbnailPath = thumbPath;
-      clip.isRendered = true;
-
-      project.clips = [clip];
-      project.status = ProjectStatus.done;
-      project.outputPaths = [videoPath];
-      project.thumbnailPath = thumbPath;
-
-      // Persist the completed state; only now is the project "ready".
-      await ProjectStorageService.saveProject(project);
-
-      // Export directly to public device gallery
-      try {
-        await GalleryExportService.exportToPublicGallery(videoPath);
-      } catch (_) {}
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => ResultsScreen(project: project, renderedClips: [clip]),
+          builder: (_) => ProcessingScreen(
+            projectId: projectId,
+            mode: project.mode,
+            title: project.title,
+          ),
         ),
       );
     } catch (e) {
-      project.status = ProjectStatus.failed;
-      project.settings['renderError'] = e.toString();
-      try {
-        await ProjectStorageService.saveProject(project);
-      } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Render failed: $e"), backgroundColor: AppColors.error),
+          SnackBar(content: Text("Submission failed: $e"), backgroundColor: AppColors.error),
         );
       }
     } finally {
