@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+import 'device_identity_service.dart';
+import 'task_api_service.dart';
 
 enum LicenseTier {
   trial,
@@ -40,13 +42,17 @@ class LicenseService {
   static const String supportWhatsAppInternational = '923079031153';
 
   // Preference Keys
-  static const String _keyDeviceId = 'clipshield_device_id';
   static const String _keyTrialCount = 'clipshield_trial_renders_count';
   static const String _keyActivationKey = 'clipshield_activation_key';
   static const String _keyIsActivated = 'clipshield_is_activated';
   static const String _keyLicenseTier = 'clipshield_license_tier';
   static const String _keyExpiresAt = 'clipshield_license_expires_at';
   static const String _keyRemainingVideos = 'clipshield_license_remaining_videos';
+
+  // Task reward credits. Cached locally so already-earned credits still work
+  // offline, but the server is the authority and reconciles on every sync.
+  static const String _keyBonusEarned = 'clipshield_bonus_credits_earned';
+  static const String _keyBonusUsed = 'clipshield_bonus_credits_used';
 
   // Maximum allowed free trial renders before requiring Pro activation
   static const int maxTrialRenders = 1;
@@ -56,6 +62,9 @@ class LicenseService {
   int _trialCount = 0;
   bool _isActivated = false;
   bool _isInitialized = false;
+
+  int _bonusEarned = 0;
+  int _bonusUsed = 0;
 
   LicenseTier _currentTier = LicenseTier.trial;
   DateTime? _expiresAt;
@@ -75,6 +84,13 @@ class LicenseService {
 
   /// Remaining videos for video pack licenses.
   int get remainingVideos => _remainingVideos;
+
+  /// Task credits earned in total, and how many have been spent.
+  int get bonusEarned => _bonusEarned;
+  int get bonusUsed => _bonusUsed;
+
+  /// Task credits still available to spend on a render.
+  int get bonusAvailable => (_bonusEarned - _bonusUsed).clamp(0, 1 << 30);
 
   /// Remaining trial renders before lock out.
   int get remainingTrials => isActivated() ? 999 : (maxTrialRenders - _trialCount).clamp(0, maxTrialRenders);
@@ -120,6 +136,8 @@ class LicenseService {
     _prefs = await SharedPreferences.getInstance();
     _deviceId = await getDeviceId();
     _trialCount = _prefs?.getInt(_keyTrialCount) ?? 0;
+    _bonusEarned = _prefs?.getInt(_keyBonusEarned) ?? 0;
+    _bonusUsed = _prefs?.getInt(_keyBonusUsed) ?? 0;
 
     final storedKey = _prefs?.getString(_keyActivationKey);
     final storedExpiresStr = _prefs?.getString(_keyExpiresAt);
@@ -181,33 +199,24 @@ class LicenseService {
     if (_currentTier == LicenseTier.videoPack) {
       return _remainingVideos > 0;
     }
-    return _trialCount < maxTrialRenders;
+    // A trial render is allowed either from the free allowance or from credits
+    // the user earned by completing tasks.
+    return _trialCount < maxTrialRenders || bonusAvailable > 0;
   }
 
-  /// Generates a unique, persistent hardware/installation Device ID (e.g. `CS-XXXX-XXXX-XXXX`).
+  /// Persistent Device ID (`CS-XXXX-XXXX-XXXX`).
+  ///
+  /// Delegates to [DeviceIdentityService], which keeps any pre-existing ID
+  /// intact — licence keys are HMACs over this string, so changing it would
+  /// invalidate every key already sold — and derives new ones from ANDROID_ID
+  /// so they survive clearing app data.
   Future<String> getDeviceId() async {
     if (_deviceId != null && _deviceId!.isNotEmpty) {
       return _deviceId!;
     }
 
-    final prefs = _prefs ?? await SharedPreferences.getInstance();
-    String? storedId = prefs.getString(_keyDeviceId);
-
-    if (storedId == null || storedId.isEmpty) {
-      storedId = _generateUniqueDeviceId();
-      await prefs.setString(_keyDeviceId, storedId);
-    }
-
-    _deviceId = storedId;
-    return storedId;
-  }
-
-  static String _generateUniqueDeviceId() {
-    final raw = const Uuid().v4().replaceAll('-', '').toUpperCase();
-    final p1 = raw.substring(0, 4);
-    final p2 = raw.substring(4, 8);
-    final p3 = raw.substring(8, 12);
-    return 'CS-$p1-$p2-$p3';
+    _deviceId = await DeviceIdentityService.instance.getDeviceId();
+    return _deviceId!;
   }
 
   // =========================================================================
@@ -397,8 +406,44 @@ class LicenseService {
 
     if (isActivated()) return;
 
-    _trialCount += 1;
-    await prefs.setInt(_keyTrialCount, _trialCount);
+    // Spend the free allowance first, then earned task credits, so a user is
+    // never charged a credit while a free render is still available.
+    if (_trialCount < maxTrialRenders) {
+      _trialCount += 1;
+      await prefs.setInt(_keyTrialCount, _trialCount);
+      return;
+    }
+
+    if (bonusAvailable > 0) {
+      _bonusUsed += 1;
+      await prefs.setInt(_keyBonusUsed, _bonusUsed);
+      // Report the spend so a reinstall cannot forget it.
+      unawaited(syncBonusCredits());
+    }
+  }
+
+  /// Reconciles cached task credits with the server, which is authoritative.
+  ///
+  /// Silently does nothing when the API is unconfigured or unreachable, so the
+  /// app keeps working fully offline with whatever credits it already has.
+  Future<void> syncBonusCredits() async {
+    if (!TaskApiService.isConfigured) return;
+
+    final balance = await TaskApiService.instance.syncBalance(creditsUsed: _bonusUsed);
+    if (balance == null) return;
+
+    await applyBonusBalance(balance.earned, balance.used);
+  }
+
+  /// Writes a server-provided balance into local cache.
+  Future<void> applyBonusBalance(int earned, int used) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _bonusEarned = earned < 0 ? 0 : earned;
+    // Never let the server lower the used count below what we already spent,
+    // otherwise a stale response would hand back a credit twice.
+    _bonusUsed = used > _bonusUsed ? used : _bonusUsed;
+    await prefs.setInt(_keyBonusEarned, _bonusEarned);
+    await prefs.setInt(_keyBonusUsed, _bonusUsed);
   }
 
   /// Pre-composed WhatsApp order URL targeting 03079031153.

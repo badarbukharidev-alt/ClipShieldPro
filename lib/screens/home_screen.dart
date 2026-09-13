@@ -9,13 +9,16 @@ import '../models/project_model.dart';
 import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
+import '../services/license_service.dart';
 import '../services/render_job_service.dart';
 import '../theme/app_theme.dart';
 import 'analysis_screen.dart';
+import 'background_permission_dialog.dart';
 import 'processing_screen.dart';
 import 'projects_history_screen.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
+import 'tasks_screen.dart';
 import 'song_remover_screen.dart';
 import 'transform_pipeline_screen.dart';
 
@@ -202,6 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadStats() async {
+    // Reconciles task credits with the server; a no-op when offline.
+    unawaited(LicenseService.instance.syncBonusCredits().then((_) {
+      if (mounted) setState(() {});
+    }));
+
     final stats = await ProjectStorageService.getStats();
     final projects = await ProjectStorageService.loadProjects();
     if (!mounted) return;
@@ -280,6 +288,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _isFetchingMeta = false;
       });
     }
+    if (!mounted) return;
+
+    // Ask for the background exemption before any long job begins.
+    await BackgroundPermissionDialog.maybeShow(context);
     if (!mounted) return;
 
     final String source = isLocal ? _pickedFilePath! : url;
@@ -619,8 +631,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: AppColors.line.withOpacity(0.35),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.line),
       ),
       child: Row(
         children: _modeOrder.map((mode) {
@@ -634,14 +647,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSel ? AppColors.card : Colors.transparent,
+                  color: isSel ? spec.soft : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSel ? spec.accent : Colors.transparent,
+                    width: 1.4,
+                  ),
                   boxShadow: isSel
                       ? [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            color: spec.accent.withOpacity(0.22),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
                         ]
                       : null,
@@ -651,15 +668,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(
                       spec.icon,
                       size: 20,
-                      color: isSel ? spec.accent : AppColors.mut,
+                      color: isSel ? spec.accent : spec.accent.withOpacity(0.55),
                     ),
                     const SizedBox(height: 5),
                     Text(
                       spec.segmentLabel,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isSel ? spec.accent : AppColors.mut,
+                        fontWeight: isSel ? FontWeight.w800 : FontWeight.w700,
+                        color: isSel ? spec.accent : AppColors.ink.withOpacity(0.65),
                       ),
                     ),
                   ],
@@ -904,6 +921,74 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppMode.longVideoToShorts;
   }
 
+  /// Entry point to the reward tasks. Shows the live balance so the value is
+  /// obvious before the user taps through.
+  Widget _buildFreeVideosCard() {
+    final license = LicenseService.instance;
+    final available = license.bonusAvailable;
+    final isPro = license.isActivated();
+
+    // Pro users have unlimited renders, so earning trial credits is noise.
+    if (isPro) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TasksScreen()),
+        );
+        if (mounted) setState(() {});
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.accentLime.withOpacity(0.4), width: 1.4),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.softLime,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.card_giftcard_rounded,
+                  color: AppColors.accentLime, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    available > 0
+                        ? '$available free video${available == 1 ? '' : 's'} ready'
+                        : 'Earn free videos',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Complete quick tasks to unlock more renders',
+                    style: TextStyle(fontSize: 12, color: AppColors.mut),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 13, color: AppColors.mut),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsRow() {
     Widget tile(String value, String unit, String label) {
       return Expanded(
@@ -968,8 +1053,24 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(9),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.cover,
+                      // A missing asset must not blank the header.
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 32,
+                        height: 32,
+                        color: AppColors.accentTangerine,
+                        child: const Icon(Icons.shield, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   const Flexible(
                     child: Text(
                       "ClipShield Studio",
@@ -983,6 +1084,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  const Spacer(),
                   GestureDetector(
                     onTap: () => setState(() => _currentNavIndex = 2),
                     child: Container(
@@ -1036,6 +1138,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 14),
             _buildModeDetailCard(),
             _buildRenderBanner(),
+            _buildFreeVideosCard(),
 
             const SizedBox(height: 24),
             _buildStatsRow(),

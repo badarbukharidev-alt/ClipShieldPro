@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/app_modes.dart';
+import '../models/caption_models.dart';
 import '../models/project_model.dart';
 import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
@@ -101,10 +102,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       final probeInfo = await MediaProbeService.probe(localVideoPath);
       String? transcript;
 
+      // Captions are fetched here because this is the last point where the
+      // original URL is still in hand; downstream screens only see the
+      // downloaded local file.
+      List<CaptionCue> captionCues = const [];
+
       if (widget.sourceType == SourceType.youtubeUrl) {
         transcript = await _downloader.fetchSubtitles(widget.source, (msg) {
           if (!_isCanceled) setState(() => _statusMessage = msg);
         });
+        captionCues = await _downloader.fetchCaptionCues(widget.source);
       }
 
       if (_isCanceled) return;
@@ -163,6 +170,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       if (widget.metadata != null) {
         project.settings['sourceMeta'] = widget.metadata!.toMap();
         project.title = widget.metadata!.title;
+      }
+      if (captionCues.isNotEmpty) {
+        project.settings['captionCues'] =
+            captionCues.map((c) => c.toMap()).toList();
       }
 
       Navigator.pushReplacement(

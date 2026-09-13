@@ -11,6 +11,18 @@ class FilterContext {
   final String? cropCoordinates; // "w:h:x:y"
   final bool isPreview;
 
+  /// Ask for the device's hardware H.264 encoder. Software x264 on a phone is
+  /// the dominant cost for long sources; mediacodec is several times faster.
+  /// Support varies by device, so the caller must be able to fall back.
+  final bool preferHardwareEncoder;
+
+  /// Target bitrate used when hardware encoding, which has no CRF equivalent.
+  final int hardwareBitrateKbps;
+
+  /// Absolute path to a generated .ass file to burn in, or null for no
+  /// captions. Applied last in the chain so the blur layer cannot soften text.
+  final String? subtitlePath;
+
   FilterContext({
     required this.sourceWidth,
     required this.sourceHeight,
@@ -21,6 +33,9 @@ class FilterContext {
     required this.targetHeight,
     this.cropCoordinates,
     this.isPreview = false,
+    this.preferHardwareEncoder = false,
+    this.hardwareBitrateKbps = 8000,
+    this.subtitlePath,
   });
 }
 

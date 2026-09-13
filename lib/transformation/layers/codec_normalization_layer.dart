@@ -53,14 +53,50 @@ class CodecNormalizationLayer extends TransformationLayer {
     // CRF 16-18 at ultrafast produced ~10 Mbit/s files; the extra bits cost write
     // time, gallery-copy time and upload time without visible benefit at these
     // transformation strengths. These values roughly halve the output size.
+    // Vertical output fills a phone screen, so artefacts read much more harshly
+    // than on a 16:9 card. Shorts get a tighter CRF for the same preset.
+    final bool isVertical = context.targetHeight > context.targetWidth;
     final int crf = context.quality == 'high'
-        ? 20 + _random.nextInt(2)
-        : (context.quality == 'fast' ? 25 : 22 + _random.nextInt(2));
+        ? (isVertical ? 18 : 20) + _random.nextInt(2)
+        : (context.quality == 'fast'
+            ? (isVertical ? 23 : 25)
+            : (isVertical ? 20 : 22) + _random.nextInt(2));
     final int gop = 60 + _random.nextInt(61); // 60 to 120
     // B-frames are the most expensive part of the ultrafast preset's search;
     // pinning to 2 keeps compression while cutting encode time.
     const int bframes = 2;
     const String preset = "ultrafast";
+
+    // Hardware path: mediacodec has no CRF, so it is driven by bitrate. If the
+    // device rejects it, the engine's resilient fallback re-encodes with x264.
+    if (context.preferHardwareEncoder) {
+      final List<String> hwArgs = [
+        "-c:v",
+        "h264_mediacodec",
+        "-b:v",
+        "${context.hardwareBitrateKbps}k",
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        gop.toString(),
+        "-movflags",
+        "+faststart",
+        "-map_metadata",
+        "-1",
+        "-metadata",
+        "encoder=$encoder",
+        "-metadata",
+        "creation_time=$timeStamp",
+      ];
+      if (context.hasAudio) {
+        hwArgs.addAll(["-c:a", "aac", "-b:a", "192k"]);
+      }
+      return FilterResult(
+        extraArgs: hwArgs,
+        logMessage:
+            "Layer 9 applied: Hardware H.264 (mediacodec) at ${context.hardwareBitrateKbps}kbps, GOP $gop.",
+      );
+    }
 
     List<String> args = [
       "-c:v",

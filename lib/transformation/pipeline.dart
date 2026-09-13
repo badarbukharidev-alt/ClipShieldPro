@@ -1,4 +1,5 @@
 import '../models/app_modes.dart';
+import 'ass_subtitle_builder.dart';
 import 'layer.dart';
 import 'layers/harmonic_audio_layer.dart';
 import 'layers/parametric_eq_layer.dart';
@@ -174,6 +175,15 @@ class TransformationPipeline {
     }
 
     vfList = fuseVideoFilters(vfList);
+
+    // Captions are burned in after every other video filter, so the blur and
+    // colour layers cannot soften or tint the text.
+    final subs = context.subtitlePath;
+    if (subs != null && subs.isNotEmpty) {
+      vfList.add("subtitles='${AssSubtitleBuilder.escapeFilterPath(subs)}'");
+      logCallback("Captions: burning in ${subs.split('/').last}");
+    }
+
     if (vfList.isEmpty) {
       vfList = [
         "scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic",

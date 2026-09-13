@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.6)
+# 🛡️ ClipShield Pro (v1.2.7)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.6-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.7-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.7.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.6.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)**
+📥 **[Download ClipShieldPro-v1.2.7.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.7.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.6.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.6.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.7.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.7.apk)
 
 ---
 
@@ -54,6 +54,40 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.7
+
+**Task rewards, animated captions, hardware encoding, and a background fix that actually works.**
+
+### 🎁 Free videos from tasks
+- Complete tasks (follow Instagram, join the WhatsApp channel, subscribe on YouTube) to earn free render credits, managed from the [ClipShield Admin](https://github.com/badarbukharidev-alt/ClipShield-Admin) panel.
+- **Credits survive a wipe.** Device identity is now derived from `Settings.Secure.ANDROID_ID`, which persists through clearing app data and through uninstall/reinstall. The claim ledger lives on the server, so wiping the app resets nothing.
+- **Existing installs keep their old device ID.** Licence keys are HMACs over that ID, so re-deriving it would have invalidated every key already sold. Only fresh installs get the new derivation.
+- Request signing is pinned to the PHP backend by known-good vectors in `test/task_api_signing_test.dart`, and licence-key generation by `test/license_crossport_test.dart`. If either side drifts, the tests fail rather than the users.
+
+### 💬 Animated captions
+- Burn in captions from the source video's own caption track, with eight styles: **Bold Impact**, **Mega Pop**, **Word Pop**, **Karaoke Fill**, **Typewriter**, **Slide Up**, **Classic Box** and **Clean**.
+- Animations are real ASS/libass effects — karaoke fill (`\kf`), scale-overshoot pops (`\t`), fades and slides — not static text.
+- Captions are re-timed onto each clip's own timeline and chunked into short bursts, so they read as captions rather than subtitles.
+- Burned in **after** every other video filter, so the blur and colour layers cannot soften or tint the text.
+- A caption failure can never take a render down with it; the clip renders without them.
+
+### ⚡ Long videos
+- Clips over **10 minutes** now request the device's **hardware H.264 encoder** (`h264_mediacodec`) instead of software x264, which is several times faster on a phone. Bitrate scales with the output canvas. If a device rejects it, the existing resilient path re-encodes with x264 automatically.
+
+### 🔋 Background rendering
+- v1.2.6 added a foreground service, but that alone is not enough on the OEM skins most users are on. **Xiaomi, Oppo, Vivo and Samsung kill background work regardless** unless the app is exempt from battery optimisation — the real reason long renders were dying on minimise.
+- The app now asks for that exemption before the first long render, and the notification channel importance was raised so the service is not deprioritised.
+
+### 🎨 Interface
+- **Action tabs are no longer muted** — unselected tabs keep their own colour instead of going flat grey, and the selected tab gets a tinted fill with a matching glow.
+- **The app icon now sits beside the ClipShield Studio wordmark.**
+- **Shorts render at a tighter CRF.** Vertical output fills a phone screen where compression artefacts read far more harshly than on a 16:9 card, so it now gets CRF 18–19 at high quality instead of 20–21.
+- The licence pill in Settings is larger and no longer squeezed on narrow screens.
+
+- ✅ **Tests**: adds `test/ass_builder_test.dart` (25 tests — ASS colour byte order, timestamps, clip re-timing, chunking, every preset), `test/task_api_signing_test.dart` and `test/license_crossport_test.dart`. Suite is **108/108** green, and every caption preset was rendered through libass and inspected frame by frame.
 
 ---
 

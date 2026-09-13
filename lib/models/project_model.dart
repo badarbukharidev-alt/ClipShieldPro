@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'app_modes.dart';
+import 'caption_models.dart';
 import 'clip_model.dart';
 import 'source_metadata.dart';
 
@@ -94,6 +95,16 @@ class ProjectItem {
 
   /// Width / height of the output canvas, for sizing thumbnails and players.
   double get displayAspectRatio => isWidescreen ? 16 / 9 : aspectRatio.ratio;
+
+  /// Source captions, when the platform provided any.
+  List<CaptionCue> get captionCues {
+    final raw = settings['captionCues'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((m) => CaptionCue.fromMap(m.cast<String, dynamic>()))
+        .toList();
+  }
 
   /// Metadata captured when the source link was pasted, if any.
   SourceMetadata? get sourceMetadata => SourceMetadata.fromMap(

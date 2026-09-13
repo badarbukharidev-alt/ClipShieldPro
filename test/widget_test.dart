@@ -29,6 +29,35 @@ void main() {
     expect(find.text("Choose Video or Audio from Storage"), findsOneWidget);
   });
 
+  testWidgets('the app icon sits beside the wordmark',
+      (WidgetTester tester) async {
+    await pumpDashboard(tester);
+
+    // Asset bytes do not decode in the test harness, so assert the widget is
+    // wired up rather than what it paints.
+    final header = find.ancestor(
+      of: find.text("ClipShield Studio"),
+      matching: find.byType(Row),
+    );
+    expect(header, findsWidgets);
+    expect(
+      find.descendant(of: header.first, matching: find.byType(Image)),
+      findsOneWidget,
+      reason: 'the launcher icon should render next to the title',
+    );
+  });
+
+  testWidgets('unselected action tabs are not greyed out',
+      (WidgetTester tester) async {
+    await pumpDashboard(tester);
+
+    // An unselected tab used to paint AppColors.mut, which read as disabled.
+    final shorts = tester.widget<Text>(find.text("AI Shorts"));
+    final song = tester.widget<Text>(find.text("Song DSP"));
+    expect(shorts.style?.color, isNot(AppColors.mut));
+    expect(song.style?.color, isNot(AppColors.mut));
+  });
+
   testWidgets('all three actions are reachable from one screen',
       (WidgetTester tester) async {
     await pumpDashboard(tester);

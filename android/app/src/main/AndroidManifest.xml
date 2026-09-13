@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Required on Android 13+ to show the render progress notification. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Without a battery-optimisation exemption, aggressive OEM power managers
+         (Xiaomi, Oppo, Vivo, Samsung) kill the render process the moment the app
+         leaves the screen, even though a foreground service is running. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:label="ClipShield Pro"

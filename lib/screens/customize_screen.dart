@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/app_modes.dart';
+import '../models/caption_style.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../services/license_service.dart';
@@ -32,6 +33,10 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
   AspectRatioOption _aspectRatio = AspectRatioOption.vertical916;
   bool _subjectTracking = true;
   bool _autoCaptions = true;
+  CaptionStylePreset _captionStyle = CaptionPresets.hormozi;
+
+  /// Captions can only be burned in when the source actually supplied any.
+  bool get _hasCaptionSource => widget.project.captionCues.isNotEmpty;
   bool _enhanceAudioVideo = true;
   double _transformationStrength = 45.0; // 10 to 90%
   final String _resolution = "1080p";
@@ -80,6 +85,9 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
       aspectRatio: _aspectRatio,
       enableSubjectTracking: _subjectTracking,
       quality: _resolution == "1080p" ? "high" : "balanced",
+      captionCues:
+          (_autoCaptions && _hasCaptionSource) ? widget.project.captionCues : const [],
+      captionStyle: (_autoCaptions && _hasCaptionSource) ? _captionStyle : null,
     );
 
     if (!mounted) return;
@@ -226,10 +234,15 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
                         _buildSwitchTile(
                           icon: Icons.subtitles_outlined,
                           title: "Auto-Captions",
-                          subtitle: "Animated word-by-word subtitle styling",
-                          value: _autoCaptions,
-                          onChanged: (val) => setState(() => _autoCaptions = val),
+                          subtitle: _hasCaptionSource
+                              ? "Burn in animated captions from the source"
+                              : "No captions available for this video",
+                          value: _autoCaptions && _hasCaptionSource,
+                          onChanged: _hasCaptionSource
+                              ? (val) => setState(() => _autoCaptions = val)
+                              : null,
                         ),
+                        if (_autoCaptions && _hasCaptionSource) _buildCaptionStyles(),
                         const Divider(height: 1, color: AppColors.line),
                         _buildSwitchTile(
                           icon: Icons.auto_fix_high,
@@ -324,6 +337,106 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
     );
   }
 
+  Widget _buildCaptionStyles() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "CAPTION STYLE",
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: AppColors.mut,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 92,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: CaptionPresets.all.length,
+              itemBuilder: (context, index) {
+                final preset = CaptionPresets.all[index];
+                final isSel = _captionStyle.id == preset.id;
+
+                return GestureDetector(
+                  onTap: () => setState(() => _captionStyle = preset),
+                  child: Container(
+                    width: 132,
+                    margin: const EdgeInsets.only(right: 10),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isSel ? AppColors.darkCard : AppColors.bg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSel ? preset.swatch : AppColors.line,
+                        width: isSel ? 1.6 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Miniature of the actual look.
+                        Row(
+                          children: [
+                            Text(
+                              "Aa",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: preset.bold ? FontWeight.w900 : FontWeight.w600,
+                                color: isSel ? Colors.white : AppColors.ink,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              "Bb",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: preset.bold ? FontWeight.w900 : FontWeight.w600,
+                                color: preset.swatch,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          preset.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: isSel ? Colors.white : AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Text(
+                            preset.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              height: 1.25,
+                              color: isSel ? Colors.white70 : AppColors.mut,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAspectChip(AspectRatioOption opt, String label) {
     final bool isSel = _aspectRatio == opt;
     return Expanded(
@@ -359,7 +472,8 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    // Nullable so a tile can render disabled when the option is unavailable.
+    required ValueChanged<bool>? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),

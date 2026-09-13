@@ -24,6 +24,45 @@ class RenderForegroundService {
 
   bool get _isSupported => Platform.isAndroid || Platform.isIOS;
 
+  /// Whether Android will let this app keep working once it leaves the screen.
+  ///
+  /// A foreground service alone is not enough on the OEM skins that dominate in
+  /// practice — Xiaomi, Oppo, Vivo and Samsung all kill background processes
+  /// unless the app is exempt from battery optimisation. This is the single most
+  /// common reason a long render dies on minimise.
+  Future<bool> isBatteryOptimisationDisabled() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await FlutterForegroundTask.isIgnoringBatteryOptimizations;
+    } catch (_) {
+      return true; // Unknown: do not nag on a platform that cannot answer.
+    }
+  }
+
+  /// Sends the user to the system exemption prompt.
+  Future<void> requestBatteryExemption() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+    } catch (_) {
+      try {
+        await FlutterForegroundTask.openIgnoreBatteryOptimizationSettings();
+      } catch (_) {}
+    }
+  }
+
+  /// Whether the last start() call actually produced a running service, so the
+  /// UI can tell the user when their render is unprotected instead of failing
+  /// silently mid-job.
+  Future<bool> isServiceRunning() async {
+    if (!_isSupported) return false;
+    try {
+      return await FlutterForegroundTask.isRunningService;
+    } catch (_) {
+      return _isRunning;
+    }
+  }
+
   /// Called when the queue goes from idle to busy.
   Future<void> start({required String title, required String text}) async {
     if (!_isSupported || _isRunning) return;

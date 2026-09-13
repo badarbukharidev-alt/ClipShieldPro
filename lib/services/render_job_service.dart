@@ -9,9 +9,12 @@ import 'package:path/path.dart' as path;
 
 import '../models/app_modes.dart';
 import '../models/audio_dsp_config.dart';
+import '../models/caption_models.dart';
+import '../models/caption_style.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../transformation/layer.dart';
+import '../transformation/ass_subtitle_builder.dart';
 import '../transformation/pipeline.dart';
 import 'ffmpeg_engine_service.dart';
 import 'gallery_export_service.dart';
@@ -152,6 +155,10 @@ class _RenderJobRequest {
   final bool enableSubjectTracking;
   final String quality;
 
+  /// Source captions, already fetched. Empty means captions are off.
+  final List<CaptionCue> captionCues;
+  final CaptionStylePreset? captionStyle;
+
   _RenderJobRequest({
     required this.project,
     required this.sourceVideoPath,
@@ -161,6 +168,8 @@ class _RenderJobRequest {
     required this.aspectRatio,
     required this.enableSubjectTracking,
     required this.quality,
+    this.captionCues = const [],
+    this.captionStyle,
   });
 }
 
@@ -229,6 +238,8 @@ class RenderJobService {
     required AspectRatioOption aspectRatio,
     required bool enableSubjectTracking,
     String quality = 'balanced',
+    List<CaptionCue> captionCues = const [],
+    CaptionStylePreset? captionStyle,
   }) async {
     // Only the clips actually being rendered belong to this job's project.
     final selected = clipsToRender
@@ -264,6 +275,8 @@ class RenderJobService {
       aspectRatio: aspectRatio,
       enableSubjectTracking: enableSubjectTracking,
       quality: quality,
+      captionCues: captionCues,
+      captionStyle: captionStyle,
     ));
 
     unawaited(_pump());
@@ -414,6 +427,20 @@ class RenderJobService {
     return (math.max(w, 2), math.max(h, 2));
   }
 
+  /// Long sources are where software x264 becomes painful: a 1-hour 1080p clip
+  /// can take hours on a phone. Past this threshold we ask for the hardware
+  /// encoder, accepting bitrate control instead of CRF. Short clips stay on
+  /// x264, where quality per byte is better and the time cost is irrelevant.
+  static const double hardwareEncoderThresholdSeconds = 600; // 10 minutes
+
+  /// Bitrate for the hardware path, scaled to the output canvas.
+  static int hardwareBitrateFor(int width, int height, String quality) {
+    final int pixels = width * height;
+    if (pixels >= 1920 * 1080) return quality == 'high' ? 10000 : 8000;
+    if (pixels >= 1280 * 720) return quality == 'high' ? 6000 : 4500;
+    return 3000;
+  }
+
   Future<void> _runJob(_RenderJobRequest request) async {
     if (request.project.mode == AppMode.songRemover) {
       return _runSongRemoverJob(request);
@@ -504,6 +531,52 @@ class RenderJobService {
           outH = request.quality == 'high' ? 1920 : 1280;
         }
 
+        // Captions are cut out of the source's absolute timeline and rebased
+        // onto the clip, then chunked into short bursts for readability.
+        String? subtitlePath;
+        final captionStyle = request.captionStyle;
+        if (captionStyle != null && request.captionCues.isNotEmpty) {
+          try {
+            final clipCues = CaptionTrack.chunk(
+              CaptionTrack.forClip(
+                request.captionCues,
+                clip.startTime,
+                clip.endTime,
+              ),
+              maxWords: captionStyle.maxWordsPerLine,
+            );
+
+            if (clipCues.isNotEmpty) {
+              final assText = AssSubtitleBuilder.build(
+                cues: clipCues,
+                preset: captionStyle,
+                width: outW,
+                height: outH,
+              );
+              final assFile = File(path.join(
+                outputDir.path,
+                'captions_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.ass',
+              ));
+              await assFile.writeAsString(assText);
+              subtitlePath = assFile.path;
+              _log(projectId,
+                  'Captions: ${clipCues.length} line(s), style ${captionStyle.name}.');
+            } else {
+              _log(projectId, 'Captions: no cues fall inside this clip.');
+            }
+          } catch (e) {
+            // A caption failure must never take the render down with it.
+            _log(projectId, 'Captions skipped: $e');
+          }
+        }
+
+        final bool useHardware =
+            clip.durationSeconds >= hardwareEncoderThresholdSeconds;
+        if (useHardware) {
+          _log(projectId,
+              'Long clip (${clip.durationSeconds.toStringAsFixed(0)}s): requesting hardware encoder.');
+        }
+
         final filterContext = FilterContext(
           sourceWidth: request.probeInfo.width,
           sourceHeight: request.probeInfo.height,
@@ -514,6 +587,9 @@ class RenderJobService {
           targetHeight: outH,
           cropCoordinates: cropCoords,
           isPreview: false,
+          preferHardwareEncoder: useHardware,
+          hardwareBitrateKbps: hardwareBitrateFor(outW, outH, request.quality),
+          subtitlePath: subtitlePath,
         );
 
         // 3. Render

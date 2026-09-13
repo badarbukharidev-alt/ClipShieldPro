@@ -37,8 +37,8 @@ void _initForegroundTask() {
       channelId: 'clipshield_render_channel',
       channelName: 'ClipShield Render Engine',
       channelDescription: 'Maintains on-device video rendering and audio DSP processing in the background.',
-      channelImportance: NotificationChannelImportance.LOW,
-      priority: NotificationPriority.LOW,
+      channelImportance: NotificationChannelImportance.DEFAULT,
+      priority: NotificationPriority.DEFAULT,
       iconData: const NotificationIconData(
         resType: ResourceType.mipmap,
         resPrefix: ResourcePrefix.ic,
