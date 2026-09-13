@@ -6,6 +6,7 @@ import '../models/project_model.dart';
 import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
+import '../widgets/source_metadata_panel.dart';
 import 'preview_screen.dart';
 import 'processing_screen.dart';
 
@@ -69,6 +70,54 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
   }
 
+  void _openMetadataSheet() {
+    final meta = widget.project.sourceMetadata;
+    if (meta == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+                  child: SourceMetadataPanel(
+                    metadata: meta,
+                    accent: widget.project.isWidescreen
+                        ? AppColors.accentGrape
+                        : AppColors.accentTangerine,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _openPreview(BuildContext context, ClipItem clip) {
     if (clip.outputPath == null) return;
     Navigator.push(
@@ -116,8 +165,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     // state instead of a "ready" headline.
     if (!_isGenuinelyReady) return _buildNotReady();
 
-    final bool isWidescreen = widget.project.mode == AppMode.transformAndProtect ||
-        widget.project.aspectRatio == AspectRatioOption.original169;
+    final bool isWidescreen = widget.project.isWidescreen;
     final bool isSongRemover = widget.project.mode == AppMode.songRemover;
 
     final String headline = isSongRemover
@@ -427,7 +475,28 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         },
                       ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+
+              // Source metadata is only worth surfacing for long-form sources,
+              // where the title, description and tags are reusable.
+              if (widget.project.sourceMetadata?.isLongForm == true)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _openMetadataSheet,
+                      icon: const Icon(Icons.article_outlined, size: 18),
+                      label: const Text(
+                        "Source title, description, tags & thumbnail",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                      ),
+                    ),
+                  ),
+                ),
 
               // Rich Social Sharing Options
               Container(

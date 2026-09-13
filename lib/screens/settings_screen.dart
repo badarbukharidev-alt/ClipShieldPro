@@ -293,33 +293,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("License Status", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                          SizedBox(height: 2),
-                          Text("ClipShield Pro Commercial License", style: TextStyle(color: AppColors.mut, fontSize: 12)),
-                        ],
+                      // The label column must yield space; without this the pill
+                      // gets squeezed and its text clips on narrow screens.
+                      const Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("License Status",
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                            SizedBox(height: 2),
+                            Text("ClipShield Pro Commercial License",
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: AppColors.mut, fontSize: 12)),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                         decoration: BoxDecoration(
                           color: isActivated ? AppColors.softLime : AppColors.softTangerine,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: (isActivated ? AppColors.accentLime : AppColors.accentTangerine)
+                                .withOpacity(0.35),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               isActivated ? Icons.check_circle : Icons.hourglass_top_rounded,
-                              size: 14,
+                              size: 16,
                               color: isActivated ? AppColors.accentLime : AppColors.accentTangerine,
                             ),
-                            const SizedBox(width: 5),
+                            const SizedBox(width: 6),
                             Text(
-                              isActivated ? "Activated (Pro)" : "Trial (Evaluation)",
+                              isActivated ? "Activated" : "Trial",
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
                                 color: isActivated ? AppColors.accentLime : AppColors.accentTangerine,
                               ),

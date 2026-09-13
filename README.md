@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.4)
+# 🛡️ ClipShield Pro (v1.2.5)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.4-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.5-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.4.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)**
+📥 **[Download ClipShieldPro-v1.2.5.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.4.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.5.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.5.apk)
 
 ---
 
@@ -54,6 +54,29 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.5
+
+**Link previews, colour-coded actions, correct 16:9 handling, and source metadata export.**
+
+- 🎨 **Per-action colour identity**: each mode now carries its own accent instead of one orange wall — Copyright is tangerine, AI Shorts is grape, Song DSP is lime. The accent drives the segment, the input highlights, the badge, the card border and the call-to-action, so the active tool is obvious at a glance.
+- 🔗 **Link preview on paste**: pasting a YouTube or Shorts URL now fetches and shows the **thumbnail, title, channel and duration** before anything downloads, so you can confirm the right video was resolved. The lookup is debounced and cancels cleanly if you paste something else mid-flight.
+- 📺 **Proper source acquisition screen**: the bare spinner shown while a stream downloads is replaced with a real view — source thumbnail and title, a determinate progress ring driven by actual download bytes, and a four-stage checklist (manifest → video track → audio track → mux & probe).
+- 📐 **16:9 is treated as 16:9 everywhere**:
+  - Projects History and the Home recent card now render a **landscape tile** for widescreen projects instead of cropping them into a 9:16 Shorts tile.
+  - The preview player used to frame every clip inside a fixed portrait viewport, so a 16:9 export appeared letterboxed inside a Shorts window. The canvas is now sized to the clip's real aspect ratio.
+  - Aspect logic is centralised on `ProjectItem.isWidescreen` / `displayAspectRatio` rather than being re-derived in three screens.
+- 📋 **Source metadata panel** for long-form sources (anything past three minutes), reachable from the results screen:
+  - **Download Full HD Thumbnail** — pulls YouTube's max-resolution thumbnail.
+  - **Copy title**, **copy description**, and **copy keywords as a comma-separated list** ready to paste straight into the tags box.
+  - Keyword chips with a full count, and **Save all metadata as .txt**.
+  - Metadata is captured when the link is pasted and persisted with the project, so it stays available long after the render.
+- 📁 **ClipShield folders**: saves are routed to `Movies/ClipShield` (video), `Pictures/ClipShield` (thumbnails) and `Documents/ClipShield` (text), each followed by a MediaScanner broadcast so they surface in Gallery and Files. Every save reports the actual path it landed on, and falls back to app storage rather than failing silently.
+- ⚙️ **Settings**: the license pill is larger and more legible, and the label column now yields space so the pill no longer gets squeezed on narrow screens.
+
+- ✅ **Tests**: adds `test/metadata_aspect_test.dart` (aspect classification, keyword CSV, long-form threshold, duration formatting, settings round-trip). Suite is **59/59** green.
 
 ---
 

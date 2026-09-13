@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/app_modes.dart';
 import '../models/project_model.dart';
+import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
 import '../services/highlight_detector_service.dart';
 import '../services/media_probe_service.dart';
@@ -14,11 +15,16 @@ class AnalysisScreen extends StatefulWidget {
   final SourceType sourceType;
   final String source;
 
+  /// Metadata already resolved on the dashboard, carried through so the results
+  /// screen can offer the title, description and keywords without refetching.
+  final SourceMetadata? metadata;
+
   const AnalysisScreen({
     super.key,
     required this.mode,
     required this.sourceType,
     required this.source,
+    this.metadata,
   });
 
   @override
@@ -154,6 +160,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         clips: detectedClips,
         status: ProjectStatus.draft,
       );
+      if (widget.metadata != null) {
+        project.settings['sourceMeta'] = widget.metadata!.toMap();
+        project.title = widget.metadata!.title;
+      }
 
       Navigator.pushReplacement(
         context,

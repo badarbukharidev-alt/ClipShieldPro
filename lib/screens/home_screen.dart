@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import '../models/app_modes.dart';
 import '../models/project_model.dart';
+import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
 import '../services/render_job_service.dart';
@@ -28,6 +30,11 @@ class _ModeSpec {
   final IconData icon;
   final String segmentLabel;
 
+  /// Each action carries its own accent so the dashboard reads as three
+  /// distinct tools rather than one orange wall.
+  final Color accent;
+  final Color soft;
+
   /// Presets are only offered where they are actually wired through to the
   /// render. Showing a control that changes nothing is worse than omitting it.
   final bool supportsPreset;
@@ -40,6 +47,8 @@ class _ModeSpec {
     required this.cta,
     required this.icon,
     required this.segmentLabel,
+    required this.accent,
+    required this.soft,
     this.supportsPreset = false,
   });
 }
@@ -63,6 +72,8 @@ const Map<AppMode, _ModeSpec> _modeSpecs = {
     cta: "Start Copyright Protection",
     icon: Icons.shield_outlined,
     segmentLabel: "Copyright",
+    accent: AppColors.accentTangerine,
+    soft: AppColors.softTangerine,
     supportsPreset: true,
   ),
   AppMode.longVideoToShorts: _ModeSpec(
@@ -74,6 +85,8 @@ const Map<AppMode, _ModeSpec> _modeSpecs = {
     cta: "Find Best Moments",
     icon: Icons.play_circle_outline,
     segmentLabel: "AI Shorts",
+    accent: AppColors.accentGrape,
+    soft: AppColors.softGrape,
   ),
   AppMode.songRemover: _ModeSpec(
     headerLabel: "AUDIO DSP STUDIO",
@@ -84,6 +97,8 @@ const Map<AppMode, _ModeSpec> _modeSpecs = {
     cta: "Open Song DSP",
     icon: Icons.music_note_outlined,
     segmentLabel: "Song DSP",
+    accent: AppColors.accentLime,
+    soft: AppColors.softLime,
   ),
 };
 
@@ -105,6 +120,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final DownloaderService _downloader = DownloaderService();
   String? _pickedFilePath;
 
+  // Pasted-link preview
+  Timer? _metaDebounce;
+  SourceMetadata? _metadata;
+  bool _isFetchingMeta = false;
+  String? _metaForUrl;
+
   int _shortsMade = 0;
   int _hoursSaved = 0;
   List<ProjectItem> _recentProjects = [];
@@ -122,6 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     ProjectStorageService.revision.removeListener(_loadStats);
+    _metaDebounce?.cancel();
     _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
     _urlFocus.dispose();
@@ -133,10 +155,50 @@ class _HomeScreenState extends State<HomeScreen> {
     // Typing a link supersedes a previously picked file, and vice versa, so the
     // card always shows exactly one source.
     if (_urlController.text.trim().isNotEmpty && _pickedFilePath != null) {
-      setState(() => _pickedFilePath = null);
-    } else {
-      setState(() {});
+      _pickedFilePath = null;
     }
+    setState(() {});
+
+    final url = _urlController.text.trim();
+    final id = _downloader.getVideoId(url);
+
+    if (id == null) {
+      _metaDebounce?.cancel();
+      if (_metadata != null || _isFetchingMeta) {
+        setState(() {
+          _metadata = null;
+          _isFetchingMeta = false;
+          _metaForUrl = null;
+        });
+      }
+      return;
+    }
+
+    if (_metaForUrl == id) return; // already have it
+
+    // Debounced so pasting character-by-character does not spam the network.
+    _metaDebounce?.cancel();
+    _metaDebounce = Timer(const Duration(milliseconds: 350), () => _fetchMeta(url, id));
+  }
+
+  Future<void> _fetchMeta(String url, String id) async {
+    if (!mounted) return;
+    setState(() {
+      _isFetchingMeta = true;
+      _metadata = null;
+    });
+
+    final meta = await _downloader.fetchMetadata(url);
+    if (!mounted) return;
+
+    // A newer paste may have landed while this request was in flight.
+    if (_downloader.getVideoId(_urlController.text.trim()) != id) return;
+
+    setState(() {
+      _metadata = meta;
+      _metaForUrl = meta == null ? null : id;
+      _isFetchingMeta = false;
+    });
   }
 
   Future<void> _loadStats() async {
@@ -172,6 +234,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _pickedFilePath = path;
       _urlController.clear();
+      _metadata = null;
+      _metaForUrl = null;
     });
   }
 
@@ -218,6 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
               sourceVideoPathOrUrl: source,
               sourceType: sourceType,
               initialPreset: _preset,
+              metadata: isLocal ? null : _metadata,
             ),
           ),
         );
@@ -230,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
               mode: _mode,
               sourceType: sourceType,
               source: source,
+              metadata: isLocal ? null : _metadata,
             ),
           ),
         );
@@ -250,6 +316,125 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------------------------------------------------------------- dashboard
 
+  /// Thumbnail + title preview for a pasted link. Confirms the app resolved the
+  /// right video before any download starts.
+  Widget _buildLinkPreview() {
+    if (_isFetchingMeta) {
+      return Container(
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentTangerine),
+            ),
+            SizedBox(width: 12),
+            Text(
+              "Fetching video details...",
+              style: TextStyle(fontSize: 12.5, color: AppColors.mut, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final meta = _metadata;
+    if (meta == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _spec.accent.withOpacity(0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 16:9 thumbnail, matching how the source actually looks.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 104,
+              height: 58.5,
+              child: meta.thumbnailUrl.isEmpty
+                  ? Container(color: AppColors.darkCard)
+                  : Image.network(
+                      meta.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppColors.darkCard,
+                        child: const Icon(Icons.broken_image_outlined,
+                            color: AppColors.mut, size: 20),
+                      ),
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null ? child : Container(color: AppColors.darkCard),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  meta.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        meta.author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                      ),
+                    ),
+                    if (meta.durationSeconds > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _spec.soft,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          meta.formattedDuration,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: _spec.accent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFastInputCard() {
     final bool hasFile = _pickedFilePath != null;
 
@@ -263,10 +448,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 "FAST INPUT",
                 style: TextStyle(
                   fontSize: 11,
@@ -284,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.accentTangerine,
+                    color: _spec.accent,
                     letterSpacing: 0.6,
                   ),
                 ),
@@ -327,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.content_paste, size: 15),
                   label: const Text("Paste"),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.accentTangerine,
+                    foregroundColor: _spec.accent,
                     textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     minimumSize: const Size(0, 40),
@@ -337,6 +522,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+
+          _buildLinkPreview(),
 
           const SizedBox(height: 12),
           Row(
@@ -366,10 +553,10 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
               decoration: BoxDecoration(
-                color: hasFile ? AppColors.softTangerine : Colors.transparent,
+                color: hasFile ? _spec.soft : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: hasFile ? AppColors.accentTangerine : AppColors.line,
+                  color: hasFile ? _spec.accent : AppColors.line,
                   width: hasFile ? 1.5 : 1.2,
                 ),
               ),
@@ -379,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(
                     hasFile ? Icons.check_circle : Icons.image_outlined,
                     size: 19,
-                    color: hasFile ? AppColors.accentTangerine : AppColors.ink,
+                    color: hasFile ? _spec.accent : AppColors.ink,
                   ),
                   const SizedBox(width: 10),
                   Flexible(
@@ -392,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: hasFile ? AppColors.accentTangerine : AppColors.ink,
+                        color: hasFile ? _spec.accent : AppColors.ink,
                       ),
                     ),
                   ),
@@ -448,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(
                       spec.icon,
                       size: 20,
-                      color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                      color: isSel ? spec.accent : AppColors.mut,
                     ),
                     const SizedBox(height: 5),
                     Text(
@@ -456,7 +643,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                        color: isSel ? spec.accent : AppColors.mut,
                       ),
                     ),
                   ],
@@ -501,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: spec.accent.withOpacity(0.35), width: 1.4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,15 +696,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.softTangerine,
+              color: spec.soft,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               spec.badge,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
-                color: AppColors.accentTangerine,
+                color: spec.accent,
                 letterSpacing: 0.6,
               ),
             ),
@@ -588,7 +775,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor:
-                  _hasSource ? AppColors.accentTangerine : AppColors.accentTangerine.withOpacity(0.55),
+                  _hasSource ? spec.accent : spec.accent.withOpacity(0.55),
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(56),
               elevation: 0,
@@ -817,10 +1004,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.accentTangerine,
+                      color: _spec.accent,
                       letterSpacing: 0.6,
                     ),
                   ),
@@ -997,8 +1184,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             Container(
-              width: 56,
-              height: 74,
+              width: project.isWidescreen ? 96 : 56,
+              height: project.isWidescreen ? 54 : 74,
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
                 borderRadius: BorderRadius.circular(12),

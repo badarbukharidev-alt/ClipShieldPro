@@ -215,8 +215,8 @@ class _ProjectsHistoryScreenState extends State<ProjectsHistoryScreen> {
     final Color statusColor = isLive ? Colors.orange : _statusColor(p.status);
 
     final String subtitle = p.isRenderingOrQueued
-        ? "${job?.renderedClips ?? p.renderedClipsCount}/${job?.totalClips ?? p.clipsCount} clips · ${p.aspectRatio.label}"
-        : "${p.clipsCount} clip${p.clipsCount == 1 ? '' : 's'} · ${p.aspectRatio.label}";
+        ? "${job?.renderedClips ?? p.renderedClipsCount}/${job?.totalClips ?? p.clipsCount} clips · ${p.isWidescreen ? '16:9' : p.aspectRatio.label}"
+        : "${p.clipsCount} clip${p.clipsCount == 1 ? '' : 's'} · ${p.isWidescreen ? '16:9' : p.aspectRatio.label}";
 
     return Dismissible(
       key: ValueKey(p.id),
@@ -285,9 +285,11 @@ class _ProjectsHistoryScreenState extends State<ProjectsHistoryScreen> {
             children: [
               Row(
                 children: [
+                  // A 16:9 project gets a landscape tile; only vertical output
+                  // gets the tall Shorts-style tile.
                   Container(
-                    width: 56,
-                    height: 74,
+                    width: p.isWidescreen ? 96 : 56,
+                    height: p.isWidescreen ? 54 : 74,
                     decoration: BoxDecoration(
                       color: AppColors.darkCard,
                       borderRadius: BorderRadius.circular(12),

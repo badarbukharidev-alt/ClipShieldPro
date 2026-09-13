@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'app_modes.dart';
 import 'clip_model.dart';
+import 'source_metadata.dart';
 
 /// Canonical project lifecycle values. A project is only "ready" when a render
 /// job has genuinely finished and produced files on disk.
@@ -84,6 +85,19 @@ class ProjectItem {
   String get statusLabel => ProjectStatus.label(status);
 
   String? get renderError => settings['renderError'] as String?;
+
+  /// True when this project's output is landscape. Widescreen projects must
+  /// never be presented in a 9:16 Shorts frame.
+  bool get isWidescreen =>
+      mode == AppMode.transformAndProtect ||
+      aspectRatio == AspectRatioOption.original169;
+
+  /// Width / height of the output canvas, for sizing thumbnails and players.
+  double get displayAspectRatio => isWidescreen ? 16 / 9 : aspectRatio.ratio;
+
+  /// Metadata captured when the source link was pasted, if any.
+  SourceMetadata? get sourceMetadata => SourceMetadata.fromMap(
+      (settings['sourceMeta'] as Map?)?.cast<String, dynamic>());
 
   /// A fresh, independent history entry for one render submission, carrying
   /// only the clips actually being rendered.

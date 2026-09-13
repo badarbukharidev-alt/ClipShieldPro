@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/app_modes.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
+import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
 import '../services/ffmpeg_engine_service.dart';
 import '../services/license_service.dart';
@@ -11,6 +12,7 @@ import '../services/render_job_service.dart';
 import '../transformation/layer.dart';
 import '../transformation/pipeline.dart';
 import '../theme/app_theme.dart';
+import '../widgets/source_acquire_view.dart';
 import 'activation_dialog.dart';
 import 'processing_screen.dart';
 import 'preview_screen.dart';
@@ -23,11 +25,16 @@ class TransformPipelineScreen extends StatefulWidget {
   /// asked for a second time.
   final PipelinePreset initialPreset;
 
+  /// Metadata already resolved on the dashboard, carried through so the results
+  /// screen can offer the title, description and keywords without refetching.
+  final SourceMetadata? metadata;
+
   const TransformPipelineScreen({
     super.key,
     required this.sourceVideoPathOrUrl,
     required this.sourceType,
     this.initialPreset = PipelinePreset.balanced,
+    this.metadata,
   });
 
   @override
@@ -48,6 +55,7 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   double _globalIntensity = 0.5;
   final AspectRatioOption _aspectRatio = AspectRatioOption.original169;
   bool _isPreviewGenerating = false;
+  double? _acquireProgress;
 
   @override
   void initState() {
@@ -75,14 +83,22 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
           downloadDir: downloadDir,
           quality: 'balanced',
           progressCallback: (p, msg) {
-            setState(() => _loadingMessage = msg);
+            if (!mounted) return;
+            setState(() {
+              _loadingMessage = msg;
+              _acquireProgress = p;
+            });
           },
         );
       } else {
         _localVideoPath = widget.sourceVideoPathOrUrl;
       }
 
-      setState(() => _loadingMessage = "Probing video tracks...");
+      if (!mounted) return;
+      setState(() {
+        _loadingMessage = "Probing video tracks...";
+        _acquireProgress = 0.95;
+      });
       _probeInfo = await MediaProbeService.probe(_localVideoPath!);
 
       setState(() {
@@ -201,6 +217,10 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
       preset: _selectedPreset,
       aspectRatio: _aspectRatio,
     );
+    if (widget.metadata != null) {
+      project.settings['sourceMeta'] = widget.metadata!.toMap();
+      project.title = widget.metadata!.title;
+    }
 
     final projectId = await RenderJobService.instance.submit(
       project: project,
@@ -231,21 +251,15 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppColors.bg,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppColors.accentGrape),
-              const SizedBox(height: 20),
-              Text(
-                _loadingMessage,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink),
-              ),
-            ],
-          ),
-        ),
+      return SourceAcquireView(
+        title: widget.sourceType == SourceType.youtubeUrl
+            ? "Fetching Source Stream"
+            : "Preparing Source",
+        stageMessage: _loadingMessage,
+        progress: widget.sourceType == SourceType.youtubeUrl ? _acquireProgress : null,
+        metadata: widget.metadata,
+        accent: AppColors.accentGrape,
+        onCancel: () => Navigator.maybePop(context),
       );
     }
 

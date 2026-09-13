@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:path/path.dart' as path;
+import '../models/source_metadata.dart';
 
 class DownloaderService {
   final YoutubeExplode _yt = YoutubeExplode();
@@ -34,6 +35,37 @@ class DownloaderService {
     if (id == null) return null;
     try {
       return await _yt.videos.get(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fetches title, author, description, keywords and thumbnails for a link.
+  ///
+  /// Returns null for anything that is not a resolvable YouTube video, so the
+  /// caller can simply treat a null as "no preview available".
+  Future<SourceMetadata?> fetchMetadata(String url) async {
+    final id = getVideoId(url);
+    if (id == null) return null;
+    try {
+      final video = await _yt.videos.get(id);
+      final thumbs = video.thumbnails;
+      return SourceMetadata(
+        videoId: id,
+        title: video.title,
+        author: video.author,
+        description: video.description,
+        keywords: video.keywords.toList(),
+        thumbnailUrl: thumbs.highResUrl.isNotEmpty
+            ? thumbs.highResUrl
+            : thumbs.mediumResUrl,
+        thumbnailMaxResUrl: thumbs.maxResUrl.isNotEmpty
+            ? thumbs.maxResUrl
+            : (thumbs.standardResUrl.isNotEmpty
+                ? thumbs.standardResUrl
+                : thumbs.highResUrl),
+        durationSeconds: video.duration?.inSeconds ?? 0,
+      );
     } catch (_) {
       return null;
     }
