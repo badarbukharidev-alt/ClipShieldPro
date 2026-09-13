@@ -1,18 +1,82 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 import '../models/app_modes.dart';
 import '../models/project_model.dart';
+import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
+import '../services/render_job_service.dart';
 import '../theme/app_theme.dart';
 import 'analysis_screen.dart';
-import 'project_create_dialog.dart';
 import 'processing_screen.dart';
 import 'projects_history_screen.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
-import 'transform_pipeline_screen.dart';
 import 'song_remover_screen.dart';
-import '../services/render_job_service.dart';
+import 'transform_pipeline_screen.dart';
+
+/// Per-mode copy for the action card. Keeping it in one place means the
+/// segment, the header label and the card can never disagree.
+class _ModeSpec {
+  final String headerLabel;
+  final String badge;
+  final String title;
+  final String description;
+  final String cta;
+  final IconData icon;
+  final String segmentLabel;
+
+  /// Presets are only offered where they are actually wired through to the
+  /// render. Showing a control that changes nothing is worse than omitting it.
+  final bool supportsPreset;
+
+  const _ModeSpec({
+    required this.headerLabel,
+    required this.badge,
+    required this.title,
+    required this.description,
+    required this.cta,
+    required this.icon,
+    required this.segmentLabel,
+    this.supportsPreset = false,
+  });
+}
+
+const Map<AppMode, _ModeSpec> _modeSpecs = {
+  AppMode.transformAndProtect: _ModeSpec(
+    headerLabel: "16:9 COPYRIGHT REMOVER",
+    badge: "16:9 WIDESCREEN STREAM",
+    title: "Long Video Copyright Remover",
+    description:
+        "Preserves native 16:9 widescreen canvas while passing through 12-layer geometric, chromatic, and acoustic signed-jitter perturbation.",
+    cta: "Start Copyright Protection",
+    icon: Icons.shield_outlined,
+    segmentLabel: "Copyright",
+    supportsPreset: true,
+  ),
+  AppMode.longVideoToShorts: _ModeSpec(
+    headerLabel: "9:16 AI SHORTS",
+    badge: "9:16 VERTICAL HIGHLIGHTS",
+    title: "AI Shorts Generator",
+    description:
+        "Scores the strongest moments in a long video and reframes each one to 9:16 using facial centroid subject tracking.",
+    cta: "Find Best Moments",
+    icon: Icons.play_circle_outline,
+    segmentLabel: "AI Shorts",
+  ),
+  AppMode.songRemover: _ModeSpec(
+    headerLabel: "AUDIO DSP STUDIO",
+    badge: "MULTI-STAGE DSP CHAIN",
+    title: "Song DSP & Cover Export",
+    description:
+        "Re-masters audio through tone, pitch, spatial and dynamics processing, then composes it against a cover image for upload.",
+    cta: "Open Song DSP",
+    icon: Icons.music_note_outlined,
+    segmentLabel: "Song DSP",
+  ),
+};
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,21 +87,47 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
+
+  // Dashboard composer state
+  AppMode _mode = AppMode.transformAndProtect;
+  PipelinePreset _preset = PipelinePreset.fast;
+  final TextEditingController _urlController = TextEditingController();
+  final FocusNode _urlFocus = FocusNode();
+  final DownloaderService _downloader = DownloaderService();
+  String? _pickedFilePath;
+
   int _shortsMade = 0;
   int _hoursSaved = 0;
   List<ProjectItem> _recentProjects = [];
+
+  _ModeSpec get _spec => _modeSpecs[_mode]!;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
     ProjectStorageService.revision.addListener(_loadStats);
+    _urlController.addListener(_onUrlChanged);
   }
 
   @override
   void dispose() {
     ProjectStorageService.revision.removeListener(_loadStats);
+    _urlController.removeListener(_onUrlChanged);
+    _urlController.dispose();
+    _urlFocus.dispose();
+    _downloader.dispose();
     super.dispose();
+  }
+
+  void _onUrlChanged() {
+    // Typing a link supersedes a previously picked file, and vice versa, so the
+    // card always shows exactly one source.
+    if (_urlController.text.trim().isNotEmpty && _pickedFilePath != null) {
+      setState(() => _pickedFilePath = null);
+    } else {
+      setState(() {});
+    }
   }
 
   Future<void> _loadStats() async {
@@ -51,55 +141,732 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _openCreateProjectModal({AppMode defaultMode = AppMode.longVideoToShorts}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ProjectCreateDialog(
-        initialMode: defaultMode,
-        onProceed: ({
-          required AppMode mode,
-          required SourceType sourceType,
-          required String sourcePathOrUrl,
-          required bool authorized,
-        }) {
-          if (mode == AppMode.longVideoToShorts) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AnalysisScreen(
-                  mode: mode,
-                  sourceType: sourceType,
-                  source: sourcePathOrUrl,
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      _toast("Clipboard is empty");
+      return;
+    }
+    _urlController.text = text;
+    _urlController.selection =
+        TextSelection.fromPosition(TextPosition(offset: text.length));
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: _mode == AppMode.songRemover ? FileType.any : FileType.video,
+      allowMultiple: false,
+    );
+    final path = result?.files.single.path;
+    if (path == null) return;
+    setState(() {
+      _pickedFilePath = path;
+      _urlController.clear();
+    });
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.darkCard,
+      ));
+  }
+
+  bool get _hasSource =>
+      _pickedFilePath != null || _urlController.text.trim().isNotEmpty;
+
+  void _start() {
+    final url = _urlController.text.trim();
+
+    if (_pickedFilePath == null && url.isEmpty) {
+      _toast("Paste a link or choose a file first");
+      _urlFocus.requestFocus();
+      return;
+    }
+
+    final bool isLocal = _pickedFilePath != null;
+    if (!isLocal && _downloader.getVideoId(url) == null) {
+      _toast("That does not look like a YouTube video or Shorts link");
+      return;
+    }
+
+    final String source = isLocal ? _pickedFilePath! : url;
+    final SourceType sourceType = isLocal
+        ? (_mode == AppMode.songRemover
+            ? SourceType.localAudio
+            : SourceType.localVideo)
+        : SourceType.youtubeUrl;
+
+    switch (_mode) {
+      case AppMode.transformAndProtect:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TransformPipelineScreen(
+              sourceVideoPathOrUrl: source,
+              sourceType: sourceType,
+              initialPreset: _preset,
+            ),
+          ),
+        );
+        break;
+      case AppMode.longVideoToShorts:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AnalysisScreen(
+              mode: _mode,
+              sourceType: sourceType,
+              source: source,
+            ),
+          ),
+        );
+        break;
+      case AppMode.songRemover:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SongRemoverScreen(
+              sourcePathOrUrl: source,
+              sourceType: sourceType,
+            ),
+          ),
+        );
+        break;
+    }
+  }
+
+  // ---------------------------------------------------------------- dashboard
+
+  Widget _buildFastInputCard() {
+    final bool hasFile = _pickedFilePath != null;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "FAST INPUT",
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                  letterSpacing: 1.2,
                 ),
               ),
-            );
-          } else if (mode == AppMode.songRemover) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SongRemoverScreen(
-                  sourcePathOrUrl: sourcePathOrUrl,
-                  sourceType: sourceType,
+              Text(
+                "YOUTUBE / SHORTS / LOCAL",
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.accentTangerine,
+                  letterSpacing: 0.6,
                 ),
               ),
-            );
-          } else {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => TransformPipelineScreen(
-                  sourceVideoPathOrUrl: sourcePathOrUrl,
-                  sourceType: sourceType,
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // URL field with inline paste action
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.bg,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: AppColors.line),
+            ),
+            padding: const EdgeInsets.only(left: 14, right: 6),
+            child: Row(
+              children: [
+                const Icon(Icons.smart_display, color: Color(0xFFFF0033), size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _urlController,
+                    focusNode: _urlFocus,
+                    keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) => _start(),
+                    style: const TextStyle(fontSize: 13.5, color: AppColors.ink),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: "Paste YouTube link (https://...)",
+                      hintStyle: TextStyle(fontSize: 13.5, color: AppColors.mut),
+                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _pasteFromClipboard,
+                  icon: const Icon(Icons.content_paste, size: 15),
+                  label: const Text("Paste"),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accentTangerine,
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: const Size(0, 40),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(child: Divider(color: AppColors.line)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  "OR",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.mut.withOpacity(0.8),
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
-            );
-          }
-        },
+              const Expanded(child: Divider(color: AppColors.line)),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Local file picker
+          GestureDetector(
+            onTap: _pickFile,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
+              decoration: BoxDecoration(
+                color: hasFile ? AppColors.softTangerine : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: hasFile ? AppColors.accentTangerine : AppColors.line,
+                  width: hasFile ? 1.5 : 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    hasFile ? Icons.check_circle : Icons.image_outlined,
+                    size: 19,
+                    color: hasFile ? AppColors.accentTangerine : AppColors.ink,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      hasFile
+                          ? p.basename(_pickedFilePath!)
+                          : "Choose Video or Audio from Storage",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: hasFile ? AppColors.accentTangerine : AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  if (hasFile) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _pickedFilePath = null),
+                      child: const Icon(Icons.close, size: 17, color: AppColors.mut),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _buildModeSegments() {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: AppColors.line.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: AppMode.values.map((mode) {
+          final spec = _modeSpecs[mode]!;
+          final bool isSel = _mode == mode;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _mode = mode),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSel ? AppColors.card : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: isSel
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      spec.icon,
+                      size: 20,
+                      color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      spec.segmentLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(PipelinePreset preset, String label) {
+    final bool isSel = _preset == preset;
+    return GestureDetector(
+      onTap: () => setState(() => _preset = preset),
+      child: Container(
+        margin: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSel ? AppColors.ink : AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSel ? AppColors.ink : AppColors.line),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: isSel ? Colors.white : AppColors.ink,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeDetailCard() {
+    final spec = _spec;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.softTangerine,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              spec.badge,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.accentTangerine,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            spec.title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            spec.description,
+            style: const TextStyle(fontSize: 13, color: AppColors.mut, height: 1.45),
+          ),
+
+          if (spec.supportsPreset) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    "Processing Preset",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const Spacer(),
+                  _buildPresetChip(PipelinePreset.fast, "Fast"),
+                  _buildPresetChip(PipelinePreset.balanced, "Balanced"),
+                  _buildPresetChip(PipelinePreset.advanced, "Deep"),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _start,
+            icon: const Icon(Icons.play_arrow_rounded, size: 22),
+            label: Text(
+              spec.cta,
+              style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  _hasSource ? AppColors.accentTangerine : AppColors.accentTangerine.withOpacity(0.55),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(56),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRenderBanner() {
+    return ValueListenableBuilder<RenderJobState?>(
+      valueListenable: RenderJobService.instance.activeJob,
+      builder: (context, job, _) {
+        if (job == null || !job.isActive) return const SizedBox.shrink();
+
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProcessingScreen(
+                projectId: job.projectId,
+                mode: _modeForProject(job.projectId),
+                title: job.title,
+              ),
+            ),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.darkCard,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.accentTangerine,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Rendering in Background",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      "${job.progressPercent}%",
+                      style: const TextStyle(
+                        color: AppColors.accentTangerine,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: job.status == RenderJobStatus.queued ? null : job.progress,
+                    backgroundColor: Colors.white12,
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
+                    minHeight: 5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Exporting: ${job.title}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: AppColors.mut, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Clip ${job.renderedClips + 1}/${job.totalClips}",
+                      style: const TextStyle(color: AppColors.mut, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  AppMode _modeForProject(String projectId) {
+    for (final project in _recentProjects) {
+      if (project.id == projectId) return project.mode;
+    }
+    return AppMode.longVideoToShorts;
+  }
+
+  Widget _buildStatsRow() {
+    Widget tile(String value, String unit, String label) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  if (unit.isNotEmpty)
+                    Text(unit, style: const TextStyle(fontSize: 15, color: AppColors.mut)),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.mut,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        tile("$_shortsMade", "", "Clips made"),
+        const SizedBox(width: 12),
+        tile("$_hoursSaved", "h", "Editing saved"),
+      ],
+    );
+  }
+
+  Widget _buildDashboard() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Compact identity row
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "ClipShield Studio",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _currentNavIndex = 2),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.darkCard,
+                      ),
+                      child: const Icon(Icons.person, color: Colors.white70, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            _buildFastInputCard(),
+            const SizedBox(height: 22),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "CHOOSE ACTION",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.mut,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                Text(
+                  _spec.headerLabel,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.accentTangerine,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            _buildModeSegments(),
+            const SizedBox(height: 14),
+            _buildModeDetailCard(),
+            _buildRenderBanner(),
+
+            const SizedBox(height: 24),
+            _buildStatsRow(),
+
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Recent Projects",
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _currentNavIndex = 1),
+                  child: const Text(
+                    "See all",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accentTangerine,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (_recentProjects.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.video_library_outlined,
+                        size: 34, color: AppColors.mut.withOpacity(0.6)),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "No projects yet",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Paste a link above and pick an action to create your first project.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.5, color: AppColors.mut),
+                    ),
+                  ],
+                ),
+              )
+            else
+              _buildRecentProjectCard(_recentProjects.first),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------- chrome
 
   Widget _buildBottomNav() {
     return Container(
@@ -107,31 +874,12 @@ class _HomeScreenState extends State<HomeScreen> {
         color: AppColors.card,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(0, Icons.home_filled, "Home"),
-            GestureDetector(
-              onTap: () => _openCreateProjectModal(),
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.accentTangerine,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accentTangerine.withOpacity(0.4),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.add, color: Colors.white, size: 28),
-              ),
-            ),
             _buildNavItem(1, Icons.video_collection_outlined, "Projects"),
             _buildNavItem(2, Icons.settings_outlined, "Settings"),
           ],
@@ -140,600 +888,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _currentNavIndex == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          setState(() => _currentNavIndex = 0);
-        }
-      },
-      child: _currentNavIndex == 1
-          ? Scaffold(
-              backgroundColor: AppColors.bg,
-              body: const ProjectsHistoryScreen(),
-              bottomNavigationBar: _buildBottomNav(),
-            )
-          : _currentNavIndex == 2
-              ? Scaffold(
-                  backgroundColor: AppColors.bg,
-                  body: const SettingsScreen(),
-                  bottomNavigationBar: _buildBottomNav(),
-                )
-              : Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome back",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.mut,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          "ClipShield Studio",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.ink,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() => _currentNavIndex = 2),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.darkCard,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(Icons.person, color: Colors.white70, size: 22),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ValueListenableBuilder<RenderJobState?>(
-                valueListenable: RenderJobService.instance.activeJob,
-                builder: (context, activeJob, child) {
-                  if (activeJob != null && activeJob.isActive) {
-                    final int pct = activeJob.progressPercent;
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProcessingScreen(
-                              projectId: activeJob.projectId,
-                              mode: _modeForProject(activeJob.projectId),
-                              title: activeJob.title,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.darkCard,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.accentTangerine.withOpacity(0.5)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    "Rendering in background: ${activeJob.title} (${activeJob.renderedClips}/${activeJob.totalClips})",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Text(
-                                  "$pct%",
-                                  style: const TextStyle(
-                                    color: AppColors.accentTangerine,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: activeJob.status == RenderJobStatus.queued ? null : activeJob.progress,
-                                backgroundColor: Colors.white12,
-                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
-                                minHeight: 4,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Stage: ${activeJob.currentStage}",
-                              style: const TextStyle(color: AppColors.mut, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-
-              // HERO MODE: LONG VIDEO COPYRIGHT REMOVER (TOP HERO CARD)
-              GestureDetector(
-                onTap: () => _openCreateProjectModal(defaultMode: AppMode.transformAndProtect),
-                child: Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentGrape,
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accentGrape.withOpacity(0.35),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "PRIMARY · 9-LAYER DSP",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "Long Video Copyright Remover",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Protect full-length widescreen (16:9) videos against Content ID with 9-layer perturbation.",
-                        style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.35),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.shield, color: AppColors.ink, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              "Protect & Transform",
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // SECONDARY MODE: LONG VIDEO -> SHORTS
-              GestureDetector(
-                onTap: () => _openCreateProjectModal(defaultMode: AppMode.longVideoToShorts),
-                child: Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentTangerine,
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accentTangerine.withOpacity(0.35),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "SECONDARY · AI CLIPPING",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "Long Video → Shorts",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Import a video or paste a link to extract viral vertical clips automatically.",
-                        style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.35),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, color: AppColors.ink, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              "Start clipping",
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // THIRD MODE: SONGS REMOVER
-              GestureDetector(
-                onTap: () => _openCreateProjectModal(defaultMode: AppMode.songRemover),
-                child: Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentLime,
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accentLime.withOpacity(0.35),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "NEW · AUDIO DSP",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.music_note, color: Colors.white, size: 20),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "Songs Remover",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Process audio with full DSP controls, add cover image, and export as video.",
-                        style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.35),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.music_video, color: AppColors.ink, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              "Process Audio",
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Quick Stats Row
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.line),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "$_shortsMade",
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            "Shorts made",
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.mut),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.line),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                "$_hoursSaved",
-                                style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const Text("h", style: TextStyle(fontSize: 16, color: AppColors.mut)),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            "Editing saved",
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.mut),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Continue Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Recent Projects",
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.ink),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _currentNavIndex = 1),
-                    child: const Text(
-                      "See all",
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.accentTangerine),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (_recentProjects.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.line),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.video_library_outlined, size: 36, color: AppColors.mut.withOpacity(0.6)),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "No projects yet",
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.ink),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "Transform or clip your first video using the modes above.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12.5, color: AppColors.mut),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                _buildRecentProjectCard(_recentProjects.first),
-              const SizedBox(height: 24),
-
-              // Templates Carousel
-              const Text(
-                "Shorts Templates",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.ink),
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildTemplateCard("Talking Head", "POP", Icons.record_voice_over_outlined),
-                    const SizedBox(width: 12),
-                    _buildTemplateCard("Podcast Clip", "HOT", Icons.podcasts_outlined),
-                    const SizedBox(width: 12),
-                    _buildTemplateCard("Tutorial", "NEW", Icons.school_outlined),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNav(),
-    ),
-  );
-  }
-
   Widget _buildNavItem(int index, IconData icon, String label) {
     final bool isSel = _currentNavIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _currentNavIndex = index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: isSel ? AppColors.accentTangerine : AppColors.mut, size: 24),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: isSel ? AppColors.accentTangerine : AppColors.mut,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isSel ? AppColors.accentTangerine : AppColors.mut, size: 24),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isSel ? AppColors.accentTangerine : AppColors.mut,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  AppMode _modeForProject(String projectId) {
-    for (final p in _recentProjects) {
-      if (p.id == projectId) return p.mode;
-    }
-    return AppMode.longVideoToShorts;
-  }
-
   Widget _buildRecentProjectCard(ProjectItem project) {
     final bool isMode1 = project.mode == AppMode.longVideoToShorts;
-    final bool hasThumb = project.thumbnailPath != null && File(project.thumbnailPath!).existsSync();
+    final bool hasThumb =
+        project.thumbnailPath != null && File(project.thumbnailPath!).existsSync();
 
     return GestureDetector(
       onTap: () {
@@ -804,46 +988,56 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     project.title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.ink),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    isMode1 ? "${project.clipsCount} clips · ${project.formattedDate}" : "Transformed · ${project.formattedDate}",
+                    isMode1
+                        ? "${project.clipsCount} clips · ${project.formattedDate}"
+                        : "Transformed · ${project.formattedDate}",
                     style: const TextStyle(fontSize: 13, color: AppColors.mut),
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       ValueListenableBuilder<Map<String, RenderJobState>>(
-                          valueListenable: RenderJobService.instance.jobs,
-                          builder: (context, allJobs, _) {
-                        final live = allJobs[project.id];
-                        final Color c = project.status == ProjectStatus.done
-                            ? AppColors.accentLime
-                            : (project.status == ProjectStatus.failed
-                                ? AppColors.error
-                                : (project.isRenderingOrQueued ? Colors.orange : AppColors.mut));
-                        final String label = (live != null && live.isActive)
-                            ? "${live.statusLabel.toUpperCase()} ${live.progressPercent}%"
-                            : project.statusLabel.toUpperCase();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: c.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: c,
+                        valueListenable: RenderJobService.instance.jobs,
+                        builder: (context, allJobs, _) {
+                          final live = allJobs[project.id];
+                          final Color c = project.status == ProjectStatus.done
+                              ? AppColors.accentLime
+                              : (project.status == ProjectStatus.failed
+                                  ? AppColors.error
+                                  : (project.isRenderingOrQueued
+                                      ? Colors.orange
+                                      : AppColors.mut));
+                          final String label = (live != null && live.isActive)
+                              ? "${live.statusLabel.toUpperCase()} ${live.progressPercent}%"
+                              : project.statusLabel.toUpperCase();
+                          return Container(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: c.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ),
-                        );
-                      }),
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: c,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       const Spacer(),
                       const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.mut),
                     ],
@@ -857,38 +1051,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTemplateCard(String title, String badge, IconData icon) {
-    return Container(
-      width: 120,
-      height: 150,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.accentTangerine,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
-            ),
-          ),
-          const Spacer(),
-          Icon(icon, size: 30, color: AppColors.accentTangerine),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink),
-          ),
-        ],
+  @override
+  Widget build(BuildContext context) {
+    final Widget body = switch (_currentNavIndex) {
+      1 => const ProjectsHistoryScreen(),
+      2 => const SettingsScreen(),
+      _ => _buildDashboard(),
+    };
+
+    return PopScope(
+      canPop: _currentNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) setState(() => _currentNavIndex = 0);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        resizeToAvoidBottomInset: true,
+        body: body,
+        bottomNavigationBar: _buildBottomNav(),
       ),
     );
   }
