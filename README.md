@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.2)
+# 🛡️ ClipShield Pro (v1.2.3)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.2-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.3-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.2.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk)**
+📥 **[Download ClipShieldPro-v1.2.3.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.2.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.2.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.3.apk)
 
 ---
 
@@ -54,6 +54,37 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.3
+
+**Songs Remover DSP correctness release.** Five verified bugs fixed, each measured with ffmpeg rather than assumed.
+
+- 🎚️ **Output Mode now actually does something**:
+  - `AudioOutputMode` (Full Mix / Vocal Focus / Instrumental) was set by the UI but never read by the DSP chain builder — every mode produced byte-identical audio. It is now applied as the first stage of the chain.
+  - Verified on a synthetic mix (1kHz centre vocal, 200Hz left, 3kHz right): Instrumental drops the 1kHz vocal to **0.0** while retaining both instruments; the three modes now produce three distinct outputs.
+- 🔊 **Instrumental mode is mono-safe**:
+  - The textbook karaoke filter (`c1=0.5*c1-0.5*c0`) puts the channels perfectly out of phase — fine in stereo, but **summing to total silence on mono playback** (phone speakers, mono Bluetooth, many TVs). Measured mono-sum was `0.0` at every frequency.
+  - Both channels now carry the same difference signal, so mono downmix preserves the full instrumental.
+  - Mono sources fall back to full mix instead of producing a silent file.
+- 📈 **Loudness Normalization no longer cancels the Volume slider**:
+  - `loudnorm` ran last and renormalised to a fixed target, erasing every level change before it. Measured: Volume `+3dB` and `-3dB` both produced **-18.2 dB** — a 0 dB difference across the slider's whole range.
+  - It is now input conditioning, and Volume is the final gain stage: `+3dB` → -15.2 dB, `-3dB` → -21.2 dB (**6.0 dB** of real range).
+- 🎵 **Pitch fixed for 48 kHz sources**:
+  - `asetrate=44100*x` hardcoded 44.1 kHz, but video audio is almost always 48 kHz. A requested **+0.5%** actually produced a **-1.38 semitone** shift and stretched the track by **8.3%** — wrong direction, wrong magnitude, wrong length.
+  - The base rate is now forced before `asetrate`, with a compensating `atempo` so pitch no longer alters duration: +0.5% → **+0.086 semitones**, 300 Hz → 301.5 Hz, 8.000s → 7.997s.
+- 🎛️ **EQ Gain is a tone curve, not a volume knob**:
+  - All five bands previously received the same sign, making the slider a broadband level change that `loudnorm` then flattened to nothing.
+  - Now a real curve: +80 Hz, −400 Hz, +2 kHz, −8 kHz, +15 kHz, scaled by the slider.
+- 🧩 **Additional fixes**:
+  - Fade-out anchors to the post-tempo duration (previously landed in the wrong place whenever tempo changed).
+  - `AudioDspConfig.fromMap` no longer throws `RangeError` on an out-of-range stored mode index.
+  - The 10-second preview now uses the source's real sample rate and channel count, so it previews the same chain it renders.
+  - Cover-video composition gains `setsar=1` and `+faststart`.
+- ✅ **16 new regression tests** (`test/song_dsp_test.dart`) covering output-mode separation, mono compatibility, filter ordering, pitch maths, EQ shape and config round-tripping. Suite is 36/36 green.
+
+> **Note on naming:** "Vocal Only" is now **Vocal Focus** and "Instrumental Only" is now **Instrumental**. True vocal/instrumental separation requires a neural source-separation model (Demucs/Spleeter class) — FFmpeg alone can only do centre-channel cancellation, which removes centred vocals along with centred bass and drums. The labels now describe what the engine actually delivers.
 
 ---
 

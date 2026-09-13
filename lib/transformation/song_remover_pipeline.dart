@@ -35,7 +35,13 @@ class SongRemoverPipeline {
           // Centre-channel cancellation. Only removes content panned dead
           // centre, and takes centred bass/drums with it. On a mono source it
           // would cancel to silence, hence the guard.
-          audioFilters.add("pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c1-0.5*c0");
+          //
+          // Both channels carry the SAME difference signal rather than an
+          // inverted pair. The textbook karaoke filter (c1 = 0.5*c1-0.5*c0)
+          // puts the channels perfectly out of phase, which sounds fine in
+          // stereo but sums to total silence on any mono playback - phone
+          // speakers, mono Bluetooth, many TVs.
+          audioFilters.add("pan=stereo|c0=0.5*c0-0.5*c1|c1=0.5*c0-0.5*c1");
           logCallback(
               "Mode: Instrumental (karaoke centre-cancellation). Centre-panned vocals removed.");
         } else {
