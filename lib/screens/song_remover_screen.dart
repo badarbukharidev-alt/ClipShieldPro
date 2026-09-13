@@ -151,12 +151,27 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
 
     setState(() => _isRendering = true);
 
+    final ts = DateTime.now().millisecondsSinceEpoch;
+
+    // Register the project up front so it is visible in Projects History with a
+    // truthful "rendering" status for the whole duration of the job.
+    final project = ProjectItem(
+      id: "song_proj_$ts",
+      mode: AppMode.songRemover,
+      title: "Songs Remover Export",
+      sourceUrlOrPath: _localPath!,
+      sourceType: widget.sourceType,
+      clips: [],
+      preset: PipelinePreset.balanced,
+      aspectRatio: _isWidescreen ? AspectRatioOption.original169 : AspectRatioOption.vertical916,
+    );
+    project.status = ProjectStatus.rendering;
+    await ProjectStorageService.saveProject(project);
+
     try {
       final appDir = await getApplicationDocumentsDirectory();
       final outputDir = Directory(path.join(appDir.path, "ClipShield_Songs"));
       if (!await outputDir.exists()) await outputDir.create(recursive: true);
-
-      final ts = DateTime.now().millisecondsSinceEpoch;
 
       // Step 1: Process audio with DSP chain
       final audioPath = path.join(outputDir.path, "processed_audio_$ts.m4a");
@@ -185,7 +200,10 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
         await _ffmpegService.extractThumbnail(videoPath: videoPath, thumbnailPath: thumbPath);
       } catch (_) {}
 
-      if (!mounted) return;
+      final composed = File(videoPath);
+      if (!await composed.exists() || await composed.length() <= 1024) {
+        throw Exception("Encoder produced no usable output file.");
+      }
 
       final clip = ClipItem(
         id: "song_$ts",
@@ -200,21 +218,12 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
       clip.thumbnailPath = thumbPath;
       clip.isRendered = true;
 
-      final project = ProjectItem(
-        id: "song_proj_$ts",
-        mode: AppMode.songRemover,
-        title: "Songs Remover Export",
-        sourceUrlOrPath: _localPath!,
-        sourceType: widget.sourceType,
-        clips: [clip],
-        preset: PipelinePreset.balanced,
-        aspectRatio: _isWidescreen ? AspectRatioOption.original169 : AspectRatioOption.vertical916,
-      );
-      project.status = 'done';
+      project.clips = [clip];
+      project.status = ProjectStatus.done;
       project.outputPaths = [videoPath];
       project.thumbnailPath = thumbPath;
 
-      // Persist to project storage so it appears in Projects tab
+      // Persist the completed state; only now is the project "ready".
       await ProjectStorageService.saveProject(project);
 
       // Export directly to public device gallery
@@ -230,6 +239,11 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
         ),
       );
     } catch (e) {
+      project.status = ProjectStatus.failed;
+      project.settings['renderError'] = e.toString();
+      try {
+        await ProjectStorageService.saveProject(project);
+      } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Render failed: $e"), backgroundColor: AppColors.error),

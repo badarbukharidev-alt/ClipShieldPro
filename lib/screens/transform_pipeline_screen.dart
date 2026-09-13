@@ -5,10 +5,13 @@ import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../services/downloader_service.dart';
 import '../services/ffmpeg_engine_service.dart';
+import '../services/license_service.dart';
 import '../services/media_probe_service.dart';
+import '../services/render_job_service.dart';
 import '../transformation/layer.dart';
 import '../transformation/pipeline.dart';
 import '../theme/app_theme.dart';
+import 'activation_dialog.dart';
 import 'processing_screen.dart';
 import 'preview_screen.dart';
 
@@ -154,8 +157,18 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
     }
   }
 
-  void _startFullRender() {
-    if (_localVideoPath == null || _probeInfo == null) return;
+  bool _isSubmitting = false;
+
+  Future<void> _startFullRender() async {
+    if (_localVideoPath == null || _probeInfo == null || _isSubmitting) return;
+
+    // License is checked before the job is queued, not mid-render.
+    if (!LicenseService.instance.canRender()) {
+      final activated = await ActivationDialog.show(context);
+      if (!mounted || !activated) return;
+    }
+
+    setState(() => _isSubmitting = true);
 
     final clip = ClipItem(
       id: "transform_clip_${DateTime.now().millisecondsSinceEpoch}",
@@ -181,18 +194,27 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
       aspectRatio: _aspectRatio,
     );
 
+    final projectId = await RenderJobService.instance.submit(
+      project: project,
+      sourceVideoPath: _localVideoPath!,
+      probeInfo: _probeInfo!,
+      clipsToRender: [clip],
+      pipeline: _pipeline,
+      aspectRatio: _aspectRatio,
+      enableSubjectTracking: false,
+      quality: _selectedPreset == PipelinePreset.advanced ? 'high' : 'balanced',
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProcessingScreen(
-          project: project,
-          sourceVideoPath: _localVideoPath!,
-          probeInfo: _probeInfo!,
-          clipsToRender: [clip],
-          pipeline: _pipeline,
-          aspectRatio: _aspectRatio,
-          enableSubjectTracking: false,
-          quality: _selectedPreset == PipelinePreset.advanced ? 'high' : 'balanced',
+          projectId: projectId,
+          mode: project.mode,
+          title: project.title,
         ),
       ),
     );
@@ -359,9 +381,9 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
                   Expanded(
                     flex: 3,
                     child: ElevatedButton.icon(
-                      onPressed: _startFullRender,
+                      onPressed: _isSubmitting ? null : _startFullRender,
                       icon: const Icon(Icons.security, size: 18),
-                      label: const Text("Render Transformed"),
+                      label: Text(_isSubmitting ? "Queueing..." : "Render Transformed"),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: AppColors.accentGrape,

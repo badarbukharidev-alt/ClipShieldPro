@@ -6,6 +6,7 @@ import '../services/project_storage_service.dart';
 import '../theme/app_theme.dart';
 import 'analysis_screen.dart';
 import 'project_create_dialog.dart';
+import 'processing_screen.dart';
 import 'projects_history_screen.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
@@ -30,6 +31,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    ProjectStorageService.revision.addListener(_loadStats);
+  }
+
+  @override
+  void dispose() {
+    ProjectStorageService.revision.removeListener(_loadStats);
+    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -211,12 +219,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ValueListenableBuilder<RenderJobState?>(
                 valueListenable: RenderJobService.instance.activeJob,
                 builder: (context, activeJob, child) {
-                  if (activeJob != null && !activeJob.isCompleted && !activeJob.isFailed) {
-                    final int pct = (activeJob.progress * 100).toInt().clamp(0, 100);
+                  if (activeJob != null && activeJob.isActive) {
+                    final int pct = activeJob.progressPercent;
                     return GestureDetector(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Rendering: ${activeJob.title} ($pct%) - ${activeJob.currentStage}")),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProcessingScreen(
+                              projectId: activeJob.projectId,
+                              mode: _modeForProject(activeJob.projectId),
+                              title: activeJob.title,
+                            ),
+                          ),
                         );
                       },
                       child: Container(
@@ -243,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    "Rendering in background: ${activeJob.title}",
+                                    "Rendering in background: ${activeJob.title} (${activeJob.renderedClips}/${activeJob.totalClips})",
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
@@ -267,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: activeJob.progress,
+                                value: activeJob.status == RenderJobStatus.queued ? null : activeJob.progress,
                                 backgroundColor: Colors.white12,
                                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
                                 minHeight: 4,
@@ -709,24 +724,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  AppMode _modeForProject(String projectId) {
+    for (final p in _recentProjects) {
+      if (p.id == projectId) return p.mode;
+    }
+    return AppMode.longVideoToShorts;
+  }
+
   Widget _buildRecentProjectCard(ProjectItem project) {
     final bool isMode1 = project.mode == AppMode.longVideoToShorts;
     final bool hasThumb = project.thumbnailPath != null && File(project.thumbnailPath!).existsSync();
 
     return GestureDetector(
       onTap: () {
-        if (project.status == 'done') {
+        // Only a genuinely finished render opens the results screen.
+        if (project.isReady) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => ResultsScreen(
                 project: project,
-                renderedClips: project.clips,
+                renderedClips: project.clips.where((c) => c.isRendered).toList(),
               ),
             ),
           );
-        } else {
+        } else if (project.status == ProjectStatus.draft) {
           setState(() => _currentNavIndex = 1);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProcessingScreen(
+                projectId: project.id,
+                mode: project.mode,
+                title: project.title,
+              ),
+            ),
+          );
         }
       },
       child: Container(
@@ -782,23 +816,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: project.status == 'done'
-                              ? AppColors.accentLime.withOpacity(0.15)
-                              : AppColors.accentTangerine.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          project.status.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: project.status == 'done' ? AppColors.accentLime : AppColors.accentTangerine,
+                      ValueListenableBuilder<Map<String, RenderJobState>>(
+                          valueListenable: RenderJobService.instance.jobs,
+                          builder: (context, allJobs, _) {
+                        final live = allJobs[project.id];
+                        final Color c = project.status == ProjectStatus.done
+                            ? AppColors.accentLime
+                            : (project.status == ProjectStatus.failed
+                                ? AppColors.error
+                                : (project.isRenderingOrQueued ? Colors.orange : AppColors.mut));
+                        final String label = (live != null && live.isActive)
+                            ? "${live.statusLabel.toUpperCase()} ${live.progressPercent}%"
+                            : project.statusLabel.toUpperCase();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: c.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-                      ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: c,
+                            ),
+                          ),
+                        );
+                      }),
                       const Spacer(),
                       const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.mut),
                     ],

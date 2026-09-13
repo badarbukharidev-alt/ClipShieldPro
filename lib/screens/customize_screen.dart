@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/app_modes.dart';
 import '../models/clip_model.dart';
 import '../models/project_model.dart';
+import '../services/license_service.dart';
 import '../services/media_probe_service.dart';
+import '../services/render_job_service.dart';
 import '../transformation/pipeline.dart';
 import '../theme/app_theme.dart';
+import 'activation_dialog.dart';
 import 'processing_screen.dart';
 
 class CustomizeScreen extends StatefulWidget {
@@ -33,7 +36,25 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
   double _transformationStrength = 45.0; // 10 to 90%
   final String _resolution = "1080p";
 
-  void _startRender() {
+  bool _isSubmitting = false;
+
+  Future<void> _startRender() async {
+    if (_isSubmitting) return;
+    if (widget.selectedClips.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Select at least one clip to render")),
+      );
+      return;
+    }
+
+    // License is checked before the job is queued, not mid-render.
+    if (!LicenseService.instance.canRender()) {
+      final activated = await ActivationDialog.show(context);
+      if (!mounted || !activated) return;
+    }
+
+    setState(() => _isSubmitting = true);
+
     final pipeline = TransformationPipeline();
     pipeline.setGlobalIntensity(_transformationStrength / 100.0);
 
@@ -44,18 +65,33 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
     pipeline.harmonicAudio.isEnabled = true;
     pipeline.codecNormalization.isEnabled = true;
 
+    // One submission == one history entry, carrying only the selected clips.
+    final renderProject = widget.project.copyForRender(
+      clipsToRender: widget.selectedClips,
+      aspectRatio: _aspectRatio,
+    );
+
+    final projectId = await RenderJobService.instance.submit(
+      project: renderProject,
+      sourceVideoPath: widget.sourceVideoPath,
+      probeInfo: widget.probeInfo,
+      clipsToRender: renderProject.clips,
+      pipeline: pipeline,
+      aspectRatio: _aspectRatio,
+      enableSubjectTracking: _subjectTracking,
+      quality: _resolution == "1080p" ? "high" : "balanced",
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProcessingScreen(
-          project: widget.project,
-          sourceVideoPath: widget.sourceVideoPath,
-          probeInfo: widget.probeInfo,
-          clipsToRender: widget.selectedClips,
-          pipeline: pipeline,
-          aspectRatio: _aspectRatio,
-          enableSubjectTracking: _subjectTracking,
-          quality: _resolution == "1080p" ? "high" : "balanced",
+          projectId: projectId,
+          mode: renderProject.mode,
+          title: renderProject.title,
         ),
       ),
     );
@@ -269,13 +305,15 @@ class _CustomizeScreenState extends State<CustomizeScreen> {
             ),
             child: SafeArea(
               child: ElevatedButton(
-                onPressed: _startRender,
+                onPressed: _isSubmitting ? null : _startRender,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(54),
                   backgroundColor: AppColors.accentTangerine,
                 ),
                 child: Text(
-                  "Render ${widget.selectedClips.length} Shorts",
+                  _isSubmitting
+                      ? "Queueing..."
+                      : "Render ${widget.selectedClips.length} ${widget.selectedClips.length == 1 ? 'Short' : 'Shorts'}",
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),

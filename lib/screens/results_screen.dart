@@ -7,6 +7,7 @@ import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
 import 'preview_screen.dart';
+import 'processing_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final ProjectItem project;
@@ -25,15 +26,24 @@ class ResultsScreen extends StatefulWidget {
 class _ResultsScreenState extends State<ResultsScreen> {
   bool _isSavedToGallery = false;
 
+  /// Clips with a verified artifact on disk. Nothing else may be presented as
+  /// a finished result.
+  List<ClipItem> get _readyClips => widget.renderedClips
+      .where((c) => c.isRendered && c.outputPath != null && File(c.outputPath!).existsSync())
+      .toList();
+
+  bool get _isGenuinelyReady =>
+      widget.project.status == ProjectStatus.done && _readyClips.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
-    _exportToGallery();
+    if (_isGenuinelyReady) _exportToGallery();
   }
 
   Future<void> _exportToGallery() async {
     bool anySaved = false;
-    for (var clip in widget.renderedClips) {
+    for (var clip in _readyClips) {
       if (clip.outputPath != null && File(clip.outputPath!).existsSync()) {
         final newPath = await GalleryExportService.exportToPublicGallery(clip.outputPath!);
         if (newPath != null) {
@@ -101,6 +111,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Hard guard: this screen speaks only for completed renders. If it is ever
+    // reached for a project that is still processing or failed, show the real
+    // state instead of a "ready" headline.
+    if (!_isGenuinelyReady) return _buildNotReady();
+
     final bool isWidescreen = widget.project.mode == AppMode.transformAndProtect ||
         widget.project.aspectRatio == AspectRatioOption.original169;
     final bool isSongRemover = widget.project.mode == AppMode.songRemover;
@@ -110,10 +125,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
         : (isWidescreen ? "Protected Video Ready" : "Your Shorts Are Ready");
 
     final String subtitle = isSongRemover
-        ? "DSP mastering applied · ${widget.renderedClips.length} asset generated"
+        ? "DSP mastering applied · ${_readyClips.length} asset generated"
         : (isWidescreen
             ? "16:9 Widescreen · 12-layer protection applied"
-            : "${widget.renderedClips.length} clips · reframed, transformed & enhanced");
+            : "${_readyClips.length} clips · reframed, transformed & enhanced");
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -183,9 +198,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
               Expanded(
                 child: isWidescreen
                     ? ListView.builder(
-                        itemCount: widget.renderedClips.length,
+                        itemCount: _readyClips.length,
                         itemBuilder: (context, index) {
-                          final clip = widget.renderedClips[index];
+                          final clip = _readyClips[index];
                           final hasThumb = clip.thumbnailPath != null && File(clip.thumbnailPath!).existsSync();
 
                           return Container(
@@ -309,9 +324,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
                         ),
-                        itemCount: widget.renderedClips.length,
+                        itemCount: _readyClips.length,
                         itemBuilder: (context, index) {
-                          final clip = widget.renderedClips[index];
+                          final clip = _readyClips[index];
                           final hasThumb = clip.thumbnailPath != null && File(clip.thumbnailPath!).existsSync();
 
                           return Column(
@@ -420,10 +435,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildShareOption(Icons.message, "WhatsApp", Colors.green, () => _shareClips(widget.renderedClips)),
-                    _buildShareOption(Icons.video_library, "YouTube", Colors.red, () => _shareClips(widget.renderedClips)),
-                    _buildShareOption(Icons.camera_alt, "Instagram", Colors.purple, () => _shareClips(widget.renderedClips)),
-                    _buildShareOption(Icons.share, "More", AppColors.ink, () => _shareClips(widget.renderedClips)),
+                    _buildShareOption(Icons.message, "WhatsApp", Colors.green, () => _shareClips(_readyClips)),
+                    _buildShareOption(Icons.video_library, "YouTube", Colors.red, () => _shareClips(_readyClips)),
+                    _buildShareOption(Icons.camera_alt, "Instagram", Colors.purple, () => _shareClips(_readyClips)),
+                    _buildShareOption(Icons.share, "More", AppColors.ink, () => _shareClips(_readyClips)),
                   ],
                 ),
               ),
@@ -434,6 +449,65 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 child: const Text("Done", style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotReady() {
+    final project = widget.project;
+    final bool inFlight = project.isRenderingOrQueued;
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(project.statusLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                inFlight ? Icons.hourglass_top : Icons.error_outline,
+                size: 52,
+                color: inFlight ? AppColors.accentTangerine : AppColors.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                inFlight ? "Still rendering" : "No finished output",
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.ink),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                inFlight
+                    ? "This project has not finished rendering yet. Open its status page to follow the progress."
+                    : (project.renderError ?? "This render did not produce any usable clips."),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.mut, height: 1.45),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProcessingScreen(
+                      projectId: project.id,
+                      mode: project.mode,
+                      title: project.title,
+                    ),
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(220, 48),
+                  backgroundColor: AppColors.accentTangerine,
+                ),
+                child: const Text("Open render status"),
               ),
             ],
           ),

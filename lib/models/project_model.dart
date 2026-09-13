@@ -1,6 +1,36 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'app_modes.dart';
 import 'clip_model.dart';
+
+/// Canonical project lifecycle values. A project is only "ready" when a render
+/// job has genuinely finished and produced files on disk.
+class ProjectStatus {
+  static const String draft = 'draft';
+  static const String queued = 'queued';
+  static const String rendering = 'rendering';
+  static const String done = 'done';
+  static const String failed = 'failed';
+  static const String canceled = 'canceled';
+
+  static String label(String status) {
+    switch (status) {
+      case queued:
+        return 'Queued';
+      case rendering:
+        return 'Rendering';
+      case done:
+        return 'Completed';
+      case failed:
+        return 'Failed';
+      case canceled:
+        return 'Canceled';
+      case draft:
+        return 'Draft';
+      default:
+        return status.toUpperCase();
+    }
+  }
+}
 
 class ProjectItem {
   final String id;
@@ -9,7 +39,7 @@ class ProjectItem {
   final String sourceUrlOrPath;
   final SourceType sourceType;
   final DateTime createdAt;
-  String status; // 'done', 'rendering', 'draft', 'failed'
+  String status; // see [ProjectStatus]
   List<ClipItem> clips;
   List<String> outputPaths;
   String? thumbnailPath;
@@ -24,7 +54,7 @@ class ProjectItem {
     required this.sourceUrlOrPath,
     required this.sourceType,
     DateTime? createdAt,
-    this.status = 'draft',
+    this.status = ProjectStatus.draft,
     List<ClipItem>? clips,
     List<String>? outputPaths,
     this.thumbnailPath,
@@ -36,7 +66,44 @@ class ProjectItem {
         outputPaths = outputPaths ?? [],
         settings = settings ?? {};
 
-  int get clipsCount => clips.isNotEmpty ? clips.length : (outputPaths.isNotEmpty ? outputPaths.length : 1);
+  /// Number of clips this project is responsible for. While a job is in flight
+  /// this is the number of clips actually submitted, never the number that were
+  /// merely detected.
+  int get clipsCount => clips.isNotEmpty ? clips.length : outputPaths.length;
+
+  /// Clips that have a verified artifact on disk.
+  int get renderedClipsCount =>
+      clips.isNotEmpty ? clips.where((c) => c.isRendered).length : outputPaths.length;
+
+  bool get isRenderingOrQueued =>
+      status == ProjectStatus.rendering || status == ProjectStatus.queued;
+
+  /// The only condition under which result/"ready" screens may be shown.
+  bool get isReady => status == ProjectStatus.done && outputPaths.isNotEmpty;
+
+  String get statusLabel => ProjectStatus.label(status);
+
+  String? get renderError => settings['renderError'] as String?;
+
+  /// A fresh, independent history entry for one render submission, carrying
+  /// only the clips actually being rendered.
+  ProjectItem copyForRender({
+    required List<ClipItem> clipsToRender,
+    AspectRatioOption? aspectRatio,
+  }) {
+    return ProjectItem(
+      id: 'render_${DateTime.now().microsecondsSinceEpoch}',
+      mode: mode,
+      title: title,
+      sourceUrlOrPath: sourceUrlOrPath,
+      sourceType: sourceType,
+      status: ProjectStatus.queued,
+      clips: clipsToRender.map((c) => ClipItem.fromMap(c.toMap())).toList(),
+      preset: preset,
+      aspectRatio: aspectRatio ?? this.aspectRatio,
+      settings: Map<String, dynamic>.from(settings),
+    );
+  }
 
   String get formattedDate {
     final now = DateTime.now();
@@ -84,7 +151,7 @@ class ProjectItem {
         orElse: () => SourceType.youtubeUrl,
       ),
       createdAt: DateTime.parse(map['createdAt'] as String),
-      status: map['status'] as String? ?? 'done',
+      status: map['status'] as String? ?? ProjectStatus.done,
       clips: (map['clips'] as List<dynamic>?)
               ?.map((x) => ClipItem.fromMap(x as Map<String, dynamic>))
               .toList() ??

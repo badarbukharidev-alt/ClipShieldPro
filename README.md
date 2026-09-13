@@ -1,11 +1,11 @@
-# 🛡️ ClipShield Pro (v1.2.0)
+# 🛡️ ClipShield Pro (v1.2.1)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.0-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.0.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.1-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.1.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
-[![Size](https://img.shields.io/badge/APK%20Size-172%20MB%20(44%25%20Smaller)-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
+[![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 
 ---
 
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.0.apk (172 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.0.apk)**
+📥 **[Download ClipShieldPro-v1.2.1.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.1.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.0.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.0.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.1.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.1.apk)
 
 ---
 
@@ -54,6 +54,33 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.1
+
+- 🧠 **Rewritten Render Job Engine (Single Source of Truth)**:
+  - Rendering no longer runs inside the processing screen. `RenderJobService` is now a real background queue that owns the job independently of the widget tree, so leaving the screen can never interrupt or restart a render.
+  - Clicking **Render** now submits the job to the background queue automatically and registers it in Projects History immediately — no more manually tapping "Run in Background".
+  - Every state transition is written through `ProjectStorageService`, so the UI and persisted state can no longer disagree.
+- ✅ **Truthful Completion Detection**:
+  - A job is marked **Completed** only when every submitted clip has produced a verified file on disk; anything short of that is **Failed**, with the real per-clip encoder error surfaced in the UI.
+  - "Protected Video Ready" / "Shorts Ready" screens are now hard-guarded and can never appear for a project that is still rendering or that failed.
+- 🔢 **Correct Clip Counts**:
+  - Submitting 1 of 5 detected clips now creates a project carrying exactly that 1 clip. Previously the whole detected set was persisted, producing phantom "5 clips" entries with missing files.
+  - Each render submission becomes its own history entry instead of overwriting the previous one.
+- 📂 **Projects History Synchronization**:
+  - New **Rendering / Completed / Failed** filters alongside All, Shorts, Transformed, Songs and Drafts.
+  - Cards show live status, percentage, `n/total` clips rendered and an inline progress bar, refreshing automatically without a manual reload.
+  - Tapping a project always opens something: results when genuinely ready, otherwise its live render status page. Previously queued and failed projects opened nothing at all.
+- 🔁 **Crash & Interruption Recovery**:
+  - Jobs killed with a previous process are reconciled at startup, so no project is ever left permanently stuck showing "Rendering".
+  - Partial progress is persisted per clip, and cancelling a render now genuinely stops the in-flight encoder session.
+- 📊 **Stats & Licensing Accuracy**:
+  - Lifetime stats count each completed project exactly once, using only clips that actually rendered.
+  - The license check runs before a job is queued rather than mid-render, and trial credits are consumed only on a genuinely successful render.
+- 🎵 **Song Remover Status Fidelity**:
+  - Audio projects now register as `Rendering` up front and as `Failed` with a reason on error, instead of only ever appearing once complete.
 
 ---
 

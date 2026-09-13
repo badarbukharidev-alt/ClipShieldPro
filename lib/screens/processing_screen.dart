@@ -1,43 +1,24 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 import '../models/app_modes.dart';
-import '../models/clip_model.dart';
 import '../models/project_model.dart';
-import '../services/ffmpeg_engine_service.dart';
-import '../services/media_probe_service.dart';
 import '../services/project_storage_service.dart';
-import '../services/subject_tracker_service.dart';
-import '../transformation/layer.dart';
-import '../transformation/pipeline.dart';
-import '../theme/app_theme.dart';
-import '../services/license_service.dart';
 import '../services/render_job_service.dart';
-import '../services/gallery_export_service.dart';
-import 'activation_dialog.dart';
+import '../theme/app_theme.dart';
 import 'results_screen.dart';
 
+/// Live status page for a render job. This screen does **not** run the render —
+/// [RenderJobService] owns the job and keeps running whether or not this screen
+/// is on the stack. Everything shown here is read from the job state.
 class ProcessingScreen extends StatefulWidget {
-  final ProjectItem project;
-  final String sourceVideoPath;
-  final MediaProbeInfo probeInfo;
-  final List<ClipItem> clipsToRender;
-  final TransformationPipeline pipeline;
-  final AspectRatioOption aspectRatio;
-  final bool enableSubjectTracking;
-  final String quality;
+  final String projectId;
+  final AppMode mode;
+  final String title;
 
   const ProcessingScreen({
     super.key,
-    required this.project,
-    required this.sourceVideoPath,
-    required this.probeInfo,
-    required this.clipsToRender,
-    required this.pipeline,
-    required this.aspectRatio,
-    required this.enableSubjectTracking,
-    this.quality = 'balanced',
+    required this.projectId,
+    required this.mode,
+    required this.title,
   });
 
   @override
@@ -45,34 +26,30 @@ class ProcessingScreen extends StatefulWidget {
 }
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
-  final FfmpegEngineService _ffmpegService = FfmpegEngineService();
-  final SubjectTrackerService _trackerService = SubjectTrackerService();
+  bool _navigatedToResults = false;
 
-  double _totalProgress = 0.0;
-  String _currentStepLabel = "Starting render session...";
-  int _currentClipIndex = 0;
-  final List<String> _logs = [];
-  bool _isCanceled = false;
-
-  List<String> get _pipelineSteps => widget.project.mode == AppMode.transformAndProtect
-      ? const [
+  List<String> get _pipelineSteps {
+    switch (widget.mode) {
+      case AppMode.transformAndProtect:
+        return const [
           "Analyzing source media",
           "Applying audio transformations",
           "Geometric perturbation layer",
           "Color & gamma defense layer",
           "Blur & ambient layers",
           "Encoding protected output",
-        ]
-      : widget.project.mode == AppMode.songRemover
-          ? const [
-              "Extracting audio stream",
-              "Applying DSP transformations",
-              "Processing output mode",
-              "Compositing cover image",
-              "Encoding final output",
-              "Generating thumbnail",
-            ]
-          : const [
+        ];
+      case AppMode.songRemover:
+        return const [
+          "Extracting audio stream",
+          "Applying DSP transformations",
+          "Processing output mode",
+          "Compositing cover image",
+          "Encoding final output",
+          "Generating thumbnail",
+        ];
+      case AppMode.longVideoToShorts:
+        return const [
           "Probing & source verification",
           "Aspect reframing & boundary clamping",
           "Facial centroid subject tracking",
@@ -80,494 +57,419 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           "Applying chromatic & geometric layers",
           "H.264 transcoding & thumbnail export",
         ];
-
-  @override
-  void initState() {
-    super.initState();
-    _executeRenderPipeline();
-  }
-
-  @override
-  void dispose() {
-    _trackerService.dispose();
-    super.dispose();
-  }
-
-  void _addLog(String msg) {
-    setState(() {
-      _logs.add(msg);
-      _currentStepLabel = msg;
-    });
-  }
-
-  Future<void> _executeRenderPipeline() async {
-    final List<String> renderedPaths = [];
-    try {
-      // Verify license / trial render permission
-      final canRender = LicenseService.instance.canRender();
-      if (!canRender) {
-        if (!mounted) return;
-        final activated = await ActivationDialog.show(context);
-        if (!mounted) return;
-        if (!activated) {
-          Navigator.pop(context);
-          return;
-        }
-      }
-
-      RenderJobService.instance.startJob(projectId: widget.project.id, title: widget.project.title);
-
-      // Persist project immediately so it is registered in history
-      widget.project.status = 'rendering';
-      await ProjectStorageService.saveProject(widget.project);
-
-      final appDir = await getApplicationDocumentsDirectory();
-      final outputDir = Directory(path.join(appDir.path, "ClipShield_Rendered"));
-      if (!await outputDir.exists()) {
-        await outputDir.create(recursive: true);
-      }
-
-      final int totalClips = widget.clipsToRender.length;
-
-      final bool isWidescreenMode = widget.project.mode == AppMode.transformAndProtect ||
-          widget.aspectRatio == AspectRatioOption.original169;
-
-      for (int i = 0; i < totalClips; i++) {
-        if (_isCanceled) {
-          RenderJobService.instance.cancelJob();
-          return;
-        }
-
-        if (mounted) {
-          setState(() {
-            _currentClipIndex = i;
-          });
-        }
-
-        final clip = widget.clipsToRender[i];
-        final double baseWeight = i / totalClips;
-        final double clipWeight = 1.0 / totalClips;
-
-        _addLog("Processing Clip ${i + 1}/$totalClips: ${clip.title}");
-
-        // 1. Calculate Crop Coordinates
-        String cropCoords;
-        if (isWidescreenMode) {
-          // Strictly preserve full widescreen 16:9 canvas with ZERO face tracking
-          cropCoords = "${widget.probeInfo.width}:${widget.probeInfo.height}:0:0";
-        } else if (widget.enableSubjectTracking) {
-          cropCoords = await _trackerService.calculateOptimalCrop(
-            videoPath: widget.sourceVideoPath,
-            startTime: clip.startTime,
-            endTime: clip.endTime,
-            sourceWidth: widget.probeInfo.width,
-            sourceHeight: widget.probeInfo.height,
-            aspectOption: widget.aspectRatio,
-            logCallback: _addLog,
-          );
-        } else {
-          final targetW = (widget.probeInfo.height * widget.aspectRatio.ratio).round();
-          final defaultX = ((widget.probeInfo.width - targetW) / 2).round().clamp(0, widget.probeInfo.width - targetW);
-          cropCoords = "$targetW:${widget.probeInfo.height}:$defaultX:0";
-        }
-        clip.cropCoordinates = cropCoords;
-
-        // 2. Build Filter Context
-        final int outW;
-        final int outH;
-        if (isWidescreenMode) {
-          outW = widget.quality == 'high' ? 1920 : 1280;
-          outH = widget.quality == 'high' ? 1080 : 720;
-        } else {
-          outW = widget.quality == 'high' ? 1080 : 720;
-          outH = widget.quality == 'high' ? 1920 : 1280;
-        }
-
-        final filterContext = FilterContext(
-          sourceWidth: widget.probeInfo.width,
-          sourceHeight: widget.probeInfo.height,
-          duration: clip.durationSeconds,
-          hasAudio: widget.probeInfo.hasAudio,
-          quality: widget.quality,
-          targetWidth: outW,
-          targetHeight: outH,
-          cropCoordinates: cropCoords,
-          isPreview: false,
-        );
-
-        // 3. Render Output
-        final outName = "ClipShield_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.mp4";
-        final outPath = path.join(outputDir.path, outName);
-
-        try {
-          await _ffmpegService.renderClip(
-            inputPath: widget.sourceVideoPath,
-            outputPath: outPath,
-            startTime: clip.startTime,
-            endTime: clip.endTime,
-            pipeline: widget.pipeline,
-            context: filterContext,
-            onProgress: (p, stage) {
-              if (!_isCanceled) {
-                final double overallProgress = baseWeight + (p * clipWeight);
-                RenderJobService.instance.updateProgress(overallProgress, stage);
-                if (mounted) {
-                  setState(() {
-                    _totalProgress = overallProgress;
-                  });
-                }
-              }
-            },
-            logCallback: _addLog,
-          );
-        } catch (clipErr) {
-          _addLog("Clip render attempt notice: $clipErr");
-        }
-
-        // Check physical file existence and health on disk
-        final outputFile = File(outPath);
-        if (await outputFile.exists() && await outputFile.length() > 1024) {
-          clip.outputPath = outPath;
-          clip.isRendered = true;
-          renderedPaths.add(outPath);
-
-          // 4. Extract Thumbnail
-          final thumbName = "thumb_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.jpg";
-          final thumbPath = path.join(outputDir.path, thumbName);
-          try {
-            await _ffmpegService.extractThumbnail(videoPath: outPath, thumbnailPath: thumbPath);
-            clip.thumbnailPath = thumbPath;
-          } catch (_) {}
-
-          // Auto-export directly to Android device gallery
-          try {
-            await GalleryExportService.exportToPublicGallery(outPath);
-          } catch (_) {}
-        } else {
-          _addLog("Clip ${i + 1} output file was not produced.");
-        }
-      }
-
-      if (_isCanceled) {
-        RenderJobService.instance.cancelJob();
-        return;
-      }
-
-      if (mounted) setState(() => _totalProgress = 1.0);
-
-      // Save project to storage
-      widget.project.status = 'done';
-      widget.project.outputPaths = renderedPaths;
-      if (renderedPaths.isNotEmpty && widget.clipsToRender.first.thumbnailPath != null) {
-        widget.project.thumbnailPath = widget.clipsToRender.first.thumbnailPath;
-      }
-      await ProjectStorageService.saveProject(widget.project);
-      await LicenseService.instance.consumeTrial();
-
-      RenderJobService.instance.completeJob(renderedPaths);
-
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ResultsScreen(
-            project: widget.project,
-            renderedClips: widget.clipsToRender,
-          ),
-        ),
-      );
-    } catch (e) {
-      RenderJobService.instance.failJob(e.toString());
-
-      // If at least one clip was successfully rendered, rescue and show results!
-      if (renderedPaths.isNotEmpty) {
-        widget.project.status = 'done';
-        widget.project.outputPaths = renderedPaths;
-        if (widget.clipsToRender.first.thumbnailPath != null) {
-          widget.project.thumbnailPath = widget.clipsToRender.first.thumbnailPath;
-        }
-        try {
-          await ProjectStorageService.saveProject(widget.project);
-        } catch (_) {}
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ResultsScreen(
-              project: widget.project,
-              renderedClips: widget.clipsToRender.where((c) => c.isRendered).toList(),
-            ),
-          ),
-        );
-        return;
-      }
-
-      // Save failed status so project is still visible and debuggable
-      try {
-        widget.project.status = 'failed';
-        await ProjectStorageService.saveProject(widget.project);
-      } catch (_) {}
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: AppColors.error, content: Text("Render failed: $e")),
-      );
-      Navigator.pop(context);
     }
+  }
+
+  Future<void> _openResults(RenderJobState job) async {
+    if (_navigatedToResults) return;
+    _navigatedToResults = true;
+
+    final project = await ProjectStorageService.getProject(widget.projectId);
+    if (!mounted) return;
+
+    // Guard: never open the "ready" screen for anything that is not genuinely
+    // finished with artifacts on disk.
+    if (project == null || !project.isReady) {
+      _navigatedToResults = false;
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultsScreen(
+          project: project,
+          renderedClips: project.clips.where((c) => c.isRendered).toList(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmCancel() async {
+    final bool? cancelIt = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: const Text("Cancel this render?", style: TextStyle(color: AppColors.ink)),
+        content: const Text(
+          "The job will stop and the project will be marked as canceled. "
+          "Closing this screen instead keeps it rendering in the background.",
+          style: TextStyle(color: AppColors.mut),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Keep rendering", style: TextStyle(color: AppColors.mut)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Cancel render", style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (cancelIt != true) return;
+    await RenderJobService.instance.cancel(widget.projectId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final int pct = (_totalProgress * 100).toInt().clamp(0, 100);
-    final int activeStepIdx = (_totalProgress * _pipelineSteps.length).toInt().clamp(0, _pipelineSteps.length - 1);
+    return ValueListenableBuilder<Map<String, RenderJobState>>(
+      valueListenable: RenderJobService.instance.jobs,
+      builder: (context, allJobs, _) {
+        final job = allJobs[widget.projectId];
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final bool? shouldBackground = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppColors.card,
-            title: const Text("Run in Background?", style: TextStyle(color: AppColors.ink)),
-            content: const Text("You can let this render in the background and continue using the app.", style: TextStyle(color: AppColors.mut)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text("Cancel Render", style: TextStyle(color: AppColors.error)),
+        if (job != null && job.isCompleted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _openResults(job));
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.bg,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              job?.statusLabel ?? "Render status",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.ink),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+          ),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: job == null
+                  ? _buildUnknownJob()
+                  : (job.isActive ? _buildActive(job) : _buildTerminal(job)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUnknownJob() {
+    // The job is not in this session's map (e.g. the app was restarted). Fall
+    // back to the persisted project so the screen still tells the truth.
+    return FutureBuilder<ProjectItem?>(
+      future: ProjectStorageService.getProject(widget.projectId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData && snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.accentTangerine));
+        }
+        final project = snapshot.data;
+        if (project == null) {
+          return _buildMessage(
+            icon: Icons.help_outline,
+            color: AppColors.mut,
+            title: "Project not found",
+            body: "This render job is no longer available.",
+          );
+        }
+        if (project.isReady) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _navigatedToResults) return;
+            _navigatedToResults = true;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ResultsScreen(
+                  project: project,
+                  renderedClips: project.clips.where((c) => c.isRendered).toList(),
+                ),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text("Run in Background", style: TextStyle(color: AppColors.accentTangerine)),
+            );
+          });
+          return const Center(child: CircularProgressIndicator(color: AppColors.accentTangerine));
+        }
+        return _buildMessage(
+          icon: project.status == ProjectStatus.failed ? Icons.error_outline : Icons.pause_circle_outline,
+          color: project.status == ProjectStatus.failed ? AppColors.error : AppColors.mut,
+          title: "Render ${project.statusLabel.toLowerCase()}",
+          body: project.renderError ??
+              "This job was interrupted before it finished. Start the render again to produce the clips.",
+        );
+      },
+    );
+  }
+
+  Widget _buildMessage({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String body,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 52, color: color),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.ink),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: AppColors.mut, height: 1.45),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton(
+            onPressed: () => Navigator.maybePop(context),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(200, 48)),
+            child: const Text("Back to projects"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTerminal(RenderJobState job) {
+    if (job.isFailed) {
+      return _buildMessage(
+        icon: Icons.error_outline,
+        color: AppColors.error,
+        title: "Render failed",
+        body: job.error?.trim().isNotEmpty == true
+            ? job.error!
+            : "The encoder did not produce the expected output.",
+      );
+    }
+    if (job.isCanceled) {
+      return _buildMessage(
+        icon: Icons.cancel_outlined,
+        color: AppColors.mut,
+        title: "Render canceled",
+        body: job.renderedClips > 0
+            ? "${job.renderedClips} of ${job.totalClips} clips were finished before cancellation."
+            : "No clips were produced.",
+      );
+    }
+    // Completed: _openResults is already navigating.
+    return const Center(child: CircularProgressIndicator(color: AppColors.accentTangerine));
+  }
+
+  Widget _buildActive(RenderJobState job) {
+    final int pct = job.progressPercent;
+    final steps = _pipelineSteps;
+    final int activeStepIdx = (job.progress * steps.length).toInt().clamp(0, steps.length - 1);
+    final logs = RenderJobService.instance.logsFor(widget.projectId);
+
+    return Column(
+      children: [
+        Text(
+          job.status == RenderJobStatus.queued ? "Queued for rendering" : "Rendering Your Media",
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "${job.totalClips} clip${job.totalClips == 1 ? '' : 's'} · on-device media engine",
+          style: const TextStyle(fontSize: 13.5, color: AppColors.mut),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.softTangerine,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Text(
+            "Running in background · you can leave this screen",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accentTangerine),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Progress canvas
+        Container(
+          width: double.infinity,
+          height: 180,
+          decoration: BoxDecoration(
+            color: AppColors.darkCard,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.accentTangerine.withOpacity(0.18),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1E1E28), Color(0xFF14141E)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: Center(
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          AppColors.accentTangerine.withOpacity(0.25),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 96,
+                height: 96,
+                child: CircularProgressIndicator(
+                  value: job.progress > 0 ? job.progress : null,
+                  strokeWidth: 6,
+                  backgroundColor: Colors.white.withOpacity(0.08),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "$pct%",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentTangerine.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "${job.renderedClips}/${job.totalClips} CLIPS DONE",
+                      style: const TextStyle(
+                        color: AppColors.accentTangerine,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        );
-        if (!context.mounted) return;
-        if (shouldBackground == true) {
-          Navigator.pop(context); // Pop back to home
-        } else if (shouldBackground == false) {
-          _isCanceled = true;
-          Navigator.pop(context);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.ink),
-            onPressed: () => Navigator.maybePop(context),
+        ),
+        const SizedBox(height: 20),
+
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.line),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListView.builder(
+              itemCount: steps.length,
+              itemBuilder: (context, index) {
+                final bool isDone = index < activeStepIdx;
+                final bool isActive = index == activeStepIdx && job.status == RenderJobStatus.rendering;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDone
+                              ? AppColors.accentTangerine
+                              : (isActive ? AppColors.softTangerine : AppColors.line.withOpacity(0.3)),
+                        ),
+                        child: isDone
+                            ? const Icon(Icons.check, size: 15, color: Colors.white)
+                            : (isActive
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.accentTangerine,
+                                      ),
+                                    ),
+                                  )
+                                : null),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          steps[index],
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDone || isActive ? AppColors.ink : AppColors.mut,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-          actions: [
-            TextButton.icon(
-              icon: const Icon(Icons.minimize, color: AppColors.accentTangerine, size: 18),
-              label: const Text("Run in Background", style: TextStyle(color: AppColors.accentTangerine)),
-              onPressed: () => Navigator.maybePop(context),
+        ),
+        const SizedBox(height: 14),
+
+        Text(
+          logs.isNotEmpty ? logs.last : job.currentStage,
+          style: const TextStyle(fontSize: 12, color: AppColors.mut, fontStyle: FontStyle.italic),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 10),
+
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _confirmCancel,
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                child: const Text("Cancel render", style: TextStyle(color: AppColors.error)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.maybePop(context),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.accentTangerine,
+                ),
+                child: const Text("Run in background"),
+              ),
             ),
           ],
         ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-            child: Column(
-              children: [
-                const Text(
-                  "Rendering Your Media",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Clip ${_currentClipIndex + 1} of ${widget.clipsToRender.length} · on-device media engine",
-                  style: const TextStyle(fontSize: 13.5, color: AppColors.mut),
-                ),
-                const SizedBox(height: 28),
-
-                // Animated Rendering Canvas
-                Container(
-                  width: double.infinity,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: AppColors.darkCard,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accentTangerine.withOpacity(0.18),
-                        blurRadius: 28,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E1E28), Color(0xFF14141E)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Ambient radial glow
-                      Positioned.fill(
-                        child: Center(
-                          child: Container(
-                            width: 130,
-                            height: 130,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                colors: [
-                                  AppColors.accentTangerine.withOpacity(0.25),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Circular Progress Ring
-                      SizedBox(
-                        width: 96,
-                        height: 96,
-                        child: CircularProgressIndicator(
-                          value: _totalProgress > 0 ? _totalProgress : null,
-                          strokeWidth: 6,
-                          backgroundColor: Colors.white.withOpacity(0.08),
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTangerine),
-                        ),
-                      ),
-                      // Inner Percent Text & Chip
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "$pct%",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentTangerine.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              "ON-DEVICE DSP",
-                              style: TextStyle(
-                                color: AppColors.accentTangerine,
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // 6 Pipeline Steps Card
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AppColors.line),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: ListView.builder(
-                      itemCount: _pipelineSteps.length,
-                      itemBuilder: (context, index) {
-                        final bool isDone = index < activeStepIdx;
-                        final bool isActive = index == activeStepIdx;
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isDone
-                                      ? AppColors.accentTangerine
-                                      : (isActive ? AppColors.softTangerine : AppColors.line.withOpacity(0.3)),
-                                ),
-                                child: isDone
-                                    ? const Icon(Icons.check, size: 15, color: Colors.white)
-                                    : (isActive
-                                        ? const Center(
-                                            child: SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: AppColors.accentTangerine,
-                                              ),
-                                            ),
-                                          )
-                                        : null),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _pipelineSteps[index],
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDone || isActive ? AppColors.ink : AppColors.mut,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Text(
-                  _currentStepLabel,
-                  style: const TextStyle(fontSize: 12, color: AppColors.mut, fontStyle: FontStyle.italic),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 14),
-
-                // Cancel button
-                OutlinedButton(
-                  onPressed: () {
-                    _isCanceled = true;
-                    Navigator.pop(context);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                  child: const Text("Cancel"),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

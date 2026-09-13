@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'screens/splash_screen.dart';
 import 'services/license_service.dart';
+import 'services/render_job_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -10,6 +11,10 @@ void main() async {
 
   // Initialize offline cryptographic licensing engine
   await LicenseService.instance.init();
+
+  // Resolve any job that was killed with a previous process so no project is
+  // left permanently stuck showing "rendering".
+  await RenderJobService.instance.reconcileInterruptedJobs();
 
   // Set system navigation and status bar style
   SystemChrome.setSystemUIOverlayStyle(

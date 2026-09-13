@@ -152,7 +152,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         sourceUrlOrPath: localVideoPath,
         sourceType: widget.sourceType,
         clips: detectedClips,
-        status: 'draft',
+        status: ProjectStatus.draft,
       );
 
       Navigator.pushReplacement(
