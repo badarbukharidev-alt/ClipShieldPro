@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:clipshield/screens/home_screen.dart';
 import 'package:clipshield/theme/app_theme.dart';
 
@@ -14,6 +15,11 @@ Future<void> pumpDashboard(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() {
+    // The dashboard loads stats on init; without this the plugin channel throws.
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('dashboard shows the fast input card', (WidgetTester tester) async {
     await pumpDashboard(tester);
 
@@ -79,8 +85,12 @@ void main() {
       (WidgetTester tester) async {
     await pumpDashboard(tester);
 
-    await tester.tap(find.text("Start Copyright Protection"));
-    await tester.pump();
+    final cta = find.text("Start Copyright Protection");
+    await tester.ensureVisible(cta);
+    await tester.pumpAndSettle();
+    await tester.tap(cta);
+    await tester.pump(); // dispatch
+    await tester.pump(const Duration(milliseconds: 100)); // snackbar enters
 
     expect(find.text("Paste a link or choose a file first"), findsOneWidget);
     // Still on the dashboard.
@@ -94,8 +104,12 @@ void main() {
     await tester.enterText(find.byType(TextField).first, "not-a-link");
     await tester.pump();
 
-    await tester.tap(find.text("Start Copyright Protection"));
+    final cta = find.text("Start Copyright Protection");
+    await tester.ensureVisible(cta);
+    await tester.pumpAndSettle();
+    await tester.tap(cta);
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       find.text("That does not look like a YouTube video or Shorts link"),
@@ -111,7 +125,8 @@ void main() {
     expect(find.text("Settings"), findsOneWidget);
 
     await tester.tap(find.text("Projects"));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text("FAST INPUT"), findsNothing);
+    expect(find.text("Projects & History"), findsOneWidget);
   });
 }

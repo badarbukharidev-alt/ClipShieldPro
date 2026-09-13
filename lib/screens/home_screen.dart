@@ -44,6 +44,15 @@ class _ModeSpec {
   });
 }
 
+/// Display order for the action segments. Deliberately not `AppMode.values`,
+/// which declares longVideoToShorts first and would put AI Shorts before the
+/// default Copyright action.
+const List<AppMode> _modeOrder = [
+  AppMode.transformAndProtect,
+  AppMode.longVideoToShorts,
+  AppMode.songRemover,
+];
+
 const Map<AppMode, _ModeSpec> _modeSpecs = {
   AppMode.transformAndProtect: _ModeSpec(
     headerLabel: "16:9 COPYRIGHT REMOVER",
@@ -266,13 +275,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   letterSpacing: 1.2,
                 ),
               ),
-              Text(
-                "YOUTUBE / SHORTS / LOCAL",
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.accentTangerine,
-                  letterSpacing: 0.6,
+              Flexible(
+                child: Text(
+                  "YOUTUBE / SHORTS / LOCAL",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.accentTangerine,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ),
             ],
@@ -406,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
-        children: AppMode.values.map((mode) {
+        children: _modeOrder.map((mode) {
           final spec = _modeSpecs[mode]!;
           final bool isSel = _mode == mode;
           return Expanded(
@@ -460,8 +474,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => setState(() => _preset = preset),
       child: Container(
-        margin: const EdgeInsets.only(left: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSel ? AppColors.ink : AppColors.card,
           borderRadius: BorderRadius.circular(10),
@@ -470,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             color: isSel ? Colors.white : AppColors.ink,
           ),
@@ -534,18 +548,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Row(
                 children: [
-                  const Text(
-                    "Processing Preset",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                  const Flexible(
+                    child: Text(
+                      "Processing Preset",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  _buildPresetChip(PipelinePreset.fast, "Fast"),
-                  _buildPresetChip(PipelinePreset.balanced, "Balanced"),
-                  _buildPresetChip(PipelinePreset.advanced, "Deep"),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true, // keep the chips pinned right
+                      child: Row(
+                        children: [
+                          _buildPresetChip(PipelinePreset.fast, "Fast"),
+                          _buildPresetChip(PipelinePreset.balanced, "Balanced"),
+                          _buildPresetChip(PipelinePreset.advanced, "Deep"),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -740,13 +767,17 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "ClipShield Studio",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.ink,
-                      letterSpacing: -0.4,
+                  const Flexible(
+                    child: Text(
+                      "ClipShield Studio",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -780,13 +811,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     letterSpacing: 1.2,
                   ),
                 ),
-                Text(
-                  _spec.headerLabel,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.accentTangerine,
-                    letterSpacing: 0.6,
+                Flexible(
+                  child: Text(
+                    _spec.headerLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.accentTangerine,
+                      letterSpacing: 0.6,
+                    ),
                   ),
                 ),
               ],
@@ -805,12 +841,16 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Recent Projects",
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
+                const Flexible(
+                  child: Text(
+                    "Recent Projects",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
                 GestureDetector(

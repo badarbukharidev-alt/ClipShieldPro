@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.3)
+# 🛡️ ClipShield Pro (v1.2.4)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.3-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.4-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.3.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)**
+📥 **[Download ClipShieldPro-v1.2.4.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.3.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.3.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.4.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.4.apk)
 
 ---
 
@@ -54,6 +54,34 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.4
+
+**One-step dashboard.** Creating a project no longer goes through a bottom-sheet modal — paste a link, pick an action, and start, all from the home screen.
+
+- ⚡ **Fast Input card**:
+  - YouTube / Shorts URL field with an inline **Paste** button that reads the clipboard directly.
+  - Local video or audio picker beneath an OR divider, showing the chosen filename with a one-tap clear.
+  - Source selection is exclusive — typing a link clears a picked file and vice versa — so the card always reflects exactly one input.
+- 🎛️ **Choose Action segmented control**:
+  - Copyright · AI Shorts · Song DSP in a single tab strip, with the active mode echoed in the section header.
+  - Switching a segment swaps the entire action card: badge, title, description and call-to-action.
+- ⚙️ **Processing Preset is wired through**:
+  - `TransformPipelineScreen` now accepts an `initialPreset` and applies it in `initState`, so the Fast / Balanced / Deep choice made on the dashboard is honoured instead of being asked again on the next screen.
+  - The preset row is shown **only** for Copyright mode, where it is actually plumbed through — no dead controls.
+- 📡 **Live background render banner** on the dashboard, driven by `RenderJobService.activeJob`: percentage, progress bar, exporting filename and clip counter. Tapping it opens that job's status page.
+- 🧭 **Simplified navigation**: Home / Projects / Settings. The centre "+" button and the non-functional "Shorts Templates" carousel (three cards that navigated nowhere) were removed.
+
+### Layout defects found by rendering the screen
+
+The dashboard was rendered to an image during development rather than assumed correct, which surfaced two bugs that structural tests alone would have missed:
+
+- 🔀 **Action segments were in the wrong order.** `AppMode` declares `longVideoToShorts` first, so iterating `AppMode.values` placed **AI Shorts** in the leading slot instead of Copyright. Segment order is now an explicit list, pinned by a test.
+- 📐 **Four `RenderFlex` overflows** — the preset row (47 px), both section header rows, and the identity / Recent Projects rows. At 360 dp (Pixel and Galaxy S base width) these would have painted visible yellow-and-black hazard stripes. Every unbounded `Text` in a `spaceBetween` row is now `Flexible` with ellipsis, and the preset chips sit in a right-pinned scroll strip that survives any width.
+
+- ✅ **Tests**: `test/dashboard_layout_test.dart` asserts zero overflow at 360 / 411 / 480 dp across all three action cards, plus segment order and preset-chip reachability. `test/widget_test.dart` rewritten to cover the new dashboard: input card, mode switching, preset visibility, and source validation before navigation. Suite is **51/51** green.
 
 ---
 
