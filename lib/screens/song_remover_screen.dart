@@ -144,6 +144,11 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
     }
   }
 
+  /// Ten DSP sliders and a toggle, collapsed by default. They are a correct
+  /// starting point for almost everyone, and opening onto them turns a two-tap
+  /// job into a mixing desk.
+  bool _showAdvanced = false;
+
   Future<void> _renderFinal() async {
     if (_localPath == null || _isRendering) return;
     if (_coverImagePath == null) {
@@ -292,59 +297,64 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // DSP Controls Header
-                  const Text(
-                    "AUDIO DSP CONTROLS",
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
-                  ),
-                  const SizedBox(height: 10),
+                  _buildAdvancedToggle(),
 
-                  // DSP Sliders Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.line),
+                  if (_showAdvanced) ...[
+                    const SizedBox(height: 14),
+                    // DSP Controls Header
+                    const Text(
+                      "AUDIO DSP CONTROLS",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
                     ),
-                    child: Column(
-                      children: [
-                        _buildSlider("Volume", "${_config.volumeDb > 0 ? '+' : ''}${_config.volumeDb.toStringAsFixed(1)} dB",
-                            _config.volumeDb, -3.0, 3.0, (v) => setState(() => _config.volumeDb = v)),
-                        _buildSlider("EQ Gain", "±${_config.eqGainDb.toStringAsFixed(1)} dB",
-                            _config.eqGainDb, 0.0, 4.0, (v) => setState(() => _config.eqGainDb = v)),
-                        _buildSlider("Tempo", "${_config.tempoPercent > 0 ? '+' : ''}${_config.tempoPercent.toStringAsFixed(1)}%",
-                            _config.tempoPercent, -5.0, 5.0, (v) => setState(() => _config.tempoPercent = v)),
-                        _buildSlider("Pitch", "${_config.pitchPercent > 0 ? '+' : ''}${_config.pitchPercent.toStringAsFixed(1)}%",
-                            _config.pitchPercent, -3.0, 3.0, (v) => setState(() => _config.pitchPercent = v)),
-                        _buildSlider("Stereo Pan", _config.stereoPanning.toStringAsFixed(2),
-                            _config.stereoPanning, -1.0, 1.0, (v) => setState(() => _config.stereoPanning = v)),
-                        _buildSlider("Compression", "${_config.compressionRatio.toStringAsFixed(1)}:1",
-                            _config.compressionRatio, 1.0, 4.0, (v) => setState(() => _config.compressionRatio = v)),
-                        _buildSlider("Reverb Mix", "${(_config.reverbMix * 100).toStringAsFixed(0)}%",
-                            _config.reverbMix, 0.0, 0.3, (v) => setState(() => _config.reverbMix = v)),
-                        _buildSlider("Delay", "${_config.delayMs.toInt()} ms",
-                            _config.delayMs, 0.0, 100.0, (v) => setState(() => _config.delayMs = v)),
-                        _buildSlider("Fade In", "${_config.fadeInSec.toStringAsFixed(1)}s",
-                            _config.fadeInSec, 0.0, 5.0, (v) => setState(() => _config.fadeInSec = v)),
-                        _buildSlider("Fade Out", "${_config.fadeOutSec.toStringAsFixed(1)}s",
-                            _config.fadeOutSec, 0.0, 5.0, (v) => setState(() => _config.fadeOutSec = v)),
-                        const Divider(color: AppColors.line),
-                        // Normalization toggle
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("Loudness Normalization", style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
-                            Switch(
-                              value: _config.normalization,
-                              activeColor: AppColors.accentLime,
-                              onChanged: (v) => setState(() => _config.normalization = v),
-                            ),
-                          ],
-                        ),
-                      ],
+                    const SizedBox(height: 10),
+
+                    // DSP Sliders Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.line),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildSlider("Volume", "${_config.volumeDb > 0 ? '+' : ''}${_config.volumeDb.toStringAsFixed(1)} dB",
+                              _config.volumeDb, -3.0, 3.0, (v) => setState(() => _config.volumeDb = v)),
+                          _buildSlider("EQ Gain", "±${_config.eqGainDb.toStringAsFixed(1)} dB",
+                              _config.eqGainDb, 0.0, 4.0, (v) => setState(() => _config.eqGainDb = v)),
+                          _buildSlider("Tempo", "${_config.tempoPercent > 0 ? '+' : ''}${_config.tempoPercent.toStringAsFixed(1)}%",
+                              _config.tempoPercent, -5.0, 5.0, (v) => setState(() => _config.tempoPercent = v)),
+                          _buildSlider("Pitch", "${_config.pitchPercent > 0 ? '+' : ''}${_config.pitchPercent.toStringAsFixed(1)}%",
+                              _config.pitchPercent, -3.0, 3.0, (v) => setState(() => _config.pitchPercent = v)),
+                          _buildSlider("Stereo Pan", _config.stereoPanning.toStringAsFixed(2),
+                              _config.stereoPanning, -1.0, 1.0, (v) => setState(() => _config.stereoPanning = v)),
+                          _buildSlider("Compression", "${_config.compressionRatio.toStringAsFixed(1)}:1",
+                              _config.compressionRatio, 1.0, 4.0, (v) => setState(() => _config.compressionRatio = v)),
+                          _buildSlider("Reverb Mix", "${(_config.reverbMix * 100).toStringAsFixed(0)}%",
+                              _config.reverbMix, 0.0, 0.3, (v) => setState(() => _config.reverbMix = v)),
+                          _buildSlider("Delay", "${_config.delayMs.toInt()} ms",
+                              _config.delayMs, 0.0, 100.0, (v) => setState(() => _config.delayMs = v)),
+                          _buildSlider("Fade In", "${_config.fadeInSec.toStringAsFixed(1)}s",
+                              _config.fadeInSec, 0.0, 5.0, (v) => setState(() => _config.fadeInSec = v)),
+                          _buildSlider("Fade Out", "${_config.fadeOutSec.toStringAsFixed(1)}s",
+                              _config.fadeOutSec, 0.0, 5.0, (v) => setState(() => _config.fadeOutSec = v)),
+                          const Divider(color: AppColors.line),
+                          // Normalization toggle
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Loudness Normalization", style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
+                              Switch(
+                                value: _config.normalization,
+                                activeColor: AppColors.accentLime,
+                                onChanged: (v) => setState(() => _config.normalization = v),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Output Mode Selector
@@ -522,6 +532,59 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Opens the DSP controls. Collapsed, it still states that processing is
+  /// configured, so hiding the sliders does not read as hiding the work.
+  Widget _buildAdvancedToggle() {
+    return GestureDetector(
+      onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _showAdvanced ? AppColors.accentLime : AppColors.line,
+            width: _showAdvanced ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 20,
+              color: _showAdvanced ? AppColors.accentLime : AppColors.mut,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Advanced",
+                    style: TextStyle(
+                        fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _showAdvanced
+                        ? "Volume, EQ, tempo, pitch, reverb and more"
+                        : "Audio processing is configured and ready",
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              _showAdvanced ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              color: AppColors.mut,
+            ),
+          ],
+        ),
       ),
     );
   }

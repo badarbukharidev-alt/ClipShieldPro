@@ -11,6 +11,7 @@ import 'package:clipshield/screens/home_screen.dart';
 import 'package:clipshield/models/app_update.dart';
 import 'package:clipshield/screens/tasks_screen.dart';
 import 'package:clipshield/screens/update_dialog.dart';
+import 'package:clipshield/widgets/share_target_row.dart';
 import 'package:clipshield/screens/projects_history_screen.dart';
 import 'package:clipshield/screens/results_screen.dart';
 import 'package:clipshield/theme/app_theme.dart';
@@ -30,6 +31,19 @@ Future<void> loadRealFont() async {
       ..addFont(Future.value(ByteData.view(bytes.buffer)));
     await loader.load();
     break;
+  }
+
+  // Font Awesome brand marks, so the share row shows the real logos rather
+  // than empty boxes. The family name must match what FontAwesomeIcons uses.
+  final brands = File(r'C:\Users\batman2\AppData\Local\Pub\Cache\hosted'
+      r'\pub.dev\font_awesome_flutter-10.7.0\lib\fonts\fa-brands-400.ttf');
+  if (brands.existsSync()) {
+    final b = brands.readAsBytesSync();
+    // A package font resolves as 'packages/<pkg>/<family>'; loading it under
+    // the bare family name leaves every brand mark as a box.
+    final l = FontLoader('packages/font_awesome_flutter/FontAwesomeBrands')
+      ..addFont(Future.value(ByteData.view(b.buffer)));
+    await l.load();
   }
 
   // Without this every Icon draws as an empty box, which hides exactly the
@@ -155,6 +169,10 @@ void main() {
     });
   });
 
+  testWidgets('11 share row', (t) async {
+    await shot(t, const _ShareHost(), '11_share_row');
+  });
+
   testWidgets('08 results ready', (t) async {
     final tmp = Directory.systemTemp.createTempSync('cs_preview');
     final clipFile = File('${tmp.path}/c.mp4')..writeAsBytesSync(List<int>.filled(4096, 7));
@@ -204,6 +222,31 @@ class _DialogHost extends StatelessWidget {
             onPressed: () => UpdateDialog.show(ctx, update),
             child: const Text('open'),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The share destinations on their own, so the brand marks can be checked at
+/// the size they actually render.
+class _ShareHost extends StatelessWidget {
+  const _ShareHost();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: const ShareTargetRow(filePaths: []),
         ),
       ),
     );

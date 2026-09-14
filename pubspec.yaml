@@ -2,7 +2,7 @@ name: clipshield
 description: "ClipShield Pro: AI-powered on-device YouTube short clipper and video copyright bypass utility."
 publish_to: 'none'
 
-version: 1.2.11+14
+version: 1.2.12+15
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -44,6 +44,13 @@ dependencies:
   # Direct dependency so UpdateService can read the running build's versionCode
   # from the APK rather than a hand-maintained constant. Already pinned below.
   package_info_plus: ^8.3.1
+  # Real brand marks (WhatsApp, Instagram, YouTube, TikTok...) rather than
+  # Material approximations. Font Awesome Free brand icons are CC BY 4.0.
+  #
+  # Pinned exactly: 10.8+ calls Color.withValues(), which does not exist before
+  # Flutter 3.27, and this project builds on 3.24.5. Raise it only together with
+  # the SDK.
+  font_awesome_flutter: 10.7.0
 
 dev_dependencies:
   flutter_test:

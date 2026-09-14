@@ -7,6 +7,7 @@ import '../models/source_metadata.dart';
 import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
+import '../widgets/share_target_row.dart';
 import '../widgets/source_metadata_panel.dart';
 import 'preview_screen.dart';
 import 'processing_screen.dart';
@@ -25,8 +26,14 @@ class ResultsScreen extends StatefulWidget {
   State<ResultsScreen> createState() => _ResultsScreenState();
 }
 
+/// What happened to the gallery save. A failure has to be visible: the old
+/// banner only appeared on success, so a save that silently did nothing looked
+/// exactly like one that never ran.
+enum _SaveState { saving, saved, failed }
+
 class _ResultsScreenState extends State<ResultsScreen> {
-  bool _isSavedToGallery = false;
+  _SaveState _saveState = _SaveState.saving;
+  String _savedLocation = '';
 
   /// Clips with a verified artifact on disk. Nothing else may be presented as
   /// a finished result.
@@ -46,21 +53,43 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (_isGenuinelyReady) _exportToGallery();
   }
 
+  /// A name the user can actually find in their gallery, rather than the
+  /// render's temp basename.
+  String _exportFileName(ClipItem clip, int index) {
+    final safeTitle = widget.project.title
+        .replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '')
+        .trim()
+        .replaceAll(RegExp(r'\s+'), '_');
+    final base = safeTitle.isEmpty ? 'ClipShield' : 'ClipShield_$safeTitle';
+    final suffix = _readyClips.length > 1 ? '_${index + 1}' : '';
+
+    return '${base.substring(0, base.length > 60 ? 60 : base.length)}$suffix.mp4';
+  }
+
   Future<void> _exportToGallery() async {
+    if (mounted) setState(() => _saveState = _SaveState.saving);
+
     bool anySaved = false;
-    for (var clip in _readyClips) {
+    String location = '';
+    for (var i = 0; i < _readyClips.length; i++) {
+      final clip = _readyClips[i];
       if (clip.outputPath != null && File(clip.outputPath!).existsSync()) {
-        final newPath = await GalleryExportService.exportToPublicGallery(clip.outputPath!);
+        final newPath = await GalleryExportService.exportToPublicGallery(
+          clip.outputPath!,
+          customFileName: _exportFileName(clip, i),
+        );
         if (newPath != null) {
           anySaved = true;
+          location = GalleryExportService.displayLocation(newPath);
         }
       }
     }
-    if (anySaved && mounted) {
-      setState(() {
-        _isSavedToGallery = true;
-      });
-    }
+
+    if (!mounted) return;
+    setState(() {
+      _saveState = anySaved ? _SaveState.saved : _SaveState.failed;
+      _savedLocation = location;
+    });
   }
 
   Future<void> _shareClips(List<ClipItem> clips, {String text = "Check out my video created with ClipShield Pro!"}) async {
@@ -89,26 +118,64 @@ class _ResultsScreenState extends State<ResultsScreen> {
     );
   }
 
-  Widget _buildShareOption(IconData icon, String label, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  /// States the outcome of the gallery save, including when it failed.
+  Widget _buildSaveBanner() {
+    late final Color tint;
+    late final IconData icon;
+    late final String label;
+
+    switch (_saveState) {
+      case _SaveState.saving:
+        tint = AppColors.mut;
+        icon = Icons.hourglass_top_rounded;
+        label = "Saving to your gallery...";
+        break;
+      case _SaveState.saved:
+        tint = AppColors.accentLime;
+        icon = Icons.check_circle_rounded;
+        label = _savedLocation.isEmpty
+            ? "Saved to your gallery"
+            : "Saved to your gallery ($_savedLocation)";
+        break;
+      case _SaveState.failed:
+        tint = AppColors.error;
+        icon = Icons.error_outline_rounded;
+        label = "Could not save to the gallery";
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tint),
+      ),
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+          Icon(icon, color: tint, size: 20),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(color: tint, fontWeight: FontWeight.w700, fontSize: 12.5),
             ),
-            child: Icon(icon, color: color, size: 28),
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.ink),
-          ),
+          if (_saveState == _SaveState.failed)
+            TextButton(
+              onPressed: _exportToGallery,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                "Retry",
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+            ),
         ],
       ),
     );
@@ -142,27 +209,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_isSavedToGallery)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        "Saved to Gallery (Movies/ClipShield)",
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
+              _buildSaveBanner(),
 
               // Success Icon & Headline
               Center(
@@ -437,18 +484,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Rich Social Sharing Options
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildShareOption(Icons.message, "WhatsApp", Colors.green, () => _shareClips(_readyClips)),
-                    _buildShareOption(Icons.video_library, "YouTube", Colors.red, () => _shareClips(_readyClips)),
-                    _buildShareOption(Icons.camera_alt, "Instagram", Colors.purple, () => _shareClips(_readyClips)),
-                    _buildShareOption(Icons.share, "More", AppColors.ink, () => _shareClips(_readyClips)),
-                  ],
-                ),
+              // Share straight to a named app, with that app's own mark.
+              ShareTargetRow(
+                filePaths: _readyClips
+                    .map((c) => c.outputPath)
+                    .whereType<String>()
+                    .toList(),
+                text: widget.project.title.isEmpty
+                    ? "Made with ClipShield Pro"
+                    : "${widget.project.title} - made with ClipShield Pro",
               ),
 
               // Source metadata, shown inline after sharing so the title,

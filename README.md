@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.11)
+# 🛡️ ClipShield Pro (v1.2.12)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.11-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.12-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.11.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)**
+📥 **[Download ClipShieldPro-v1.2.12.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.11.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.12.apk)
 
 ---
 
@@ -54,6 +54,73 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.12
+
+### 💾 Fixed: nothing was ever reaching the gallery
+
+Renders, song exports and downloaded thumbnails were all missing from Gallery,
+Photos and Files. The cause was one method that could not work on any phone
+running Android 10 or newer:
+
+```dart
+// Both of these fail on modern Android, and both failures were swallowed.
+final dir = Directory('/storage/emulated/0/Movies/ClipShield');  // scoped storage
+await Process.run('am', ['broadcast', ...MEDIA_SCANNER_SCAN_FILE]);  // not app-callable
+```
+
+Scoped storage rejects the write outright on API 30+, and apps have not been able
+to send that broadcast for years. Both errors were caught and ignored, so the
+copy quietly fell back to **app-private storage** — a render reported itself saved
+and then appeared in no gallery on earth.
+
+Saving now goes through **MediaStore** in a new Kotlin bridge, which is the only
+supported route. Videos land in `Movies/ClipShield`, images in
+`Pictures/ClipShield`, audio in `Music/ClipShield`, and `IS_PENDING` keeps a row
+hidden until the bytes are fully written so a gallery never shows a half-copied
+file. Android 9 and below still take the legacy path with a proper
+`MediaScannerConnection` call.
+
+Downloaded thumbnails are staged privately and then published the same way,
+rather than being written into a folder the app is not allowed to create.
+
+Files are also named usefully now — `ClipShield_<project title>.mp4` instead of
+the render's temp basename.
+
+> **The failure is no longer silent.** The results banner has three states rather
+> than only appearing on success, so a save that does not work says so and offers
+> a retry.
+
+### 📤 Share buttons that actually go somewhere
+
+Every icon in the share row was wired to the same system chooser, so tapping
+Instagram and tapping WhatsApp did exactly the same thing. Each destination now
+builds an explicit `ACTION_SEND` intent for that app's package and goes straight
+there. An app that is not installed is **named**, instead of nothing happening.
+
+Icons are the real brand marks from Font Awesome, not Material look-alikes — a
+green speech bubble is not the WhatsApp logo, and people find these by shape.
+
+Added TikTok, covering **both** of its package names: it ships as
+`com.zhiliaoapp.musically` or `com.ss.android.ugc.trill` depending on where the
+phone was sold, and checking one reports "not installed" for half the world.
+
+Sharing needed a `FileProvider`: a `file://` URI has thrown
+`FileUriExposedException` since Android 7, and the receiving app cannot read our
+private directory in any case.
+
+### 🎛️ Song settings collapse behind Advanced
+
+Ten DSP sliders and a toggle opened before you had done anything. They sit behind
+an **Advanced** row now, the same as the copyright remover in v1.2.10. Cover image
+and output shape stay visible — those are choices, not settings.
+
+### 📌 Pinned `font_awesome_flutter` to 10.7.0
+
+10.8+ calls `Color.withValues()`, which does not exist before Flutter 3.27; this
+project builds on 3.24.5. Raise it only together with the SDK.
 
 ---
 

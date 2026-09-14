@@ -9,9 +9,12 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
 
     private val channelName = "com.clipshield/device"
+    private val mediaChannelName = "com.clipshield/media"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        registerMediaChannel(flutterEngine)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
@@ -50,6 +53,71 @@ class MainActivity : FlutterActivity() {
                     }
 
                     else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * Saving to the gallery and sharing to a named app. Both have to be native:
+     * scoped storage only lets an app publish media through MediaStore, and
+     * targeting one app means building an explicit Intent rather than opening a
+     * chooser.
+     */
+    private fun registerMediaChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, mediaChannelName)
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "saveVideo" -> result.success(
+                            MediaStoreBridge.saveVideo(
+                                applicationContext,
+                                call.argument<String>("path") ?: "",
+                                call.argument<String>("name") ?: "",
+                                call.argument<String>("mimeType") ?: "video/mp4"
+                            )
+                        )
+
+                        "saveImage" -> result.success(
+                            MediaStoreBridge.saveImage(
+                                applicationContext,
+                                call.argument<String>("path") ?: "",
+                                call.argument<String>("name") ?: "",
+                                call.argument<String>("mimeType") ?: "image/jpeg"
+                            )
+                        )
+
+                        "saveAudio" -> result.success(
+                            MediaStoreBridge.saveAudio(
+                                applicationContext,
+                                call.argument<String>("path") ?: "",
+                                call.argument<String>("name") ?: "",
+                                call.argument<String>("mimeType") ?: "audio/mpeg"
+                            )
+                        )
+
+                        "isInstalled" -> result.success(
+                            MediaStoreBridge.isPackageInstalled(
+                                applicationContext,
+                                call.argument<String>("package") ?: ""
+                            )
+                        )
+
+                        "shareTo" -> result.success(
+                            MediaStoreBridge.shareToPackage(
+                                this,
+                                call.argument<String>("path") ?: "",
+                                call.argument<String>("mimeType") ?: "video/mp4",
+                                call.argument<String>("text"),
+                                call.argument<String>("package")
+                            )
+                        )
+
+                        else -> result.notImplemented()
+                    }
+                } catch (e: Exception) {
+                    // A failed save or share must never take the app down; the
+                    // Dart side falls back to the system chooser.
+                    result.success(null)
                 }
             }
     }

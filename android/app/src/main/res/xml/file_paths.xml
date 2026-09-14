@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paths the FileProvider may hand to another app.
+
+  Sharing needs a content:// URI: a file:// URI has thrown
+  FileUriExposedException since Android 7, and the receiving app cannot read our
+  private directories in any case. Rendered clips live in app-private storage
+  (files-path / external-files-path) and previews in the cache, so all three are
+  listed. Nothing outside these roots is exposed.
+-->
+<paths>
+    <files-path name="internal_files" path="." />
+    <cache-path name="internal_cache" path="." />
+    <external-files-path name="external_files" path="." />
+    <external-cache-path name="external_cache" path="." />
+    <external-path name="external_storage" path="." />
+</paths>
