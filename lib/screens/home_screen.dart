@@ -701,8 +701,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => setState(() => _preset = preset),
       child: Container(
-        margin: const EdgeInsets.only(left: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),
         decoration: BoxDecoration(
           color: isSel ? AppColors.ink : AppColors.card,
           borderRadius: BorderRadius.circular(10),
@@ -710,6 +710,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -773,32 +776,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.bg,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
+              // Label above the chips, chips sharing the full width. The
+              // previous inline layout pushed the chips into a scroll strip,
+              // which hid "Fast" off the left edge with nothing to show it was
+              // scrollable.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Flexible(
-                    child: Text(
-                      "Processing Preset",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
+                  const Text(
+                    "Processing Preset",
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
                   ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      reverse: true, // keep the chips pinned right
-                      child: Row(
-                        children: [
-                          _buildPresetChip(PipelinePreset.fast, "Fast"),
-                          _buildPresetChip(PipelinePreset.balanced, "Balanced"),
-                          _buildPresetChip(PipelinePreset.advanced, "Deep"),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(height: 9),
+                  Row(
+                    children: [
+                      Expanded(child: _buildPresetChip(PipelinePreset.fast, "Fast")),
+                      Expanded(child: _buildPresetChip(PipelinePreset.balanced, "Balanced")),
+                      Expanded(child: _buildPresetChip(PipelinePreset.advanced, "Deep")),
+                    ],
                   ),
                 ],
               ),

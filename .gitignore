@@ -44,3 +44,6 @@ app.*.map.json
 
 # Flutter golden-test failure artifacts
 test/failures/
+
+# Rendered preview screenshots are a dev tool, not artefacts.
+test/golden/
