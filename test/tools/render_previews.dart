@@ -8,7 +8,9 @@ import 'package:clipshield/models/clip_model.dart';
 import 'package:clipshield/models/project_model.dart';
 import 'package:clipshield/models/source_metadata.dart';
 import 'package:clipshield/screens/home_screen.dart';
+import 'package:clipshield/models/app_update.dart';
 import 'package:clipshield/screens/tasks_screen.dart';
+import 'package:clipshield/screens/update_dialog.dart';
 import 'package:clipshield/screens/projects_history_screen.dart';
 import 'package:clipshield/screens/results_screen.dart';
 import 'package:clipshield/theme/app_theme.dart';
@@ -126,6 +128,33 @@ void main() {
     await shot(t, const ProjectsHistoryScreen(), '07_projects_history');
   });
 
+  testWidgets('09 update dialog', (t) async {
+    await shot(t, const _DialogHost(AppUpdate(
+      versionName: '1.2.11',
+      versionCode: 14,
+      apkUrl: 'https://example.com/app.apk',
+      notes: 'Long videos now render roughly twice as fast, captions no longer '
+          'drop the final line, and the support number can be changed without '
+          'a new build.',
+    )), '09_update_dialog', after: (tt) async {
+      await tt.tap(find.text('open'));
+      await tt.pumpAndSettle();
+    });
+  });
+
+  testWidgets('10 update dialog mandatory', (t) async {
+    await shot(t, const _DialogHost(AppUpdate(
+      versionName: '1.3.0',
+      versionCode: 20,
+      apkUrl: 'https://example.com/app.apk',
+      notes: 'This build talks to a new server API.',
+      mandatory: true,
+    )), '10_update_dialog_mandatory', after: (tt) async {
+      await tt.tap(find.text('open'));
+      await tt.pumpAndSettle();
+    });
+  });
+
   testWidgets('08 results ready', (t) async {
     final tmp = Directory.systemTemp.createTempSync('cs_preview');
     final clipFile = File('${tmp.path}/c.mp4')..writeAsBytesSync(List<int>.filled(4096, 7));
@@ -156,4 +185,27 @@ void main() {
 
     await shot(t, ResultsScreen(project: project, renderedClips: [clip]), '08_results_ready');
   });
+}
+
+/// Opens the update dialog over an ordinary scaffold, so the preview shows it
+/// the way a user meets it rather than as a bare widget.
+class _DialogHost extends StatelessWidget {
+  final AppUpdate update;
+
+  const _DialogHost(this.update);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Center(
+        child: Builder(
+          builder: (ctx) => ElevatedButton(
+            onPressed: () => UpdateDialog.show(ctx, update),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+  }
 }

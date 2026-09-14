@@ -4,6 +4,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'screens/splash_screen.dart';
 import 'services/license_service.dart';
 import 'services/remote_config_service.dart';
+import 'services/update_service.dart';
 import 'services/render_job_service.dart';
 import 'theme/app_theme.dart';
 
@@ -14,6 +15,10 @@ void main() async {
   // can read them, so no screen ever renders the fallback number briefly and
   // then swaps it.
   await RemoteConfigService.instance.load();
+
+  // Reads the running build's versionCode and any release cached from a
+  // previous sync, so an offline launch still knows an update exists.
+  await UpdateService.instance.init();
 
   // Initialize offline cryptographic licensing engine
   await LicenseService.instance.init();

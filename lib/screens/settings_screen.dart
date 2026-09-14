@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/app_update.dart';
 import '../services/license_service.dart';
+import '../services/update_service.dart';
 import '../services/project_storage_service.dart';
 import '../theme/app_theme.dart';
+import 'update_dialog.dart';
 import 'activation_dialog.dart';
 import 'admin_license_screen.dart';
 import 'diagnostics_screen.dart';
@@ -664,6 +667,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 28),
 
+            // App version, and a way back to an update that was dismissed with
+            // "Later" -- without this, skipping once hides the release forever.
+            _buildVersionCard(),
+            const SizedBox(height: 16),
+
             // Legal & Safe Positioning
             Container(
               padding: const EdgeInsets.all(16),
@@ -691,6 +699,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVersionCard() {
+    return ValueListenableBuilder<AppUpdate?>(
+      valueListenable: UpdateService.instance.latest,
+      builder: (context, update, _) {
+        final service = UpdateService.instance;
+        final bool hasUpdate = service.isUpdateAvailable && update != null;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: hasUpdate ? AppColors.accentTangerine : AppColors.line,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasUpdate ? Icons.system_update_rounded : Icons.check_circle_outline_rounded,
+                size: 22,
+                color: hasUpdate ? AppColors.accentTangerine : AppColors.accentLime,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasUpdate ? "Update available" : "ClipShield is up to date",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasUpdate
+                          ? "Version ${update.versionName} is available"
+                          : "Version ${service.currentVersionName.isEmpty ? '--' : service.currentVersionName}",
+                      style: const TextStyle(fontSize: 12, color: AppColors.mut),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasUpdate)
+                TextButton(
+                  onPressed: () => UpdateDialog.show(context, update),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.accentTangerine),
+                  child: const Text(
+                    "View",
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

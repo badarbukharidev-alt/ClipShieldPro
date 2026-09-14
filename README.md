@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.10)
+# 🛡️ ClipShield Pro (v1.2.11)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.10-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.11-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.10.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)**
+📥 **[Download ClipShieldPro-v1.2.11.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.10.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.11.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.11.apk)
 
 ---
 
@@ -54,6 +54,50 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.11
+
+### 📲 In-app update prompts
+
+The panel can now announce a release, and installed apps offer it on their next
+API call — app start, or opening Free Videos. There is no separate update check:
+the announcement rides along on traffic that already happens.
+
+Set it under **Update** in the admin panel: version name, version code, APK link,
+release notes, and whether it is mandatory. Run
+`database/migrations/2026_09_15_app_update.sql` once to seed the keys — it seeds
+them **off**, so nothing is announced until you fill the form in.
+
+**The version code is the comparison key, not the name.** It is the `+N` build
+number from `pubspec.yaml`, the same integer Android uses, so `1.2.11` vs `1.2.9`
+never has to be parsed and a release can be renamed without confusing anything.
+
+Three decisions worth stating outright:
+
+- **The app never installs anything.** "Update now" opens the link in the browser
+  and Android's installer takes over. Downloading and installing silently would
+  need `REQUEST_INSTALL_PACKAGES`, and an app that can install packages on its own
+  is one compromise of the panel away from being a delivery mechanism for
+  something else. The extra tap is the point.
+- **Plain-http links are ignored,** at both ends. An APK fetched over a connection
+  anyone on the path can rewrite is worse than shipping no update at all, so a
+  non-HTTPS link is treated as "no update" rather than shown with a button.
+- **"Later" is remembered per version code,** so the next release asks again but
+  this one does not. The release stays reachable under **Settings → version**,
+  because a prompt you can dismiss forever and never find again is just a bug with
+  good manners.
+
+A withdrawal is explicit: unticking the box sends `update: null`, which clears the
+cached announcement. A response that merely *omits* the field leaves it alone —
+otherwise every unrelated API call would quietly withdraw a live release.
+
+### 🐛 Fixed: a second `init()` read stale preferences
+
+`UpdateService.init()` and `RemoteConfigService.load()` used `_prefs ??=`, so
+re-initialising kept an instance captured earlier instead of re-reading the store.
+Caught by a test where one case's skipped version leaked into the next.
 
 ---
 

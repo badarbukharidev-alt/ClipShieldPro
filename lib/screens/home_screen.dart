@@ -12,6 +12,7 @@ import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
 import '../services/license_service.dart';
 import '../services/render_job_service.dart';
+import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import 'analysis_screen.dart';
 import 'background_permission_dialog.dart';
@@ -19,6 +20,7 @@ import 'processing_screen.dart';
 import 'projects_history_screen.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
+import 'update_dialog.dart';
 import 'tasks_screen.dart';
 import 'song_remover_screen.dart';
 import 'transform_pipeline_screen.dart';
@@ -149,6 +151,10 @@ class _HomeScreenState extends State<HomeScreen>
   );
   Timer? _freePulseTimer;
 
+  /// One prompt per app run. The dialog is a nudge, not a gate: re-showing it
+  /// every time a sync lands would make the dashboard unusable.
+  bool _updatePromptShown = false;
+
   @override
   void initState() {
     super.initState();
@@ -158,10 +164,16 @@ class _HomeScreenState extends State<HomeScreen>
     _freePulseTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (mounted && _currentNavIndex != 3) _freePulse.forward(from: 0);
     });
+
+    // A release cached from a previous run can be offered immediately; the
+    // listener covers one that arrives with this run's sync.
+    UpdateService.instance.latest.addListener(_maybePromptUpdate);
+    _maybePromptUpdate();
   }
 
   @override
   void dispose() {
+    UpdateService.instance.latest.removeListener(_maybePromptUpdate);
     _freePulseTimer?.cancel();
     _freePulse.dispose();
     ProjectStorageService.revision.removeListener(_loadStats);
@@ -221,6 +233,21 @@ class _HomeScreenState extends State<HomeScreen>
       _metadata = meta;
       _metaForUrl = meta == null ? null : id;
       _isFetchingMeta = false;
+    });
+  }
+
+  void _maybePromptUpdate() {
+    if (_updatePromptShown || !mounted) return;
+
+    final service = UpdateService.instance;
+    final update = service.latest.value;
+    if (update == null || !service.shouldPrompt) return;
+
+    _updatePromptShown = true;
+    // Deferred a frame: the listener can fire mid-build, and showDialog during
+    // a build throws.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateDialog.show(context, update);
     });
   }
 

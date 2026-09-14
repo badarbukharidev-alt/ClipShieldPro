@@ -34,7 +34,9 @@ class RemoteConfigService {
   String get supportPhoneDisplay => _phoneDisplay;
 
   Future<void> load() async {
-    _prefs ??= await SharedPreferences.getInstance();
+    // Assigned, not `??=`: load is the lifecycle entry point and should re-read
+    // the store rather than trust an instance captured earlier.
+    _prefs = await SharedPreferences.getInstance();
     _whatsApp = _clean(_prefs!.getString(_keyWhatsApp)) ?? defaultWhatsApp;
     _phoneDisplay = _clean(_prefs!.getString(_keyPhone)) ?? defaultPhoneDisplay;
   }
