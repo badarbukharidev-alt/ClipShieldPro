@@ -53,7 +53,7 @@ void main() {
 
     // An unselected tab used to paint AppColors.mut, which read as disabled.
     final shorts = tester.widget<Text>(find.text("AI Shorts"));
-    final song = tester.widget<Text>(find.text("Song DSP"));
+    final song = tester.widget<Text>(find.text("Song Copyright"));
     expect(shorts.style?.color, isNot(AppColors.mut));
     expect(song.style?.color, isNot(AppColors.mut));
   });
@@ -65,7 +65,7 @@ void main() {
     expect(find.text("CHOOSE ACTION"), findsOneWidget);
     expect(find.text("Copyright"), findsOneWidget);
     expect(find.text("AI Shorts"), findsOneWidget);
-    expect(find.text("Song DSP"), findsOneWidget);
+    expect(find.text("Song Copyright"), findsOneWidget);
   });
 
   testWidgets('copyright is the default action', (WidgetTester tester) async {
@@ -87,11 +87,11 @@ void main() {
     expect(find.text("Find Best Moments"), findsOneWidget);
     expect(find.text("Long Video Copyright Remover"), findsNothing);
 
-    await tester.tap(find.text("Song DSP"));
+    await tester.tap(find.text("Song Copyright"));
     await tester.pumpAndSettle();
 
-    expect(find.text("Song DSP & Cover Export"), findsOneWidget);
-    expect(find.text("Open Song DSP"), findsOneWidget);
+    expect(find.text("Song Copyright Remover"), findsOneWidget);
+    expect(find.text("Remove Song Copyright"), findsOneWidget);
   });
 
   testWidgets('balanced is the default processing preset',
@@ -115,8 +115,8 @@ void main() {
     expect(find.text("Balanced"), findsOneWidget);
     expect(find.text("Deep"), findsOneWidget);
 
-    // Song DSP has no preset plumbing, so it must not show a dead control.
-    await tester.tap(find.text("Song DSP"));
+    // Song Copyright has no preset plumbing, so it must not show a dead control.
+    await tester.tap(find.text("Song Copyright"));
     await tester.pumpAndSettle();
     expect(find.text("Processing Preset"), findsNothing);
   });

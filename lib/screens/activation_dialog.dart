@@ -133,8 +133,9 @@ class _ActivationDialogState extends State<ActivationDialog> {
   void _fallbackWhatsAppNotification() {
     Clipboard.setData(ClipboardData(text: _licenseService.getWhatsAppUrl(_deviceId)));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("WhatsApp link copied to clipboard (03079031153)"),
+      SnackBar(
+        content: Text(
+            "WhatsApp link copied to clipboard (${LicenseService.supportPhone})"),
         backgroundColor: AppColors.ink,
       ),
     );
@@ -376,9 +377,9 @@ class _ActivationDialogState extends State<ActivationDialog> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   icon: const Icon(Icons.chat_bubble_rounded, size: 18),
-                  label: const Text(
-                    "Order Key via WhatsApp (03079031153)",
-                    style: TextStyle(
+                  label: Text(
+                    "Order Key via WhatsApp (${LicenseService.supportPhone})",
+                    style: const TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.2,

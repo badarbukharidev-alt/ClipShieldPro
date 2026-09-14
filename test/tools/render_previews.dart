@@ -42,8 +42,29 @@ Future<void> loadRealFont() async {
   }
 }
 
-ThemeData previewTheme() =>
-    AppTheme.lightTheme.copyWith(textTheme: AppTheme.lightTheme.textTheme.apply(fontFamily: 'Preview'));
+ThemeData previewTheme() {
+  final base = AppTheme.lightTheme;
+
+  // The button themes pin their own TextStyle, which wins over both the
+  // textTheme and any ambient DefaultTextStyle. Without overriding them here
+  // every button label renders as boxes -- which is exactly the text worth
+  // reading in a preview.
+  ButtonStyle? withFont(ButtonStyle? style) => style?.copyWith(
+        textStyle: WidgetStateProperty.resolveWith(
+          (states) => (style.textStyle?.resolve(states) ?? const TextStyle())
+              .copyWith(fontFamily: 'Preview'),
+        ),
+      );
+
+  return base.copyWith(
+    textTheme: base.textTheme.apply(fontFamily: 'Preview'),
+    elevatedButtonTheme:
+        ElevatedButtonThemeData(style: withFont(base.elevatedButtonTheme.style)),
+    outlinedButtonTheme:
+        OutlinedButtonThemeData(style: withFont(base.outlinedButtonTheme.style)),
+    textButtonTheme: TextButtonThemeData(style: withFont(base.textButtonTheme.style)),
+  );
+}
 
 Future<void> shot(WidgetTester tester, Widget home, String name,
     {Future<void> Function(WidgetTester)? after}) async {
@@ -77,8 +98,8 @@ void main() {
   });
 
   testWidgets('03 dashboard song dsp', (t) async {
-    await shot(t, const HomeScreen(), '03_dashboard_song_dsp', after: (tt) async {
-      await tt.tap(find.text('Song DSP'));
+    await shot(t, const HomeScreen(), '03_dashboard_song_copyright', after: (tt) async {
+      await tt.tap(find.text('Song Copyright'));
       await tt.pumpAndSettle();
     });
   });

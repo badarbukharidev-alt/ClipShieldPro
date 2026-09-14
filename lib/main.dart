@@ -3,11 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'screens/splash_screen.dart';
 import 'services/license_service.dart';
+import 'services/remote_config_service.dart';
 import 'services/render_job_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Panel-owned settings (currently the support contact) load before anything
+  // can read them, so no screen ever renders the fallback number briefly and
+  // then swaps it.
+  await RemoteConfigService.instance.load();
 
   // Initialize offline cryptographic licensing engine
   await LicenseService.instance.init();

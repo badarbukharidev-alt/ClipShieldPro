@@ -36,7 +36,7 @@ void main() {
         (WidgetTester tester) async {
       await pumpAt(tester, width);
 
-      for (final label in ['AI Shorts', 'Song DSP', 'Copyright']) {
+      for (final label in ['AI Shorts', 'Song Copyright', 'Copyright']) {
         await tester.tap(find.text(label));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull,
@@ -54,10 +54,10 @@ void main() {
     final segments = tester
         .widgetList<Text>(find.byType(Text))
         .map((t) => t.data)
-        .where((d) => d == 'Copyright' || d == 'AI Shorts' || d == 'Song DSP')
+        .where((d) => d == 'Copyright' || d == 'AI Shorts' || d == 'Song Copyright')
         .toList();
 
-    expect(segments, ['Copyright', 'AI Shorts', 'Song DSP']);
+    expect(segments, ['Copyright', 'AI Shorts', 'Song Copyright']);
     expect(AppMode.values.first, AppMode.longVideoToShorts,
         reason: 'guards the assumption this ordering exists to correct');
   });

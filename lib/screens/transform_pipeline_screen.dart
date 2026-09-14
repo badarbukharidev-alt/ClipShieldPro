@@ -5,7 +5,6 @@ import '../models/clip_model.dart';
 import '../models/project_model.dart';
 import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
-import '../services/ffmpeg_engine_service.dart';
 import '../services/license_service.dart';
 import '../services/media_probe_service.dart';
 import '../services/render_job_service.dart';
@@ -15,7 +14,6 @@ import '../theme/app_theme.dart';
 import '../widgets/source_acquire_view.dart';
 import 'activation_dialog.dart';
 import 'processing_screen.dart';
-import 'preview_screen.dart';
 
 class TransformPipelineScreen extends StatefulWidget {
   final String sourceVideoPathOrUrl;
@@ -43,7 +41,6 @@ class TransformPipelineScreen extends StatefulWidget {
 
 class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   final TransformationPipeline _pipeline = TransformationPipeline();
-  final FfmpegEngineService _ffmpegService = FfmpegEngineService();
   final DownloaderService _downloader = DownloaderService();
 
   MediaProbeInfo? _probeInfo;
@@ -54,8 +51,13 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
   late PipelinePreset _selectedPreset = widget.initialPreset;
   double _globalIntensity = 0.5;
   final AspectRatioOption _aspectRatio = AspectRatioOption.original169;
-  bool _isPreviewGenerating = false;
   double? _acquireProgress;
+
+  /// The twelve layers and the intensity slider are collapsed by default. The
+  /// preset already sets them correctly, and confronting someone with twelve
+  /// switches the moment their download finishes is how a one-tap action turns
+  /// into a configuration screen.
+  bool _showAdvanced = false;
 
   @override
   void initState() {
@@ -127,58 +129,6 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
       _pipeline.setGlobalIntensity(val);
       _selectedPreset = PipelinePreset.custom;
     });
-  }
-
-  Future<void> _generatePreview() async {
-    if (_localVideoPath == null || _probeInfo == null || _isPreviewGenerating) return;
-
-    setState(() => _isPreviewGenerating = true);
-    final tempDir = await getTemporaryDirectory();
-    final previewPath = "${tempDir.path}/preview_${DateTime.now().millisecondsSinceEpoch}.mp4";
-
-    final filterContext = FilterContext(
-      sourceWidth: _probeInfo!.width,
-      sourceHeight: _probeInfo!.height,
-      duration: _probeInfo!.duration,
-      hasAudio: _probeInfo!.hasAudio,
-      quality: 'fast',
-      targetWidth: 1280,
-      targetHeight: 720,
-      cropCoordinates: "${_probeInfo!.width}:${_probeInfo!.height}:0:0",
-      isPreview: true,
-    );
-
-    try {
-      await _ffmpegService.generatePreviewSegment(
-        inputPath: _localVideoPath!,
-        previewOutputPath: previewPath,
-        previewStartTime: _probeInfo!.duration > 10.0 ? 5.0 : 0.0,
-        pipeline: _pipeline,
-        context: filterContext,
-        logCallback: (msg) {},
-      );
-
-      if (!mounted) return;
-      setState(() => _isPreviewGenerating = false);
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (ctx) => PreviewScreen(
-            originalVideoPath: _localVideoPath!,
-            transformedVideoPath: previewPath,
-            title: "Transformation Preview (5s)",
-            duration: "0:05",
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isPreviewGenerating = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: AppColors.error, content: Text("Preview failed: $e")),
-      );
-    }
   }
 
   bool _isSubmitting = false;
@@ -295,74 +245,81 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Global Intensity Card
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.line),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.tune, color: AppColors.accentGrape, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Transformation Intensity",
-                                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              "${(_globalIntensity * 100).toInt()}%",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.accentGrape,
+                  // Advanced disclosure. Everything below is optional: the
+                  // preset already configured it.
+                  _buildAdvancedToggle(layers),
+
+                  if (_showAdvanced) ...[
+                    const SizedBox(height: 14),
+                    // Global Intensity Card
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.line),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.tune, color: AppColors.accentGrape, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "Transformation Intensity",
+                                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          min: 0.1,
-                          max: 1.0,
-                          value: _globalIntensity,
-                          activeColor: AppColors.accentGrape,
-                          onChanged: _onIntensityChanged,
-                        ),
+                              Text(
+                                "${(_globalIntensity * 100).toInt()}%",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.accentGrape,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Slider(
+                            min: 0.1,
+                            max: 1.0,
+                            value: _globalIntensity,
+                            activeColor: AppColors.accentGrape,
+                            onChanged: _onIntensityChanged,
+                          ),
+                          const Text(
+                            "Controls pitch modulation, chromatic grading depth, EQ variance, and spatial delays.",
+                            style: TextStyle(fontSize: 11.5, color: AppColors.mut, height: 1.35),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 9-Layer Modular List Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                         const Text(
-                          "Controls pitch modulation, chromatic grading depth, EQ variance, and spatial delays.",
-                          style: TextStyle(fontSize: 11.5, color: AppColors.mut, height: 1.35),
+                          "MODULAR PROCESSING LAYERS (12)",
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
+                        ),
+                        Text(
+                          "${layers.where((l) => l.isEnabled).length}/12 Active",
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accentGrape),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 10),
 
-                  // 9-Layer Modular List Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "MODULAR PROCESSING LAYERS (12)",
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
-                      ),
-                      Text(
-                        "${layers.where((l) => l.isEnabled).length}/12 Active",
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accentGrape),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 9-Layer List
-                  ...layers.map((layer) => _buildLayerCard(layer)),
+                    // 9-Layer List
+                    ...layers.map((layer) => _buildLayerCard(layer)),
+                  ],
 
                   const SizedBox(height: 20),
                 ],
@@ -370,7 +327,10 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
             ),
           ),
 
-          // Bottom Action Bar: Preview vs Render
+          // Bottom action bar. One action: the preview was removed because
+          // it re-encoded a five-second segment with the full filtergraph just
+          // to be discarded, which on a phone costs about as much as a real
+          // render of the same span.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: const BoxDecoration(
@@ -378,45 +338,78 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
               border: Border(top: BorderSide(color: AppColors.line)),
             ),
             child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: OutlinedButton.icon(
-                      onPressed: _isPreviewGenerating ? null : _generatePreview,
-                      icon: _isPreviewGenerating
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentGrape),
-                            )
-                          : const Icon(Icons.remove_red_eye_outlined, size: 18),
-                      label: Text(_isPreviewGenerating ? "Building..." : "5s Preview"),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: AppColors.accentGrape, width: 1.5),
-                        foregroundColor: AppColors.accentGrape,
-                      ),
-                    ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubmitting ? null : _startFullRender,
+                  icon: const Icon(Icons.shield_rounded, size: 19),
+                  label: Text(
+                    _isSubmitting ? "Queueing..." : "Remove Copyright",
+                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 3,
-                    child: ElevatedButton.icon(
-                      onPressed: _isSubmitting ? null : _startFullRender,
-                      icon: const Icon(Icons.security, size: 18),
-                      label: Text(_isSubmitting ? "Queueing..." : "Render Transformed"),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: AppColors.accentGrape,
-                      ),
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 17),
+                    backgroundColor: AppColors.accentGrape,
+                    disabledBackgroundColor: AppColors.line,
+                    disabledForegroundColor: AppColors.mut,
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Row that opens the twelve-layer configuration. Collapsed it states what is
+  /// active, so hiding the detail does not hide the fact that work is happening.
+  Widget _buildAdvancedToggle(List<TransformationLayer> layers) {
+    final int active = layers.where((l) => l.isEnabled).length;
+
+    return GestureDetector(
+      onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _showAdvanced ? AppColors.accentGrape : AppColors.line,
+            width: _showAdvanced ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 20,
+              color: _showAdvanced ? AppColors.accentGrape : AppColors.mut,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Advanced",
+                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "$active of ${layers.length} layers active at ${(_globalIntensity * 100).toInt()}% intensity",
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              _showAdvanced ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+              color: AppColors.mut,
+            ),
+          ],
+        ),
       ),
     );
   }

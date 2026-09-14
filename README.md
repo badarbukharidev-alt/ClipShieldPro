@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.9)
+# 🛡️ ClipShield Pro (v1.2.10)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.9-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.10-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.9.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)**
+📥 **[Download ClipShieldPro-v1.2.10.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.9.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.9.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.10.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.10.apk)
 
 ---
 
@@ -54,6 +54,61 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.10
+
+### 🛡️ The copyright remover is one button again
+
+Finishing a download used to drop you straight into twelve layer switches, an
+intensity slider and two competing buttons. The preset had already configured all
+of it, so the screen asked for decisions it had itself already made.
+
+- Everything optional now sits behind **Advanced**, collapsed by default. The row
+  still states what is active (`9 of 12 layers active at 50% intensity`), so
+  hiding the detail does not hide the fact that work is happening.
+- The action reads **Remove Copyright** and spans the full width.
+- **The 5s preview is gone.** It re-encoded a five-second segment through the
+  entire filtergraph purely to be thrown away — on a phone that costs roughly what
+  rendering the same span for real does, and the result was never kept.
+
+### 🎵 Plain names for the song tool
+
+"Song DSP & Cover Export" and "Open Song DSP" told you the implementation, not the
+job. It is now **Song Copyright Remover** with a **Remove Song Copyright** action,
+and the tab reads **Song Copyright**.
+
+### 🎁 The Free tab asks for attention
+
+The Free destination keeps its own green when idle rather than being one more grey
+tab, and beats twice every six seconds.
+
+Driven by a timer rather than `repeat()`: a repeating `AnimationController`
+schedules a frame every 16 ms for as long as the dashboard is on screen, which is
+a genuine battery cost for an animation nobody watches most of the time. Between
+beats the app is properly idle.
+
+### ☎️ Support number is now panel-managed
+
+The WhatsApp number was compiled into the app, so changing it meant shipping an
+APK and waiting for everyone to update. It now lives under **Settings → Support
+contact** in the admin panel and rides along on every API response, so installed
+apps adopt it on their next sync.
+
+No table changes were needed — the existing key/value `settings` table holds it —
+but run `database/migrations/2026_09_14_support_contact.sql` to seed the keys with
+the current number so nothing changes until you edit it.
+
+> A phone that never reaches the server keeps the number it shipped with, and a
+> response that omits the field leaves a working number alone: a partial reply must
+> never blank out the only support contact on every install at once.
+
+### 🖍️ Fixed: unreadable call-to-action
+
+With no source picked, the dashboard button was white text on a light grey fill —
+all but invisible, reading as broken rather than as waiting. Caught by rendering
+the screen, not by reading the code.
 
 ---
 

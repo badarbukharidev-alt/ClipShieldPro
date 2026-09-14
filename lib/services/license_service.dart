@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'device_identity_service.dart';
+import 'remote_config_service.dart';
 import 'task_api_service.dart';
 
 enum LicenseTier {
@@ -37,9 +38,12 @@ class LicenseService {
   // Private cryptographic salt for offline HMAC-SHA256 signature verification
   static const String salt = 'CS_PRO_2026_SECURE_SALT_KEY';
 
-  // Support & Ordering Contact
-  static const String supportPhone = '03079031153';
-  static const String supportWhatsAppInternational = '923079031153';
+  // Support & ordering contact. These are the shipped defaults; the live
+  // values come from the admin panel via RemoteConfigService, so the number can
+  // be changed without a new build.
+  static String get supportPhone => RemoteConfigService.instance.supportPhoneDisplay;
+  static String get supportWhatsAppInternational =>
+      RemoteConfigService.instance.supportWhatsApp;
 
   // Preference Keys
   static const String _keyTrialCount = 'clipshield_trial_renders_count';
@@ -446,9 +450,11 @@ class LicenseService {
     await prefs.setInt(_keyBonusUsed, _bonusUsed);
   }
 
-  /// Pre-composed WhatsApp order URL targeting 03079031153.
+  /// Pre-composed WhatsApp order URL for the currently configured number.
   String getWhatsAppUrl(String deviceId) {
-    return 'https://wa.me/923079031153?text=Hello%20ClipShield%20Team,%20I%20want%20to%20activate%20ClipShield%20Pro.%20My%20Device%20ID%20is:%20$deviceId';
+    const text = 'Hello%20ClipShield%20Team,%20I%20want%20to%20activate%20'
+        'ClipShield%20Pro.%20My%20Device%20ID%20is:%20';
+    return 'https://wa.me/$supportWhatsAppInternational?text=$text$deviceId';
   }
 
   /// Debug / testing helper to reset licensing state.

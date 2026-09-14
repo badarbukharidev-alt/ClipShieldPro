@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../models/reward_task.dart';
 import 'device_identity_service.dart';
+import 'remote_config_service.dart';
 
 /// Client for the ClipShield admin task/credit API.
 ///
@@ -34,7 +35,7 @@ class TaskApiService {
       String.fromEnvironment('CLIPSHIELD_API_SECRET', defaultValue: '');
 
   /// Reported to the panel so you can see which build a device is on.
-  static const String appVersion = '1.2.9';
+  static const String appVersion = '1.2.10';
 
   static bool get isConfigured => apiSecret.length >= 32;
 
@@ -108,12 +109,23 @@ class TaskApiService {
     try {
       final response = await _dio.post<dynamic>('/api/v1.php', data: payload);
       final data = response.data;
-      if (data is Map) return data.cast<String, dynamic>();
-      if (data is String && data.isNotEmpty) {
-        final decoded = jsonDecode(data);
-        if (decoded is Map) return decoded.cast<String, dynamic>();
+
+      Map<String, dynamic>? decoded;
+      if (data is Map) {
+        decoded = data.cast<String, dynamic>();
+      } else if (data is String && data.isNotEmpty) {
+        final parsed = jsonDecode(data);
+        if (parsed is Map) decoded = parsed.cast<String, dynamic>();
       }
-      return null;
+
+      // Every successful response carries the panel-owned settings, so the
+      // support number refreshes on ordinary traffic rather than needing a
+      // call of its own.
+      if (decoded != null) {
+        await RemoteConfigService.instance.applyFromApi(decoded);
+      }
+
+      return decoded;
     } on DioException {
       return null; // Offline or unreachable; callers fall back to cache.
     } catch (_) {

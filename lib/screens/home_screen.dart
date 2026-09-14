@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -92,14 +93,14 @@ const Map<AppMode, _ModeSpec> _modeSpecs = {
     soft: AppColors.softGrape,
   ),
   AppMode.songRemover: _ModeSpec(
-    headerLabel: "AUDIO DSP STUDIO",
+    headerLabel: "SONG COPYRIGHT REMOVER",
     badge: "MULTI-STAGE DSP CHAIN",
-    title: "Song DSP & Cover Export",
+    title: "Song Copyright Remover",
     description:
         "Re-masters audio through tone, pitch, spatial and dynamics processing, then composes it against a cover image for upload.",
-    cta: "Open Song DSP",
+    cta: "Remove Song Copyright",
     icon: Icons.music_note_outlined,
-    segmentLabel: "Song DSP",
+    segmentLabel: "Song Copyright",
     accent: AppColors.accentLime,
     soft: AppColors.softLime,
   ),
@@ -112,7 +113,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   int _currentNavIndex = 0;
 
   // Dashboard composer state
@@ -135,16 +137,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   _ModeSpec get _spec => _modeSpecs[_mode]!;
 
+  /// Drives the beat on the Free destination.
+  ///
+  /// Fired by a timer rather than left on `repeat()`: a repeating controller
+  /// schedules a frame every 16 ms for as long as the dashboard is on screen,
+  /// which is a real battery cost for an animation nobody is watching most of
+  /// the time. This way the app is genuinely idle between beats.
+  late final AnimationController _freePulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+  Timer? _freePulseTimer;
+
   @override
   void initState() {
     super.initState();
     _loadStats();
     ProjectStorageService.revision.addListener(_loadStats);
     _urlController.addListener(_onUrlChanged);
+    _freePulseTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted && _currentNavIndex != 3) _freePulse.forward(from: 0);
+    });
   }
 
   @override
   void dispose() {
+    _freePulseTimer?.cancel();
+    _freePulse.dispose();
     ProjectStorageService.revision.removeListener(_loadStats);
     _metaDebounce?.cancel();
     _urlController.removeListener(_onUrlChanged);
@@ -813,9 +832,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(
+              // With no source the button is a flat neutral, so the label has
+              // to darken with it: white on AppColors.line was all but
+              // invisible, which read as a broken button rather than a
+              // waiting one.
               backgroundColor: _hasSource ? spec.accent : AppColors.line,
               disabledBackgroundColor: AppColors.line,
-              foregroundColor: Colors.white,
+              foregroundColor: _hasSource ? Colors.white : AppColors.mut,
+              disabledForegroundColor: AppColors.mut,
               minimumSize: const Size.fromHeight(56),
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -1236,7 +1260,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildNavItem(0, Icons.home_filled, "Home"),
             _buildNavItem(1, Icons.video_collection_outlined, "Projects"),
-            _buildNavItem(3, Icons.card_giftcard_rounded, "Free"),
+            _buildNavItem(3, Icons.card_giftcard_rounded, "Free", pulse: true),
             _buildNavItem(2, Icons.settings_outlined, "Settings"),
           ],
         ),
@@ -1244,8 +1268,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label, {bool pulse = false}) {
     final bool isSel = _currentNavIndex == index;
+    // The Free destination keeps its own colour when idle, so it reads as an
+    // offer rather than as one more grey tab.
+    final Color tint = isSel
+        ? AppColors.accentTangerine
+        : (pulse ? AppColors.accentLime : AppColors.mut);
     // Expanded gives every destination an equal share, so adding a fourth item
     // cannot push the bar past the screen width.
     return Expanded(
@@ -1257,9 +1286,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon,
-                  color: isSel ? AppColors.accentTangerine : AppColors.mut,
-                  size: 24),
+              pulse && !isSel
+                  ? _buildPulsingIcon(icon, tint)
+                  : Icon(icon, color: tint, size: 24),
               const SizedBox(height: 2),
               Text(
                 label,
@@ -1269,13 +1298,37 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
-                  color: isSel ? AppColors.accentTangerine : AppColors.mut,
+                  color: tint,
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Two quick beats followed by a long rest. A constant pulse reads as a
+  /// broken widget; a beat with a pause between reads as a nudge.
+  Widget _buildPulsingIcon(IconData icon, Color color) {
+    return AnimatedBuilder(
+      animation: _freePulse,
+      child: Icon(icon, color: color, size: 24),
+      builder: (context, child) {
+        // Two beats across the 900 ms run, the second softer, then still.
+        final double t = _freePulse.value;
+        double beat = 0;
+        if (t < 0.4) {
+          beat = math.sin(t / 0.4 * math.pi);
+        } else if (t < 0.75) {
+          beat = math.sin((t - 0.4) / 0.35 * math.pi) * 0.55;
+        }
+
+        return Transform.rotate(
+          angle: beat * 0.10,
+          child: Transform.scale(scale: 1 + beat * 0.20, child: child),
+        );
+      },
     );
   }
 
