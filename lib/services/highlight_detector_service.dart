@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
 import '../models/clip_model.dart';
+import '../utils/duration_format.dart';
 import 'project_storage_service.dart';
 
 class HighlightDetectorService {
@@ -460,10 +461,7 @@ $clampedText
       double end = (item['end'] as num).toDouble().clamp(start + 15.0, maxDuration);
       if (end <= start) end = min(maxDuration, start + 45.0);
 
-      final double durSec = end - start;
-      final int m = durSec ~/ 60;
-      final int s = (durSec % 60).toInt();
-      final durStr = "$m:${s.toString().padLeft(2, '0')}";
+      final durStr = formatClipDuration(start, end);
 
       results.add(ClipItem(
         id: "clip_${i + 1}_${DateTime.now().millisecondsSinceEpoch}",
@@ -502,12 +500,10 @@ $clampedText
 
     if (totalDuration <= clipLen + 5.0) {
       // Short video: single clip
-      final int m = totalDuration ~/ 60;
-      final int s = (totalDuration % 60).toInt();
       results.add(ClipItem(
         id: "clip_1_${DateTime.now().millisecondsSinceEpoch}",
         title: titles[0],
-        duration: "$m:${s.toString().padLeft(2, '0')}",
+        duration: formatDuration(totalDuration),
         startTime: 0.0,
         endTime: totalDuration,
         score: 96,

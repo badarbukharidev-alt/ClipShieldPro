@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.12)
+# 🛡️ ClipShield Pro (v1.2.13)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.12-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.13-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.12.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)**
+📥 **[Download ClipShieldPro-v1.2.13.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.12.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.12.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.13.apk)
 
 ---
 
@@ -54,6 +54,75 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.13
+
+### 🐛 Fixed: direct sharing failed on every app
+
+Tapping WhatsApp, Instagram, YouTube or TikTok said *"the app would not accept
+the file"*, while **More** worked — which was the clue: the file was fine, our
+route to it was not.
+
+`getApplicationDocumentsDirectory()` maps to `context.getDir("flutter")`, i.e.
+`/data/user/0/<pkg>/**app_flutter**` — and that is covered by **no** FileProvider
+tag. `files-path` is `getFilesDir()`, a *sibling* directory; the `external-*` tags
+are elsewhere entirely. So `getUriForFile()` threw *"Failed to find configured
+root"* for every rendered clip. share_plus worked because it copies the file into
+its own cache directory first.
+
+`root-path` now covers it. The exposure is narrow: the provider is not exported,
+nothing is readable without a URI we mint, and each grant is per-share and
+transient.
+
+> **The real lesson was the error message.** `shareToPackage` returned a bare
+> `bool`, so "provider path not configured", "app not installed" and "app refuses
+> this type" all arrived as the same `false` — and the actual cause had to be
+> found by reading path_provider's source. It now returns a reason code, and
+> anything that is *our* fault falls back to the chooser instead of blaming the
+> target app.
+
+### 📲 Updates install inside the app
+
+"Update now" downloads with a progress bar and hands the APK to Android's
+installer. No browser, no Downloads folder, no hunting for the file.
+
+**The APK is signature-checked against the running build before the installer is
+opened.** This matters more than the convenience: the download link comes from the
+admin panel, so without that check anyone who compromised the panel could point
+every install at a different package, and the only thing between the user and
+running it would be a dialog saying "ClipShield wants to install an app". A
+mismatch is refused before the user is asked anything.
+
+The app still installs nothing by itself — Android shows its own confirmation, and
+from Android 8 the user must separately allow ClipShield under *Install unknown
+apps*. That permission is checked **before** the download, not after, so nobody
+waits through 180 MB to be sent to Settings. "Download in browser instead" remains
+available if anything fails.
+
+### 🎁 A way out when the trial runs out
+
+The dialog that appears when your trial export is used up now leads with **Get
+free videos**, opening the Tasks screen. It appears at exactly the moment someone
+needs to know free renders are earnable, and until now the only things on screen
+were *buy a key* and *close*. An existing balance is stated rather than asked for
+again: *"You have 3 free videos"*.
+
+### ⏱️ Lengths read like lengths
+
+A two-hour source was labelled **`7200s`** — technically correct and useless.
+Now `45s`, `12m 30s`, `1h 24m`. One formatter across shorts, songs and long videos.
+
+Deliberately not `mm:ss`: "12:30" is read as half past twelve about as often as
+twelve and a half minutes, and the same string has to serve a 20-second short and
+a two-hour film.
+
+### 🧱 Two XML comments that broke the build
+
+`--` is not permitted inside an XML comment, and I used it as an em-dash in both
+`file_paths.xml` and `AndroidManifest.xml`. Caught by the build, then swept for
+across every XML file in the Android tree.
 
 ---
 

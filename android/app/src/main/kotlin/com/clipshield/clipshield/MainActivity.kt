@@ -112,6 +112,29 @@ class MainActivity : FlutterActivity() {
                             )
                         )
 
+                        // Updating in place. The app never installs anything
+                        // itself; it verifies the download and hands it to the
+                        // system installer, which asks the user on its own
+                        // screen.
+                        "verifyApk" -> result.success(
+                            ApkInstaller.verify(
+                                applicationContext,
+                                call.argument<String>("path") ?: ""
+                            )
+                        )
+
+                        "installApk" -> result.success(
+                            ApkInstaller.install(this, call.argument<String>("path") ?: "")
+                        )
+
+                        "canInstallPackages" -> result.success(
+                            ApkInstaller.canRequestInstalls(applicationContext)
+                        )
+
+                        "openInstallSettings" -> result.success(
+                            ApkInstaller.openInstallPermissionSettings(this)
+                        )
+
                         else -> result.notImplemented()
                     }
                 } catch (e: Exception) {

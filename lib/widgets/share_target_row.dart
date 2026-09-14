@@ -79,6 +79,10 @@ class ShareTargetRow extends StatelessWidget {
   List<String> get _existing =>
       filePaths.where((p) => File(p).existsSync()).toList();
 
+  /// Turns a reason code from the platform channel into something a user can
+  /// act on. Falling back to the system chooser is the right move for anything
+  /// that is our fault rather than theirs: the file is fine, only the direct
+  /// route failed, and a chooser still gets the job done.
   Future<void> _shareTo(BuildContext context, ShareTarget target) async {
     final files = _existing;
     if (files.isEmpty) {
@@ -91,18 +95,30 @@ class ShareTargetRow extends StatelessWidget {
     for (final package in target.packages) {
       if (!await media.isInstalled(package)) continue;
 
-      final ok = await media.shareTo(
+      final result = await media.shareTo(
         path: files.first,
         mimeType: mimeType,
         text: text,
         packageName: package,
       );
-      if (ok) return;
+      if (result == 'ok') return;
+      if (!context.mounted) return;
 
-      if (context.mounted) {
-        _say(context, '${target.label} would not accept the file.');
+      switch (result) {
+        case 'type_refused':
+          _say(context, '${target.label} will not take this file type.');
+          return;
+
+        case 'missing_file':
+          _say(context, 'That file is no longer on the device.');
+          return;
+
+        // Everything below is a fault on our side, not the target app's, so
+        // the share still goes through — just via the chooser.
+        default:
+          await _shareAnywhere(context);
+          return;
       }
-      return;
     }
 
     if (context.mounted) {

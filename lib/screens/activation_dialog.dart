@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'tasks_screen.dart';
 import '../services/license_service.dart';
 import '../theme/app_theme.dart';
 
@@ -208,6 +210,75 @@ class _ActivationDialogState extends State<ActivationDialog> {
     }
   }
 
+  /// Takes the user to the tasks screen, where trial renders are earned.
+  void _openFreeVideos() {
+    // The dialog closes first so tapping back from Tasks returns to the app
+    // rather than to a dialog asking for a licence key again.
+    Navigator.pop(context, false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TasksScreen()),
+    );
+  }
+
+  Widget _buildEarnFreeCta() {
+    final int available = _licenseService.bonusAvailable;
+
+    return GestureDetector(
+      onTap: _openFreeVideos,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.softLime,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.accentLime),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.accentLime,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.card_giftcard_rounded,
+                  color: Colors.white, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    available > 0
+                        ? "You have $available free ${available == 1 ? 'video' : 'videos'}"
+                        : "Get free videos",
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    available > 0
+                        ? "Tap to use them, or earn more"
+                        : "Complete quick tasks to unlock more renders",
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.accentLime),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isPro = _licenseService.isActivated();
@@ -279,13 +350,23 @@ class _ActivationDialogState extends State<ActivationDialog> {
               Text(
                 isPro
                     ? "Your installation is verified and active with unrestricted on-device exports."
-                    : "Free trial allows 1 high-definition export. Activate lifetime access to unlock unlimited batch processing.",
+                    : "You have used your free trial export. Earn more free videos by completing quick tasks, or activate lifetime access for unlimited exports.",
                 style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.mut,
                   height: 1.4,
                 ),
               ),
+              const SizedBox(height: 18),
+
+              // The free route, offered before the paid one.
+              //
+              // This dialog appears exactly when someone has run out of trial
+              // renders, which is the moment they most need to know that free
+              // ones are earnable -- and until now the only options on screen
+              // were "buy a key" or "close".
+              if (!isPro) _buildEarnFreeCta(),
+
               const SizedBox(height: 20),
 
               // Hardware Device ID Box

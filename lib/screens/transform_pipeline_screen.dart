@@ -10,6 +10,7 @@ import '../services/media_probe_service.dart';
 import '../services/render_job_service.dart';
 import '../transformation/layer.dart';
 import '../transformation/pipeline.dart';
+import '../utils/duration_format.dart';
 import '../theme/app_theme.dart';
 import '../widgets/source_acquire_view.dart';
 import 'activation_dialog.dart';
@@ -147,7 +148,7 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
     final clip = ClipItem(
       id: "transform_clip_${DateTime.now().millisecondsSinceEpoch}",
       title: "Materially Transformed Asset",
-      duration: "${_probeInfo!.duration.toInt()}s",
+      duration: formatDuration(_probeInfo!.duration),
       startTime: 0.0,
       endTime: _probeInfo!.duration,
       score: 95,

@@ -12,6 +12,7 @@ import '../services/downloader_service.dart';
 import '../services/media_probe_service.dart';
 import '../transformation/song_remover_pipeline.dart';
 import '../theme/app_theme.dart';
+import '../utils/duration_format.dart';
 import '../services/license_service.dart';
 import '../services/render_job_service.dart';
 import '../transformation/pipeline.dart';
@@ -185,7 +186,7 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
     final clip = ClipItem(
       id: "song_$ts",
       title: "Processed Audio Export",
-      duration: "${_probeInfo?.duration.toInt() ?? 0}s",
+      duration: formatDuration(_probeInfo?.duration ?? 0),
       startTime: 0.0,
       endTime: _probeInfo?.duration ?? 0.0,
       score: 100,
@@ -286,7 +287,7 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "Duration: ${_probeInfo?.duration.toStringAsFixed(1) ?? '0'}s · ${_probeInfo?.hasAudio == true ? 'Audio ✓' : 'No audio'}",
+                                "Duration: ${formatDuration(_probeInfo?.duration ?? 0)} · ${_probeInfo?.hasAudio == true ? 'Audio ✓' : 'No audio'}",
                                 style: const TextStyle(fontSize: 11.5, color: AppColors.mut),
                               ),
                             ],

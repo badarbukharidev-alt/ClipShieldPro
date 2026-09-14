@@ -166,9 +166,14 @@ object MediaStoreBridge {
     }
 
     /**
-     * Sends [filePath] to a specific app. Returns false when that app is not
-     * installed or cannot accept the file, so the caller can say which one
-     * rather than opening a chooser the user did not ask for.
+     * Sends [filePath] to a specific app.
+     *
+     * Returns "ok", or a reason code the Dart side turns into a message. A bare
+     * boolean was a mistake: every distinct failure -- missing file, unresolvable
+     * provider path, app not installed, app refuses the type -- arrived as the
+     * same "false", and the one that actually happened (a FileProvider root that
+     * did not cover app_flutter/) took a source dig to find rather than a glance
+     * at a message.
      *
      * The file is handed over as a FileProvider content:// URI: a file:// URI
      * has thrown FileUriExposedException since Android 7, and the receiving app
@@ -180,14 +185,17 @@ object MediaStoreBridge {
         mimeType: String,
         text: String?,
         packageName: String?
-    ): Boolean {
+    ): String {
         val file = File(filePath)
-        if (!file.exists()) return false
+        if (!file.exists()) return "missing_file"
 
         val uri: Uri = try {
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        } catch (e: IllegalArgumentException) {
+            // "Failed to find configured root" -- a path outside file_paths.xml.
+            return "provider_path"
         } catch (e: Exception) {
-            return false
+            return "provider_error"
         }
 
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -199,10 +207,9 @@ object MediaStoreBridge {
             if (!packageName.isNullOrEmpty()) setPackage(packageName)
         }
 
-        // resolveActivity tells us up front whether the target can handle this,
-        // which is the difference between "Instagram is not installed" and an
-        // ActivityNotFoundException the user sees as a crash.
-        if (intent.resolveActivity(context.packageManager) == null) return false
+        if (intent.resolveActivity(context.packageManager) == null) {
+            return if (packageName.isNullOrEmpty()) "no_handler" else "type_refused"
+        }
 
         return try {
             if (packageName.isNullOrEmpty()) {
@@ -212,9 +219,9 @@ object MediaStoreBridge {
             } else {
                 context.startActivity(intent)
             }
-            true
+            "ok"
         } catch (e: Exception) {
-            false
+            "launch_failed"
         }
     }
 }

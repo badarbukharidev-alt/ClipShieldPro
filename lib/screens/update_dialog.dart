@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/app_update.dart';
+import '../services/media_store_service.dart';
+import '../services/update_downloader.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 
-/// Offers the release the admin panel is advertising.
+/// Offers the release the admin panel is advertising, and installs it in place.
 ///
-/// "Update now" opens the APK link in the browser and hands off to Android's
-/// installer. The app never downloads or installs anything itself — see the
-/// note on [UpdateService] for why that extra tap is deliberate.
+/// The download happens here; the install itself is Android's. The app verifies
+/// the APK's signature against the running build before handing it over, so a
+/// substituted package is refused before the user is ever asked to confirm one
+/// — see [UpdateDownloader].
 class UpdateDialog extends StatefulWidget {
   final AppUpdate update;
 
@@ -31,40 +34,102 @@ class UpdateDialog extends StatefulWidget {
 }
 
 class _UpdateDialogState extends State<UpdateDialog> {
-  bool _opening = false;
+  UpdateProgress _progress = const UpdateProgress(stage: UpdateStage.idle);
+  String? _error;
+  bool _needsInstallPermission = false;
 
-  Future<void> _openDownload() async {
-    setState(() => _opening = true);
-    try {
-      final uri = Uri.parse(widget.update.apkUrl);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.error,
-            content: Text("Could not open the download link:\n${widget.update.apkUrl}"),
-          ),
-        );
-      }
-    } catch (_) {
+  bool get _isWorking =>
+      _progress.stage == UpdateStage.downloading ||
+      _progress.stage == UpdateStage.verifying ||
+      _progress.stage == UpdateStage.installing;
+
+  Future<void> _update() async {
+    setState(() {
+      _error = null;
+      _needsInstallPermission = false;
+    });
+
+    // Asked before the download rather than after: a user who has to visit
+    // Settings should not first wait through 180 MB.
+    final media = MediaStoreService.instance;
+    if (media.isSupported && !await media.canInstallPackages()) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text("Could not open the download link."),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _opening = false);
+      setState(() {
+        _needsInstallPermission = true;
+        _error = 'Android needs permission to install apps from ClipShield.';
+      });
+      return;
+    }
+
+    final failure = await UpdateDownloader.instance.downloadAndInstall(
+      widget.update,
+      onProgress: (p) {
+        if (mounted) setState(() => _progress = p);
+      },
+    );
+
+    if (!mounted) return;
+
+    if (failure == null) {
+      // The system installer is now in front; leaving the dialog up behind it
+      // would greet the user again when they come back.
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      _progress = const UpdateProgress(stage: UpdateStage.failed);
+      _error = failure;
+      _needsInstallPermission = UpdateDownloader.isPermissionProblem(failure);
+    });
+  }
+
+  Future<void> _openInstallSettings() async {
+    await MediaStoreService.instance.openInstallSettings();
+    if (mounted) {
+      setState(() {
+        _error = 'Allow ClipShield to install apps, then tap Update again.';
+      });
+    }
+  }
+
+  /// Fallback for anyone who would rather not install in place.
+  Future<void> _openInBrowser() async {
+    try {
+      await launchUrl(Uri.parse(widget.update.apkUrl),
+          mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not open the download link.');
+      }
+    }
+  }
+
+  String get _statusLine {
+    switch (_progress.stage) {
+      case UpdateStage.downloading:
+        if (_progress.total > 0) {
+          final done = (_progress.received / (1024 * 1024)).toStringAsFixed(1);
+          final all = (_progress.total / (1024 * 1024)).toStringAsFixed(1);
+          return 'Downloading $done MB of $all MB';
+        }
+        return 'Downloading...';
+      case UpdateStage.verifying:
+        return 'Checking the download is genuine...';
+      case UpdateStage.installing:
+        return 'Opening the installer...';
+      default:
+        return '';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final update = widget.update;
+    final canDismiss = !update.mandatory && !_isWorking;
 
     return PopScope(
-      canPop: !update.mandatory,
+      canPop: canDismiss,
       child: Dialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -113,7 +178,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ],
                 ),
 
-                if (update.notes.isNotEmpty) ...[
+                if (update.notes.isNotEmpty && !_isWorking) ...[
                   const SizedBox(height: 18),
                   Container(
                     width: double.infinity,
@@ -133,43 +198,133 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                 ],
 
-                const SizedBox(height: 18),
-                Text(
-                  update.mandatory
-                      ? "This version is no longer supported. Install the update to keep using ClipShield."
-                      : "The download opens in your browser. Android will ask before installing it.",
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.mut, height: 1.4),
-                ),
-
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _opening ? null : _openDownload,
-                    icon: _opening
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.download_rounded, size: 19),
-                    label: Text(
-                      _opening ? "Opening..." : "Update now",
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentTangerine,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(52),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15)),
+                if (_isWorking) ...[
+                  const SizedBox(height: 20),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: _progress.stage == UpdateStage.downloading
+                          ? _progress.fraction
+                          : null,
+                      minHeight: 8,
+                      backgroundColor: AppColors.bg,
+                      valueColor: const AlwaysStoppedAnimation(AppColors.accentTangerine),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _statusLine,
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.mut),
+                  ),
+                ],
 
-                if (!update.mandatory) ...[
-                  const SizedBox(height: 8),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+
+                if (!_isWorking && _error == null) ...[
+                  const SizedBox(height: 18),
+                  Text(
+                    update.mandatory
+                        ? "This version is no longer supported. Install the update to keep using ClipShield."
+                        : "The update installs inside the app. Android will ask you to confirm.",
+                    style: const TextStyle(
+                        fontSize: 12.5, color: AppColors.mut, height: 1.4),
+                  ),
+                ],
+
+                const SizedBox(height: 20),
+
+                if (_needsInstallPermission)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _openInstallSettings,
+                      icon: const Icon(Icons.settings_rounded, size: 19),
+                      label: const Text(
+                        "Allow installs",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentTangerine,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                      ),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isWorking ? null : _update,
+                      icon: _isWorking
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.download_rounded, size: 19),
+                      label: Text(
+                        _isWorking
+                            ? "Updating..."
+                            : (_error != null ? "Try again" : "Update now"),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentTangerine,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.line,
+                        disabledForegroundColor: AppColors.mut,
+                        minimumSize: const Size.fromHeight(52),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                      ),
+                    ),
+                  ),
+
+                if (_error != null && !_isWorking) ...[
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: _openInBrowser,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.mut,
+                        minimumSize: const Size.fromHeight(40),
+                      ),
+                      child: const Text(
+                        "Download in browser instead",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+
+                if (!update.mandatory && !_isWorking) ...[
+                  const SizedBox(height: 4),
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(

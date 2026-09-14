@@ -2,13 +2,20 @@
 <!--
   Paths the FileProvider may hand to another app.
 
-  Sharing needs a content:// URI: a file:// URI has thrown
-  FileUriExposedException since Android 7, and the receiving app cannot read our
-  private directories in any case. Rendered clips live in app-private storage
-  (files-path / external-files-path) and previews in the cache, so all three are
-  listed. Nothing outside these roots is exposed.
+  root-path is deliberate. Renders live under getApplicationDocumentsDirectory(),
+  which path_provider maps to context.getDir("flutter") -> /data/user/0/<pkg>/
+  app_flutter, which is covered by NO specific tag: files-path is
+  getFilesDir() (a sibling), and the external-* tags are elsewhere entirely.
+  Listing only those made getUriForFile() throw "Failed to find configured root"
+  for every rendered clip, which surfaced as "the app would not accept the file"
+  on every direct share.
+
+  The exposure this opens is narrow: the provider is not exported, nothing is
+  readable without a URI we mint ourselves, and each grant is per-share and
+  transient. An app cannot enumerate anything through it.
 -->
 <paths>
+    <root-path name="root" path="/" />
     <files-path name="internal_files" path="." />
     <cache-path name="internal_cache" path="." />
     <external-files-path name="external_files" path="." />

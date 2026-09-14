@@ -11,6 +11,7 @@ import 'package:clipshield/screens/home_screen.dart';
 import 'package:clipshield/models/app_update.dart';
 import 'package:clipshield/screens/tasks_screen.dart';
 import 'package:clipshield/screens/update_dialog.dart';
+import 'package:clipshield/screens/activation_dialog.dart';
 import 'package:clipshield/widgets/share_target_row.dart';
 import 'package:clipshield/screens/projects_history_screen.dart';
 import 'package:clipshield/screens/results_screen.dart';
@@ -173,6 +174,13 @@ void main() {
     await shot(t, const _ShareHost(), '11_share_row');
   });
 
+  testWidgets('12 trial ended', (t) async {
+    await shot(t, const _ActivationHost(), '12_trial_ended', after: (tt) async {
+      await tt.tap(find.text('open'));
+      await tt.pumpAndSettle();
+    });
+  });
+
   testWidgets('08 results ready', (t) async {
     final tmp = Directory.systemTemp.createTempSync('cs_preview');
     final clipFile = File('${tmp.path}/c.mp4')..writeAsBytesSync(List<int>.filled(4096, 7));
@@ -247,6 +255,26 @@ class _ShareHost extends StatelessWidget {
             border: Border.all(color: AppColors.line),
           ),
           child: const ShareTargetRow(filePaths: []),
+        ),
+      ),
+    );
+  }
+}
+
+/// The dialog a user meets when their trial export is used up.
+class _ActivationHost extends StatelessWidget {
+  const _ActivationHost();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: Center(
+        child: Builder(
+          builder: (ctx) => ElevatedButton(
+            onPressed: () => ActivationDialog.show(ctx),
+            child: const Text('open'),
+          ),
         ),
       ),
     );
