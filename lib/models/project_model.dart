@@ -87,6 +87,16 @@ class ProjectItem {
 
   String? get renderError => settings['renderError'] as String?;
 
+  /// Whether this project's clips have already been published to the gallery.
+  ///
+  /// The results screen is reachable from four places -- the processing screen,
+  /// Recent Projects, Projects History and a deep link -- and every visit used
+  /// to re-run the export, which is how one processed video ended up in the
+  /// gallery two or three times.
+  bool get isExportedToGallery => settings['galleryExported'] == true;
+
+  set isExportedToGallery(bool value) => settings['galleryExported'] = value;
+
   /// True when this project's output is landscape. Widescreen projects must
   /// never be presented in a 9:16 Shorts frame.
   bool get isWidescreen =>

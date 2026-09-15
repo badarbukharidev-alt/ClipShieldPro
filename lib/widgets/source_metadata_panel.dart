@@ -48,24 +48,37 @@ class _SourceMetadataPanelState extends State<SourceMetadataPanel> {
   }
 
   Future<void> _downloadThumbnail() async {
-    final url = _meta.thumbnailMaxResUrl.isNotEmpty
-        ? _meta.thumbnailMaxResUrl
-        : _meta.thumbnailUrl;
-    if (url.isEmpty) {
+    // Best quality first, then fall back. maxresdefault.jpg only exists for
+    // videos uploaded above 720p, so asking for it alone fails on a large share
+    // of videos whose thumbnail is perfectly available one rung down.
+    final candidates = <String>[
+      _meta.thumbnailMaxResUrl,
+      _meta.thumbnailUrl,
+      if (_meta.videoId.isNotEmpty) ...[
+        'https://i.ytimg.com/vi/${_meta.videoId}/hqdefault.jpg',
+        'https://i.ytimg.com/vi/${_meta.videoId}/mqdefault.jpg',
+      ],
+    ];
+
+    if (candidates.every((u) => u.trim().isEmpty)) {
       _notify("No thumbnail available", isError: true);
       return;
     }
 
     setState(() => _isDownloadingThumb = true);
+
+    final stamp = _meta.videoId.isNotEmpty
+        ? _meta.videoId
+        : DateTime.now().millisecondsSinceEpoch.toString();
     final saved = await GalleryExportService.downloadImage(
-      url,
-      "ClipShield_thumb_${_meta.videoId}.jpg",
+      candidates,
+      "ClipShield_thumb_$stamp.jpg",
     );
     if (!mounted) return;
     setState(() => _isDownloadingThumb = false);
 
     if (saved == null) {
-      _notify("Thumbnail download failed", isError: true);
+      _notify("Could not download the thumbnail", isError: true);
     } else {
       _notify("Thumbnail saved to ${GalleryExportService.displayLocation(saved)}");
     }

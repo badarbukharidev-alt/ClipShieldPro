@@ -159,29 +159,81 @@ class GalleryExportService {
     }
   }
 
-  /// Downloads a remote image (a YouTube thumbnail) straight into
-  /// Pictures/ClipShield.
-  static Future<String?> downloadImage(String url, String fileName) async {
-    if (url.isEmpty) return null;
-    try {
-      final response = await Dio().get<List<int>>(
-        url,
-        options: Options(responseType: ResponseType.bytes),
-      );
-      final bytes = response.data;
-      if (response.statusCode != 200 || bytes == null || bytes.isEmpty) {
-        return null;
-      }
+  /// Fetches the first URL that actually returns image bytes.
+  ///
+  /// Split out from [downloadImage] so the candidate logic can be tested
+  /// without a MediaStore: the ordering here is the whole fix, and it deserves
+  /// to be verifiable on its own.
+  ///
+  /// YouTube only generates `maxresdefault.jpg` for videos uploaded above 720p,
+  /// so for a large share of videos the highest-quality URL **404s**. The
+  /// previous version asked for that one URL through a client that throws on a
+  /// 404, caught the exception, and reported "thumbnail download failed" for a
+  /// video whose thumbnail was sitting one rung down.
+  static Future<List<int>?> fetchImageBytes(List<String> urls) async {
+    final candidates = urls
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet() // maxres and standard are the same string for some sources
+        .toList();
+    if (candidates.isEmpty) return null;
 
-      // Staged in app-private storage first, then published through
-      // MediaStore. Writing it straight into Pictures/ fails silently on
-      // Android 10+, which is why downloaded thumbnails never appeared.
+    final dio = Dio();
+
+    for (final url in candidates) {
+      try {
+        final response = await dio.get<List<int>>(
+          url,
+          options: Options(
+            responseType: ResponseType.bytes,
+            // Read the status rather than throwing on it, so a 404 moves on to
+            // the next candidate instead of ending the whole attempt.
+            validateStatus: (status) => status != null && status < 500,
+            receiveTimeout: const Duration(seconds: 20),
+          ),
+        );
+
+        final bytes = response.data;
+        if (response.statusCode != 200 || bytes == null || bytes.isEmpty) {
+          continue;
+        }
+
+        // Some paths answer a missing thumbnail with a small grey placeholder
+        // or an error page rather than a 404 -- the real 404 body is about 1 KB.
+        // Anything that small is not a thumbnail.
+        if (bytes.length < 2048) continue;
+
+        return bytes;
+      } catch (_) {
+        continue; // Try the next candidate.
+      }
+    }
+
+    return null;
+  }
+
+  /// Downloads a thumbnail and publishes it to Pictures/ClipShield.
+  ///
+  /// [urls] are tried in order; see [fetchImageBytes]. Returns the saved
+  /// location, or null when every candidate failed or the save did.
+  static Future<String?> downloadImage(
+    List<String> urls,
+    String fileName,
+  ) async {
+    final bytes = await fetchImageBytes(urls);
+    if (bytes == null) return null;
+
+    try {
+      // Staged in app-private storage first, then published through MediaStore.
+      // Writing straight into Pictures/ fails silently on Android 10+, which is
+      // why downloaded thumbnails never appeared.
       final staging = await _fallbackDir('Staging');
       final staged = File(path.join(staging.path, fileName));
       await staged.writeAsBytes(bytes);
 
       final published =
           await exportImageToGallery(staged.path, customFileName: fileName);
+
       try {
         await staged.delete();
       } catch (_) {

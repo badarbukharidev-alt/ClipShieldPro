@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.13)
+# 🛡️ ClipShield Pro (v1.2.14)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.13-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.14-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.13.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)**
+📥 **[Download ClipShieldPro-v1.2.14.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.13.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.13.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.14.apk)
 
 ---
 
@@ -54,6 +54,53 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.14
+
+### 🔁 Fixed: one video appeared in the gallery two or three times
+
+The results screen is reachable from four places, and **every visit re-ran the
+export**. MediaStore does not overwrite, so a second insert of the same name
+becomes `clip (1).mp4` and each visit looked like a brand new file.
+
+Fixed in two layers, because either alone leaves a hole:
+
+- **The insert is idempotent.** Before writing, MediaStore is queried for a row
+  with the same display name, folder *and* size. A match is handed back instead of
+  a second row. Size is part of the check so a genuinely different export of the
+  same name is not silently skipped. The pre-Android-10 path got the same guard,
+  where a re-copy plus re-scan produced the duplicate.
+- **The project remembers.** A finished project carries a `galleryExported` flag,
+  so a revisit reports the earlier save rather than repeating it. Set only on
+  success, so a failed export is still retried next time.
+
+### 🖼️ Fixed: thumbnail downloads failed on a large share of videos
+
+YouTube only generates `maxresdefault.jpg` for videos uploaded above 720p. For
+everything else that URL **404s** — verified against a real video:
+
+```
+jNQXAC9IVRw/maxresdefault.jpg -> 404  (1097 bytes of error page)
+jNQXAC9IVRw/hqdefault.jpg     -> 200  (15921 bytes)
+```
+
+The old code asked for that single URL through a client whose default
+`validateStatus` **throws** on a 404, caught the exception, and reported
+"thumbnail download failed" for a video whose thumbnail was sitting one rung down.
+
+Now four candidates are tried in quality order — `maxres`, the standard URL,
+`hqdefault`, `mqdefault` — and the first that returns real bytes wins. A 404 moves
+to the next candidate instead of ending the attempt. Anything under 2 KB is
+rejected too, so an error page can never be saved as somebody's thumbnail.
+
+### 🖼️ The thumbnail now saves itself
+
+It is published to `Pictures/ClipShield` automatically alongside the render, so it
+is there to upload with rather than needing a separate trip into the metadata
+panel. Silent on failure: a video that saved fine is not reported as a failed
+export because a thumbnail URL was unreachable.
 
 ---
 

@@ -1,0 +1,9 @@
+# Tests tagged "network" reach the real internet. They assert behaviour that only
+# shows up against a live server -- that YouTube answers maxresdefault.jpg with a
+# 404 for videos uploaded below 720p, which is the bug the thumbnail fallback
+# exists for. They skip themselves when offline rather than failing.
+#
+# Exclude them with:  flutter test --exclude-tags network
+tags:
+  network:
+    timeout: 2x

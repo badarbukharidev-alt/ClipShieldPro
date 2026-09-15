@@ -83,6 +83,47 @@ object MediaStoreBridge {
     }
 
     /**
+     * Finds an existing row for this exact name and folder.
+     *
+     * Without this, MediaStore happily inserts a second row and renames it
+     * "clip (1).mp4" -- which is why one processed video turned up in the
+     * gallery two or three times. Every visit to the results screen re-ran the
+     * export, and each run looked like a brand new file.
+     *
+     * Size is compared too: a same-named file of a different length is a
+     * genuinely different export and should not be silently skipped.
+     */
+    private fun existingEntry(
+        context: Context,
+        fileName: String,
+        collection: Uri,
+        legacyDirectory: String,
+        expectedSize: Long
+    ): Uri? {
+        return try {
+            context.contentResolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.SIZE),
+                "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND " +
+                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf(fileName, "$legacyDirectory/$FOLDER%"),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val size = cursor.getLong(1)
+                    if (size == expectedSize) {
+                        return Uri.withAppendedPath(collection, cursor.getLong(0).toString())
+                    }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            // A failed lookup must not block the save; at worst a duplicate.
+            null
+        }
+    }
+
+    /**
      * API 29+. IS_PENDING keeps the row hidden from other apps until the bytes
      * are fully written, so a gallery never shows a half-copied video.
      */
@@ -95,6 +136,11 @@ object MediaStoreBridge {
         legacyDirectory: String
     ): String? {
         val resolver = context.contentResolver
+
+        // Already published? Hand back the same row rather than making another.
+        existingEntry(context, fileName, collection, legacyDirectory, source.length())
+            ?.let { return it.toString() }
+
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
@@ -143,6 +189,13 @@ object MediaStoreBridge {
             if (!dir.exists() && !dir.mkdirs()) return null
 
             val target = File(dir, fileName)
+
+            // Same file already there: leave it alone. Re-copying and
+            // re-scanning is how the pre-Q path produced duplicate entries.
+            if (target.exists() && target.length() == source.length()) {
+                return target.absolutePath
+            }
+
             source.copyTo(target, overwrite = true)
 
             MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), null, null)

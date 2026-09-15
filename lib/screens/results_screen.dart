@@ -7,6 +7,7 @@ import '../models/source_metadata.dart';
 import '../models/app_modes.dart';
 import '../theme/app_theme.dart';
 import '../services/gallery_export_service.dart';
+import '../services/project_storage_service.dart';
 import '../widgets/share_target_row.dart';
 import '../widgets/source_metadata_panel.dart';
 import 'preview_screen.dart';
@@ -50,7 +51,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void initState() {
     super.initState();
-    if (_isGenuinelyReady) _exportToGallery();
+
+    if (!_isGenuinelyReady) return;
+
+    // Already published on an earlier visit: say so, and do not publish again.
+    if (widget.project.isExportedToGallery) {
+      _saveState = _SaveState.saved;
+      _savedLocation = 'Movies/ClipShield';
+      return;
+    }
+
+    _exportToGallery();
   }
 
   /// A name the user can actually find in their gallery, rather than the
@@ -66,7 +77,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return '${base.substring(0, base.length > 60 ? 60 : base.length)}$suffix.mp4';
   }
 
-  Future<void> _exportToGallery() async {
+  /// Publishes every finished clip to the gallery, once per project.
+  ///
+  /// [force] is for the Retry button, which must work even though the project
+  /// may be flagged as exported from a run that in fact failed.
+  Future<void> _exportToGallery({bool force = false}) async {
+    if (!force && widget.project.isExportedToGallery) return;
     if (mounted) setState(() => _saveState = _SaveState.saving);
 
     bool anySaved = false;
@@ -85,11 +101,51 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
     }
 
+    // The source thumbnail goes to the gallery alongside the video, so it is
+    // there to upload with rather than needing a separate trip back into the
+    // metadata panel.
+    if (anySaved) await _exportThumbnail();
+
+    // Recorded only on success, so a failed export is retried on the next
+    // visit rather than being written off.
+    if (anySaved && !widget.project.isExportedToGallery) {
+      widget.project.isExportedToGallery = true;
+      await ProjectStorageService.saveProject(widget.project);
+    }
+
     if (!mounted) return;
     setState(() {
       _saveState = anySaved ? _SaveState.saved : _SaveState.failed;
       _savedLocation = location;
     });
+  }
+
+  /// Saves the source video's thumbnail next to the render.
+  ///
+  /// Silent on failure: this is a bonus alongside the video, and a video that
+  /// saved fine should not be reported as a failed export because a thumbnail
+  /// URL was unreachable. The metadata panel's own button reports properly.
+  Future<void> _exportThumbnail() async {
+    final meta = _sourceMeta;
+    if (meta == null) return;
+
+    // Best quality first. maxresdefault.jpg only exists for videos uploaded
+    // above 720p, so it 404s for a large share of sources.
+    final candidates = <String>[
+      meta.thumbnailMaxResUrl,
+      meta.thumbnailUrl,
+      if (meta.videoId.isNotEmpty) ...[
+        'https://i.ytimg.com/vi/${meta.videoId}/hqdefault.jpg',
+        'https://i.ytimg.com/vi/${meta.videoId}/mqdefault.jpg',
+      ],
+    ];
+    if (candidates.every((u) => u.trim().isEmpty)) return;
+
+    final stamp = meta.videoId.isNotEmpty ? meta.videoId : widget.project.id;
+    await GalleryExportService.downloadImage(
+      candidates,
+      'ClipShield_thumb_$stamp.jpg',
+    );
   }
 
   Future<void> _shareClips(List<ClipItem> clips, {String text = "Check out my video created with ClipShield Pro!"}) async {
@@ -164,7 +220,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ),
           if (_saveState == _SaveState.failed)
             TextButton(
-              onPressed: _exportToGallery,
+              onPressed: () => _exportToGallery(force: true),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.error,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
