@@ -33,10 +33,53 @@ class UpdateDialog extends StatefulWidget {
   State<UpdateDialog> createState() => _UpdateDialogState();
 }
 
-class _UpdateDialogState extends State<UpdateDialog> {
+class _UpdateDialogState extends State<UpdateDialog>
+    with WidgetsBindingObserver {
   UpdateProgress _progress = const UpdateProgress(stage: UpdateStage.idle);
   String? _error;
   bool _needsInstallPermission = false;
+
+  /// True between sending the user to Settings and their coming back, so the
+  /// dialog knows to re-check the permission on resume rather than leaving a
+  /// stale "needs permission" state on a button that would now work.
+  bool _awaitingPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_awaitingPermission) return;
+    _recheckPermission();
+  }
+
+  /// Re-reads the install permission after a trip to Settings. Granting it
+  /// clears the error so the next tap on Update goes straight to downloading,
+  /// instead of reporting a permission that is no longer missing.
+  Future<void> _recheckPermission() async {
+    final granted = await MediaStoreService.instance.canInstallPackages();
+    if (!mounted) return;
+
+    setState(() {
+      _awaitingPermission = false;
+      if (granted) {
+        _needsInstallPermission = false;
+        _error = null;
+      } else {
+        _error = 'ClipShield still cannot install apps. Turn on "Allow from '
+            'this source", then tap Update again.';
+      }
+    });
+  }
 
   bool get _isWorking =>
       _progress.stage == UpdateStage.downloading ||
@@ -49,14 +92,25 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _needsInstallPermission = false;
     });
 
-    // Asked before the download rather than after: a user who has to visit
+    // Checked before the download rather than after: a user who has to visit
     // Settings should not first wait through 180 MB.
+    //
+    // And the trip to Settings happens on this tap, not the next one. Reporting
+    // the problem and making the user press a second button was one tap of pure
+    // ceremony -- there is nothing else they could have wanted from "Update".
     final media = MediaStoreService.instance;
     if (media.isSupported && !await media.canInstallPackages()) {
       if (!mounted) return;
+
+      final opened = await media.openInstallSettings();
+      if (!mounted) return;
+
       setState(() {
-        _needsInstallPermission = true;
-        _error = 'Android needs permission to install apps from ClipShield.';
+        _awaitingPermission = opened;
+        _needsInstallPermission = !opened;
+        _error = opened
+            ? 'Turn on "Allow from this source", then come back and tap Update.'
+            : 'Android needs permission to install apps from ClipShield.';
       });
       return;
     }
@@ -84,13 +138,19 @@ class _UpdateDialogState extends State<UpdateDialog> {
     });
   }
 
+  /// Only reached when opening Settings failed outright, which on Android 8+
+  /// should not happen.
   Future<void> _openInstallSettings() async {
-    await MediaStoreService.instance.openInstallSettings();
-    if (mounted) {
-      setState(() {
-        _error = 'Allow ClipShield to install apps, then tap Update again.';
-      });
-    }
+    final opened = await MediaStoreService.instance.openInstallSettings();
+    if (!mounted) return;
+
+    setState(() {
+      _awaitingPermission = opened;
+      _error = opened
+          ? 'Turn on "Allow from this source", then come back and tap Update.'
+          : 'Open Settings > Apps > ClipShield > Install unknown apps, and '
+              'allow it from there.';
+    });
   }
 
   /// Fallback for anyone who would rather not install in place.

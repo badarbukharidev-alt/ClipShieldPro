@@ -41,7 +41,13 @@ class UpdateProgress {
 /// admin panel, so without it anyone who took over that panel could point every
 /// install at a different package. [MediaStoreService.verifyApk] compares the
 /// downloaded APK's signing certificate against the running build's and refuses
-/// a mismatch before the user is asked anything.
+/// a *mismatch* before the user is asked anything.
+///
+/// A certificate that cannot be *read* is a different thing and is allowed
+/// through. Android enforces signature matching at install time itself and
+/// cannot be talked out of it, so refusing what we merely could not parse only
+/// stopped genuine updates with "the download could not be verified" -- which is
+/// exactly what it did.
 class UpdateDownloader {
   UpdateDownloader._();
   static final UpdateDownloader instance = UpdateDownloader._();
@@ -118,8 +124,11 @@ class UpdateDownloader {
 
       onProgress(const UpdateProgress(stage: UpdateStage.verifying));
 
+      // "ok_unverified" means the certificate could not be read, not that it
+      // was wrong. Android enforces signature matching at install time on its
+      // own, so refusing here only stopped genuine updates -- see ApkInstaller.
       final verdict = await media.verifyApk(target.path);
-      if (verdict != 'ok') {
+      if (verdict != 'ok' && verdict != 'ok_unverified') {
         // A failed download is worth keeping nothing of.
         try {
           await target.delete();
@@ -162,6 +171,8 @@ class UpdateDownloader {
       case 'not_an_apk':
         return 'The downloaded file is not a valid app package.';
       case 'signature_unreadable':
+        // Kept for older builds of the bridge; the current one returns
+        // "ok_unverified" and proceeds instead.
         return 'The download could not be verified, so it was not installed.';
       case 'needs_permission':
         return 'Android needs permission to install apps from ClipShield.';

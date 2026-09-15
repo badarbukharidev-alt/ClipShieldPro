@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.14)
+# 🛡️ ClipShield Pro (v1.2.15)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.14-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.15-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.14.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)**
+📥 **[Download ClipShieldPro-v1.2.15.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.14.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.14.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.15.apk)
 
 ---
 
@@ -54,6 +54,47 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.15
+
+### 🔐 Fixed: "The download could not be verified, so it was not installed"
+
+This stopped genuine updates dead, even after the user had allowed the install
+source. Two mistakes compounded:
+
+**The certificate was read the wrong way.** `getPackageArchiveInfo()` with
+`GET_SIGNING_CERTIFICATES` returns a **null** `signingInfo` on a good number of
+devices — archives have always been better served by the deprecated
+`GET_SIGNATURES`. Reading only the modern accessor meant the signature came back
+unreadable on a perfectly genuine APK. Both accessors are now tried, on both the
+installed app and the download, and signing-key *history* is collected too so a
+future key rotation does not read as a mismatch.
+
+**Unreadable was treated as wrong.** That was the deeper error. A download that
+could not be *parsed* was refused as though it had been caught being
+*substituted*.
+
+> Android already refuses to replace an installed app with one signed by a
+> different key. That is enforced by the package manager and cannot be talked out
+> of. This check exists to fail **early and legibly** rather than after a 180 MB
+> download — it was never the only thing standing in the way. So an unreadable
+> certificate now proceeds and lets the OS enforce what it was always going to
+> enforce. **A signature that reads fine and does not match is still refused
+> outright**, as is a different package name.
+
+### ⚡ One tap to the permission screen
+
+Tapping **Update** without the install permission used to show an error and then
+require a *second* button press to reach Settings. That was one tap of pure
+ceremony — there is nothing else someone could have wanted from "Update".
+
+Settings now opens on that first tap. The dialog watches for the app resuming,
+re-reads the permission, and clears the error by itself — so coming back and
+tapping **Update** starts the download immediately, with no stale "needs
+permission" message on a button that would now work. If the permission still is
+not granted, it says so plainly instead of failing silently.
 
 ---
 
