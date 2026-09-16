@@ -17,6 +17,7 @@ Runs from the project folder. Packaged with tools/builder_app/build_exe.ps1.
 
 import hashlib
 import hmac
+import io
 import json
 import os
 import queue
@@ -32,13 +33,13 @@ from tkinter import messagebox, scrolledtext, ttk
 
 APP_TITLE = "ClipShield Build Station"
 PANEL_URL = "https://clipshieldpro.toolsfinity.io"
-GITHUB_REPO = "badarbukharidev-alt/ClipShieldPro"
 RESELLER_DIR = "resellers"
 RELEASE_DIR = "release"
 
-# GitHub serves LFS files from this host; a raw.githubusercontent link returns
-# the pointer text rather than the APK.
-LFS_BASE = "https://media.githubusercontent.com/media/%s/main" % GITHUB_REPO
+# Uploads are sliced because a release APK is around 180 MB and shared hosting
+# commonly caps upload_max_filesize near 64 MB. PHP rejects an oversized POST
+# before any script runs, so the size has to be kept under that on this side.
+UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 
 BG = "#F5F2EC"
 CARD = "#FFFFFF"
@@ -158,6 +159,101 @@ def publish_build(secret, target, code, version_name, version_code, apk_url, not
     return payload
 
 
+def _multipart(fields, file_field, filename, payload):
+    """Builds a multipart/form-data body.
+
+    Hand-rolled rather than pulled from a library so the exe stays dependency
+    free -- the whole point of it is that it runs without a Python install.
+    """
+    boundary = "----ClipShield" + os.urandom(12).hex()
+    line = b"\r\n"
+    out = io.BytesIO()
+
+    for key, value in fields.items():
+        out.write(b"--" + boundary.encode() + line)
+        out.write(
+            ('Content-Disposition: form-data; name="%s"' % key).encode() + line + line
+        )
+        out.write(str(value).encode() + line)
+
+    out.write(b"--" + boundary.encode() + line)
+    out.write(
+        (
+            'Content-Disposition: form-data; name="%s"; filename="%s"'
+            % (file_field, filename)
+        ).encode()
+        + line
+    )
+    out.write(b"Content-Type: application/octet-stream" + line + line)
+    out.write(payload + line)
+    out.write(b"--" + boundary.encode() + b"--" + line)
+
+    return out.getvalue(), "multipart/form-data; boundary=" + boundary
+
+
+def upload_apk(secret, path, on_progress=None, timeout=180):
+    """Sends an APK to the panel in slices, returning its public URL.
+
+    Each slice carries its own signature bound to the filename and index, so a
+    captured request cannot be replayed to write a different part of the file.
+    """
+    name = os.path.basename(path)
+    size = os.path.getsize(path)
+    total = max(1, (size + UPLOAD_CHUNK_BYTES - 1) // UPLOAD_CHUNK_BYTES)
+
+    sent = 0
+    result = None
+
+    with open(path, "rb") as handle:
+        for index in range(total):
+            payload = handle.read(UPLOAD_CHUNK_BYTES)
+            if not payload:
+                break
+
+            ts = int(time.time())
+            nonce = os.urandom(8).hex()
+            sig = sign(secret, "build.upload", ts, nonce, "%s:%d" % (name, index))
+
+            body, content_type = _multipart(
+                {
+                    "name": name,
+                    "index": str(index),
+                    "total": str(total),
+                    "ts": str(ts),
+                    "nonce": nonce,
+                    "sig": sig,
+                },
+                "chunk",
+                name,
+                payload,
+            )
+
+            request = urllib.request.Request(
+                "%s/api/upload_apk.php" % PANEL_URL,
+                data=body,
+                headers={
+                    "Content-Type": content_type,
+                    "Content-Length": str(len(body)),
+                },
+                method="POST",
+            )
+
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            if not result.get("ok"):
+                raise RuntimeError(result.get("error", "upload failed"))
+
+            sent += len(payload)
+            if on_progress:
+                on_progress(sent, size)
+
+    if not result or "url" not in result:
+        raise RuntimeError("the server did not confirm the finished file")
+
+    return result["url"]
+
+
 # ---------------------------------------------------------------------------
 # Local project state
 # ---------------------------------------------------------------------------
@@ -174,12 +270,15 @@ def app_version():
     raise RuntimeError("Could not read version from pubspec.yaml")
 
 
-def apk_url_for(filename):
-    return "%s/%s/%s" % (LFS_BASE, RESELLER_DIR, filename)
+def hosted_url(filename):
+    """Where a customer downloads from.
 
-
-def house_apk_url(filename):
-    return "%s/%s/%s" % (LFS_BASE, RELEASE_DIR, filename)
+    The panel's own domain rather than GitHub. GitHub LFS has a monthly
+    bandwidth allowance, and this account's LFS budget is set to stop rather
+    than bill -- so at ~180 MB an APK, downloads would simply cease partway
+    through a month, silently, for everyone at once.
+    """
+    return "%s/downloads/%s" % (PANEL_URL, filename)
 
 
 # ---------------------------------------------------------------------------
@@ -194,15 +293,31 @@ class BuildRun:
     look random.
     """
 
-    def __init__(self, secret, resellers, notes, do_push, do_publish, log, progress):
+    def __init__(self, secret, resellers, notes, do_upload, do_publish, do_push,
+                 log, progress):
         self.secret = secret
         self.resellers = resellers
         self.notes = notes
-        self.do_push = do_push
+        self.do_upload = do_upload
         self.do_publish = do_publish
+        self.do_push = do_push
         self.log = log
         self.progress = progress
         self.cancelled = False
+
+    def upload(self, path):
+        """Sends one APK to the host, reporting percentage as it goes."""
+        name = os.path.basename(path)
+        last = [-1]
+
+        def progress(sent, total):
+            percent = int(sent * 100 / total) if total else 0
+            # Only on each 10%, or the log becomes unreadable.
+            if percent >= last[0] + 10:
+                last[0] = percent - (percent % 10)
+                self.log("   uploading %s ... %d%%" % (name, percent))
+
+        return upload_apk(self.secret, path, on_progress=progress)
 
     def run_command(self, args, cwd=None, label=None):
         if label:
@@ -253,7 +368,8 @@ class BuildRun:
         name, code = app_version()
         built = []
 
-        steps = 2 + len(self.resellers) + (1 if self.do_push else 0)
+        uploads = (1 + len(self.resellers)) if self.do_upload else 0
+        steps = 2 + len(self.resellers) + uploads + (1 if self.do_push else 0)
         step = [0]
 
         def advance():
@@ -336,9 +452,67 @@ class BuildRun:
             except OSError:
                 pass
 
+        # ------------------------------------------------------------ upload
+        # Uploaded before anything is published, so a link is only ever
+        # recorded once the file behind it is actually downloadable.
+        hosted = {}
+
+        if self.do_upload:
+            self.log("Uploading to the host...")
+
+            try:
+                hosted["house"] = self.upload(house_path)
+                self.log("   house uploaded")
+            except Exception as error:
+                self.log("   house upload FAILED: %s" % explain(error))
+            advance()
+
+            for rcode, filename in stamped:
+                if self.cancelled:
+                    raise RuntimeError("Cancelled.")
+                try:
+                    hosted[rcode] = self.upload(
+                        os.path.join(ROOT, RESELLER_DIR, filename)
+                    )
+                    self.log("   %s uploaded" % rcode)
+                except Exception as error:
+                    self.log("   %s upload FAILED: %s" % (rcode, explain(error)))
+                advance()
+
+        # ----------------------------------------------------------- publish
+        if self.do_publish:
+            if not hosted:
+                self.log("Skipping publish: nothing was uploaded, so the links "
+                         "would point at files that are not there yet.")
+            else:
+                self.log("Publishing links to the panel...")
+
+                if "house" in hosted:
+                    try:
+                        publish_build(self.secret, "house", "", name, code,
+                                      hosted["house"], self.notes)
+                        self.log("   house -> v%s" % name)
+                    except Exception as error:
+                        self.log("   house publish failed: %s" % explain(error))
+
+                for rcode, _ in stamped:
+                    if rcode not in hosted:
+                        # Its file never made it up; recording the link would
+                        # send that reseller's customers to a 404.
+                        self.log("   %s skipped: upload did not succeed" % rcode)
+                        continue
+                    try:
+                        publish_build(self.secret, "reseller", rcode, name, code,
+                                      hosted[rcode], self.notes)
+                        self.log("   %s -> v%s" % (rcode, name))
+                    except Exception as error:
+                        self.log("   %s publish failed: %s" % (rcode, explain(error)))
+
         # -------------------------------------------------------------- push
+        # Optional and last. The APKs are served from the host now, so this is
+        # only about keeping a copy in version control.
         if self.do_push and built:
-            self.log("Pushing to GitHub...")
+            self.log("Committing APKs to git...")
             self.run_command(["git", "add", RELEASE_DIR, RESELLER_DIR])
 
             changed = subprocess.run(
@@ -352,46 +526,13 @@ class BuildRun:
                     message += " with %d reseller APK(s)" % len(stamped)
                 self.run_command(["git", "commit", "-q", "-m", message])
 
-                status = self.run_command(["git", "push", "origin", "main"])
-                if status != 0:
-                    # The APKs exist and are committed; only the upload failed.
-                    # Publishing links now would point the panel at files nobody
-                    # can download yet, so it is stopped here.
-                    raise RuntimeError(
-                        "The push failed. The APKs are committed locally.\n"
-                        "Nothing was published, because the links would 404."
-                    )
-                self.log("   pushed")
+                if self.run_command(["git", "push", "origin", "main"]) != 0:
+                    self.log("   push failed; the APKs are committed locally.")
+                else:
+                    self.log("   pushed")
             else:
                 self.log("   nothing changed")
             advance()
-
-        # ----------------------------------------------------------- publish
-        if self.do_publish:
-            if not self.do_push:
-                self.log("Skipping publish: nothing was pushed, so the links "
-                         "would not resolve yet.")
-            else:
-                self.log("Publishing links to the panel...")
-
-                try:
-                    publish_build(
-                        self.secret, "house", "", name, code,
-                        house_apk_url(house_name), self.notes,
-                    )
-                    self.log("   house -> v%s" % name)
-                except Exception as error:
-                    self.log("   house publish failed: %s" % error)
-
-                for rcode, filename in stamped:
-                    try:
-                        publish_build(
-                            self.secret, "reseller", rcode, name, code,
-                            apk_url_for(filename), self.notes,
-                        )
-                        self.log("   %s -> v%s" % (rcode, name))
-                    except Exception as error:
-                        self.log("   %s publish failed: %s" % (rcode, error))
 
         return name, code, stamped
 
@@ -467,15 +608,19 @@ class BuilderApp:
         controls = tk.Frame(body, bg=BG, pady=12)
         controls.pack(fill="x")
 
-        self.push_var = tk.BooleanVar(value=True)
+        self.upload_var = tk.BooleanVar(value=True)
         self.publish_var = tk.BooleanVar(value=True)
+        self.push_var = tk.BooleanVar(value=False)
 
-        tk.Checkbutton(controls, text="Push APKs to GitHub", variable=self.push_var,
+        tk.Checkbutton(controls, text="Upload to hosting", variable=self.upload_var,
                        bg=BG, fg=INK, activebackground=BG, selectcolor=CARD,
                        font=("Segoe UI", 9)).pack(side="left")
         tk.Checkbutton(controls, text="Publish links to the panel",
                        variable=self.publish_var, bg=BG, fg=INK,
                        activebackground=BG, selectcolor=CARD,
+                       font=("Segoe UI", 9)).pack(side="left", padx=(12, 0))
+        tk.Checkbutton(controls, text="Also commit to git", variable=self.push_var,
+                       bg=BG, fg=INK, activebackground=BG, selectcolor=CARD,
                        font=("Segoe UI", 9)).pack(side="left", padx=(12, 0))
 
         tk.Button(controls, text="Refresh", command=self.refresh,
@@ -611,16 +756,22 @@ class BuilderApp:
             return
 
         count = len(self.resellers)
+        if self.upload_var.get():
+            # Worth stating plainly: this is the reseller's own bandwidth bill,
+            # and it is not a small number.
+            payload = (1 + count) * 180
+            after = ("upload about %d MB to your hosting and publish the links"
+                     % payload)
+        elif self.publish_var.get():
+            after = "build locally (publishing needs the upload)"
+        else:
+            after = "build locally only"
+
         confirm = messagebox.askyesno(
             APP_TITLE,
             "Build the house app and %d reseller APK%s?\n\n"
             "This takes several minutes and will %s."
-            % (
-                count,
-                "" if count == 1 else "s",
-                "push and publish" if (self.push_var.get() and self.publish_var.get())
-                else "build locally only",
-            ),
+            % (count, "" if count == 1 else "s", after),
         )
         if not confirm:
             return
@@ -633,8 +784,9 @@ class BuilderApp:
             secret=self.secret,
             resellers=self.resellers,
             notes=self.notes_entry.get().strip(),
-            do_push=self.push_var.get(),
+            do_upload=self.upload_var.get(),
             do_publish=self.publish_var.get(),
+            do_push=self.push_var.get(),
             log=self.log,
             progress=lambda done, total: self.messages.put(("progress", (done, total))),
         )
@@ -669,7 +821,7 @@ class BuilderApp:
             self.log("")
             self.log(summary)
 
-            if self.publish_var.get() and self.push_var.get():
+            if self.publish_var.get() and self.upload_var.get():
                 self.log("Resellers can download from their portal now. Their "
                          "customers get the update prompt on the next sync.")
             self.refresh()
