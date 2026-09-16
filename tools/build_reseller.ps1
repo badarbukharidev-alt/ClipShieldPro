@@ -56,17 +56,56 @@ if (-not (Test-Path 'android/key.properties')) {
     Write-Host "         with the debug key, which breaks upgrades and licensing." -ForegroundColor Yellow
 }
 
+# ---------------------------------------------------------------------------
 # Clear the previous build's Flutter intermediates.
 #
-# A --dart-define change does not invalidate them, so the asset copy walks into
-# files left by the last build and fails with "Cannot create a file when that
-# file already exists". Removing just this directory is far cheaper than a full
-# `flutter clean`, and switching between the house build and a reseller build is
-# exactly when it happens.
+# Two separate problems live here, and only doing one of them is why this kept
+# failing:
+#
+#  1. A --dart-define change does not invalidate the intermediates, so the asset
+#     copy walks into files left by the last build: "Cannot create a file when
+#     that file already exists".
+#  2. Gradle keeps a daemon alive after a build, and that daemon holds open
+#     handles on those same files. Deleting them then fails with "Access is
+#     denied" -- and so does Flutter's own cleanup a moment later, which is what
+#     produced the tool crash.
+#
+# So: stop the daemons first, then delete. Switching between the house build and
+# a reseller build is exactly when both bite.
+# ---------------------------------------------------------------------------
 $intermediates = 'build/app/intermediates/flutter'
-if (Test-Path $intermediates) {
+
+function Test-IntermediatesGone {
+    return -not (Test-Path $intermediates)
+}
+
+if (-not (Test-IntermediatesGone)) {
+    Write-Host "Stopping Gradle daemons so the previous build releases its files..." -ForegroundColor DarkGray
+    Push-Location 'android'
+    try {
+        & cmd /c "gradlew.bat --stop" 2>&1 | Out-Null
+    } catch {
+        # No daemon running, or no wrapper. Either is fine; the delete below is
+        # what actually matters.
+    }
+    Pop-Location
+
     Write-Host "Clearing intermediates from the previous build..." -ForegroundColor DarkGray
     Remove-Item $intermediates -Recurse -Force -ErrorAction SilentlyContinue
+
+    if (-not (Test-IntermediatesGone)) {
+        # Something still has a handle -- an editor, an indexer, a second build.
+        # A full clean is slower but does not negotiate.
+        Write-Host "Still locked. Falling back to a full 'flutter clean'..." -ForegroundColor Yellow
+        flutter clean | Out-Null
+
+        if (-not (Test-IntermediatesGone)) {
+            Write-Host "ERROR: could not clear $intermediates." -ForegroundColor Red
+            Write-Host "       Something is holding those files open. Close any other build,"
+            Write-Host "       editor or file explorer in this folder and run this again."
+            exit 1
+        }
+    }
 }
 
 Write-Host "Building reseller APK for `"$code`"..." -ForegroundColor Cyan

@@ -53,12 +53,43 @@ if [[ ! -f "android/key.properties" ]]; then
   echo "         with the debug key, which breaks upgrades and licensing." >&2
 fi
 
-# Clear the previous build's Flutter intermediates. A --dart-define change does
-# not invalidate them, so the asset copy walks into files left by the last build
-# and fails with "Cannot create a file when that file already exists". Cheaper
-# than a full `flutter clean`, and switching build flavours is exactly when it
-# happens.
-rm -rf build/app/intermediates/flutter
+# ---------------------------------------------------------------------------
+# Clear the previous build's Flutter intermediates.
+#
+# Two separate problems live here, and doing only one of them is why this kept
+# failing:
+#
+#  1. A --dart-define change does not invalidate the intermediates, so the asset
+#     copy walks into files left by the last build: "Cannot create a file when
+#     that file already exists".
+#  2. Gradle keeps a daemon alive after a build, holding open handles on those
+#     same files. Deleting them then fails with "Access is denied" -- and so
+#     does Flutter's own cleanup a moment later, which is what produced the tool
+#     crash.
+#
+# Stop the daemons first, then delete.
+# ---------------------------------------------------------------------------
+INTERMEDIATES="build/app/intermediates/flutter"
+
+if [[ -d "$INTERMEDIATES" ]]; then
+  echo "Stopping Gradle daemons so the previous build releases its files..."
+  (cd android && ./gradlew --stop >/dev/null 2>&1) || true
+
+  echo "Clearing intermediates from the previous build..."
+  rm -rf "$INTERMEDIATES" 2>/dev/null || true
+
+  if [[ -d "$INTERMEDIATES" ]]; then
+    echo "Still locked. Falling back to a full 'flutter clean'..."
+    flutter clean >/dev/null 2>&1 || true
+  fi
+
+  if [[ -d "$INTERMEDIATES" ]]; then
+    echo "ERROR: could not clear $INTERMEDIATES." >&2
+    echo "       Something is holding those files open. Close any other build," >&2
+    echo "       editor or file explorer in this folder and run this again." >&2
+    exit 1
+  fi
+fi
 
 echo "Building reseller APK for \"$RESELLER\"..."
 
