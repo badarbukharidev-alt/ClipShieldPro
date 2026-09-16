@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_update.dart';
 import '../services/license_service.dart';
+import '../services/build_identity.dart';
 import '../services/update_service.dart';
 import '../services/project_storage_service.dart';
 import '../theme/app_theme.dart';
@@ -40,6 +41,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _handleAdminSecretTap() {
+    // Not present in a reseller build. These screens mint licence keys on the
+    // device with no quota and no record, so leaving them in would let a
+    // reseller -- or anyone holding a copy of their APK -- issue unlimited keys
+    // and bypass their allowance entirely.
+    if (!BuildIdentity.allowsInAppAdmin) return;
+
     final now = DateTime.now();
     if (_lastAdminTapTime == null || now.difference(_lastAdminTapTime!).inSeconds > 2) {
       _adminTapCount = 1;
@@ -68,6 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const String _adminPasscode = r"B@dar85299211";
 
   Future<void> _promptAdminPasscode() async {
+    if (!BuildIdentity.allowsInAppAdmin) return;
+
     final pinController = TextEditingController();
 
     void submit(BuildContext ctx) {
@@ -212,11 +221,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text("Settings", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: "Admin Access",
-            icon: const Icon(Icons.shield_outlined, color: AppColors.mut, size: 20),
-            onPressed: _promptAdminPasscode,
-          ),
+          if (BuildIdentity.allowsInAppAdmin)
+            IconButton(
+              tooltip: "Admin Access",
+              icon: const Icon(Icons.shield_outlined, color: AppColors.mut, size: 20),
+              onPressed: _promptAdminPasscode,
+            ),
         ],
       ),
       body: SingleChildScrollView(

@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.15)
+# 🛡️ ClipShield Pro (v1.2.16)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.15-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.16-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.15.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)**
+📥 **[Download ClipShieldPro-v1.2.16.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.15.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.15.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.16.apk)
 
 ---
 
@@ -54,6 +54,77 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 * **Cover Image Composition**: Upload a cover image, select aspect ratio (16:9 or 9:16), and export as a static video with processed audio in 2-3 seconds.
 * **Live 10s Preview**: Preview DSP-processed audio before rendering the final output.
 * **Universal Input**: Supports YouTube URL, YouTube Shorts URL, local video, or direct audio file upload.
+
+---
+
+## 🛠️ What's New in v1.2.16
+
+### 📱 Rendering sized to the device, not to a flagship
+
+Low-end phones were killing the app mid-render — *"ClipShield isn't responding"*,
+or the process simply vanishing when Render was tapped. That was **not one bug**.
+It was a pipeline configured for the machine it was developed on, and three
+things compounded:
+
+| | Before | Why it hurt |
+|---|---|---|
+| `-threads` | `0` (every core) | x264 keeps **per-thread frame buffers** — an 8-core budget phone allocated 8 sets out of a fraction of a flagship's heap |
+| Output | 1080p always | 4× the pixel budget of 720p through every filter |
+| Face detection | always on | an ML Kit model resident for the whole pass, on top of the encoder |
+
+None is wrong on a 12 GB phone. All three on a 2 GB phone exceed the heap before
+the first frame is written.
+
+`DeviceCapability` now reports total RAM, the **per-app heap ceiling**, core
+count, 64-bitness and Android's own low-RAM flag. The heap ceiling matters more
+than total RAM — it is what an allocation is measured against, and it is a
+fraction of the total. The manufacturer's low-RAM flag outranks the spec sheet.
+
+**Low** devices get one encoder thread, a 720p ceiling whatever quality was
+asked, no subject tracking, a 24 MB image cache. **Mid** gets 2–3 threads.
+**High is left exactly as it was** — a good phone is not punished to accommodate
+a cheap one. An unknown device is treated as *mid*, never optimistically as high.
+
+Also added `android:largeHeap` and bounded `-max_muxing_queue_size`, which is
+otherwise free to grow without limit on a long source.
+
+> Capping preserves aspect ratio exactly, never upscales, keeps dimensions even
+> for H.264, and cannot be dodged with an ultra-wide source. Where a cap applies,
+> the render log says so rather than quietly producing something else.
+
+### 🤝 Reseller system
+
+Resellers get their own portal, their own branded build, and a key allowance they
+cannot exceed.
+
+**Admin → Resellers**: create an account with a code, allot keys per tier
+(lifetime / monthly / video pack), publish their APK build, reset their password,
+disable them.
+
+**Their portal** (`/reseller/`): generate keys against the allowance, set the
+WhatsApp number their customers see, download their current build, and see what
+versions their customers are actually running.
+
+**Their app**: built with `tools/build_reseller.sh <code>`. It reports its
+reseller code on every API call, so the panel returns *their* support number and
+*their* update rather than the house ones.
+
+Three decisions worth stating:
+
+- **The in-app admin tools are compiled out of a reseller build.** Those screens
+  mint licence keys on-device with no quota and no record — leaving them in would
+  let a reseller, or anyone holding a copy of their APK, issue unlimited keys and
+  make the whole allowance decorative. Verified by a test run with the define set,
+  not assumed.
+- **Quota is consumed in a single guarded `UPDATE`** (`WHERE used < allotted`).
+  Reading the remaining count and then decrementing would let two requests
+  arriving together both spend the last key. If the insert that follows fails,
+  the allowance is refunded rather than charged for a key never recorded.
+- **A reseller build is never offered the house APK.** It carries a different
+  reseller code and would silently re-brand the customer's app, so a reseller with
+  no published build gets *no* update rather than the wrong one.
+
+Run `database/migrations/2026_09_16_resellers.sql` once to create the tables.
 
 ---
 

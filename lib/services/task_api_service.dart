@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../models/reward_task.dart';
 import 'device_identity_service.dart';
+import 'build_identity.dart';
 import 'remote_config_service.dart';
 import 'update_service.dart';
 
@@ -36,7 +37,7 @@ class TaskApiService {
       String.fromEnvironment('CLIPSHIELD_API_SECRET', defaultValue: '');
 
   /// Reported to the panel so you can see which build a device is on.
-  static const String appVersion = '1.2.15';
+  static const String appVersion = '1.2.16';
 
   static bool get isConfigured => apiSecret.length >= 32;
 
@@ -105,6 +106,10 @@ class TaskApiService {
       'nonce': nonce,
       'sig': _sign(action, deviceId, ts, nonce, extra),
       'app_version': appVersion,
+      // Empty on the house build. This is what the panel keys off to return
+      // this reseller's support number and this reseller's update, rather than
+      // the house ones.
+      'reseller': BuildIdentity.resellerCode,
     };
 
     try {
