@@ -51,3 +51,10 @@ test/golden/
 # apksigner's v4 signature sidecar. Only used by incremental ADB installs, never
 # needed for distribution.
 *.apk.idsig
+
+# PyInstaller output for the Build Station. The source lives in
+# tools/builder_app; the exe is rebuilt with tools/builder_app/build_exe.ps1.
+tools/builder_app/build/
+tools/builder_app/dist/
+tools/builder_app/*.spec
+ClipShieldBuilder.exe
