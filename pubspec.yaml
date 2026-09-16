@@ -66,3 +66,7 @@ flutter:
   assets:
     - assets/icon/
     - assets/images/
+    # Holds the reseller code. Deliberately an asset rather than a compile-time
+    # constant: it can be rewritten inside a finished APK and the file re-signed,
+    # so one build serves every reseller instead of one build each.
+    - assets/build/

@@ -57,6 +57,52 @@ ClipShield Pro is an advanced on-device video processing studio built for conten
 
 ---
 
+## 🏗️ Building the apps
+
+One command builds the house app **and** every reseller's app:
+
+```powershell
+.	oolsuild_all.ps1 -Push
+```
+
+It fetches the reseller list from the live panel, so adding a reseller there is
+all it takes for the next run to produce their APK. Output lands in `release/`
+(house) and `resellers/` (one per reseller), and `-Push` commits both to GitHub.
+
+| Flag | Effect |
+|---|---|
+| `-Push` | commit and push the APKs afterwards |
+| `-SkipHouse` | resellers only |
+| `-Only abrar,zain` | just those resellers |
+| `-Offline -Only abrar` | skip the panel, build from the given list |
+
+### Why this is two compiles and not one per reseller
+
+The reseller code lives in **`assets/build/reseller.txt`**, a bundled asset —
+not a compile-time constant. An asset can be rewritten inside a *finished* APK,
+so the pipeline is:
+
+1. compile the house app *(admin tools in, no reseller code)*
+2. compile a reseller base **once** *(admin tools compiled out)*
+3. for each reseller: copy the base → rewrite that one file → re-align → re-sign
+
+Twenty resellers is **two compiles and twenty stamps**, not twenty-two compiles.
+A stamp takes seconds.
+
+Rewriting anything inside an APK invalidates its signature, so each stamped file
+is re-signed with the same release keystore Gradle uses — it installs over an
+existing ClipShield exactly like an ordinary update. `resources.arsc` is kept
+uncompressed through the rewrite, because Android rejects an APK where it is not.
+
+> **The admin tools deliberately did *not* move to an asset.** They stay a
+> compile-time exclusion, because the asset is editable by anyone repackaging the
+> APK. Those screens mint licence keys on-device with no quota and no record — in
+> a reseller build they must be *absent*, not hidden behind a flag that could be
+> flipped back. A test asserts that stamping or clearing the code cannot
+> re-enable them.
+
+---
+
 ## 🛠️ What's New in v1.2.16
 
 ### 📱 Rendering sized to the device, not to a flagship

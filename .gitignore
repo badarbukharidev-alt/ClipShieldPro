@@ -47,3 +47,7 @@ test/failures/
 
 # Rendered preview screenshots are a dev tool, not artefacts.
 test/golden/
+
+# apksigner's v4 signature sidecar. Only used by incremental ADB installs, never
+# needed for distribution.
+*.apk.idsig
