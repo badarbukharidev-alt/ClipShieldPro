@@ -134,6 +134,80 @@ def rewrite_asset(base_apk, code, staged_apk):
                     target.writestr(item, data)
 
 
+class StampError(Exception):
+    """A stamp that could not be produced. Carries a message fit to show."""
+
+
+def stamp(base_apk, code, out_apk, project_root=None):
+    """Stamps [code] into [base_apk] and writes a signed APK to [out_apk].
+
+    Callable in-process, which is how the Build Station uses it: inside a frozen
+    exe, sys.executable is the exe itself, so shelling out to "python
+    stamp_reseller.py" would relaunch the GUI rather than run this.
+
+    Raises StampError with a readable message; returns the output path.
+    """
+    code = code.strip().lower()
+
+    if not os.path.isfile(base_apk):
+        raise StampError("Base APK not found: " + base_apk)
+
+    # The same rule the panel and the app apply. A code that fails here would
+    # produce an APK the app reads as a house build.
+    if not CODE_PATTERN.match(code):
+        raise StampError('"%s" is not a valid reseller code.' % code)
+
+    if project_root is None:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    try:
+        props = read_key_properties(project_root)
+        zipalign = find_build_tool("zipalign")
+        apksigner = find_build_tool("apksigner")
+    except SystemExit as exit_error:
+        # read_key_properties/find_build_tool call fail(), which exits. In-process
+        # that would take the GUI down with it, so it is turned back into an
+        # exception here.
+        raise StampError(str(exit_error) or "signing tools or keystore missing")
+
+    workdir = tempfile.mkdtemp(prefix="cs_stamp_")
+    staged = os.path.join(workdir, "staged.apk")
+    aligned = os.path.join(workdir, "aligned.apk")
+
+    try:
+        rewrite_asset(base_apk, code, staged)
+
+        # Alignment has to happen before signing: zipalign rewrites offsets, and
+        # doing it afterwards would break the signature it just verified.
+        subprocess.run([zipalign, "-p", "-f", "4", staged, aligned],
+                       check=True, capture_output=True)
+
+        os.makedirs(os.path.dirname(os.path.abspath(out_apk)) or ".", exist_ok=True)
+
+        subprocess.run([
+            apksigner, "sign",
+            "--v4-signing-enabled", "false",
+            "--ks", props["storeFile"],
+            "--ks-key-alias", props["keyAlias"],
+            "--ks-pass", "pass:" + props["storePassword"],
+            "--key-pass", "pass:" + props["keyPassword"],
+            "--out", out_apk,
+            aligned,
+        ], check=True, capture_output=True)
+
+        # Verified rather than assumed. A signature that does not check out here
+        # becomes "App not installed" on a customer's phone with no explanation.
+        subprocess.run([apksigner, "verify", out_apk], check=True, capture_output=True)
+
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or b"").decode("utf-8", "replace").strip()
+        raise StampError("%s failed: %s" % (os.path.basename(error.cmd[0]), detail))
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+    return out_apk
+
+
 def main():
     if len(sys.argv) != 4:
         print(__doc__)
@@ -144,8 +218,6 @@ def main():
     if not os.path.isfile(base_apk):
         fail("Base APK not found: " + base_apk)
 
-    # The same rule the panel and the app apply. A code that fails here would
-    # produce an APK the app reads as a house build.
     if not CODE_PATTERN.match(code):
         fail('"%s" is not a valid reseller code.' % code)
 

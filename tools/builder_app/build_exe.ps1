@@ -16,12 +16,17 @@ Write-Host "Packaging ClipShieldBuilder.exe..." -ForegroundColor Cyan
 
 # --noconsole: it is a GUI, and a console window flashing behind it looks broken.
 # --onefile:   one thing to copy, rather than a folder of DLLs to keep together.
+# --paths/--hidden-import: stamp_reseller lives in tools/, one level up, and is
+# imported rather than shelled out to -- inside a frozen exe sys.executable is
+# the exe itself, so running it as a script would relaunch the GUI.
 python -m PyInstaller `
     --noconfirm `
     --onefile `
     --noconsole `
     --name ClipShieldBuilder `
     --clean `
+    --paths .. `
+    --hidden-import stamp_reseller `
     clipshield_builder.py
 
 if ($LASTEXITCODE -ne 0) { Write-Host "Packaging failed." -ForegroundColor Red; exit 1 }

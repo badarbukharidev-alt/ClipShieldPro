@@ -22,6 +22,7 @@ import json
 import os
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -65,6 +66,41 @@ def project_root():
 
 
 ROOT = project_root()
+
+# The stamping code is imported rather than shelled out to. Inside a frozen exe
+# sys.executable is the exe itself, so "python stamp_reseller.py" would relaunch
+# this GUI instead of stamping anything.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+try:
+    import stamp_reseller
+except ImportError:  # pragma: no cover - only if tools/ is missing
+    stamp_reseller = None
+
+
+_TOOL_CACHE = {}
+
+
+def resolve_tool(name):
+    """Full path to a command-line tool.
+
+    Needed because Windows CreateProcess does not consult PATHEXT: `flutter` is
+    a .BAT, so Popen(["flutter", ...]) fails with "The system cannot find the
+    file specified" even though it is plainly on PATH. shutil.which does apply
+    PATHEXT.
+    """
+    if name in _TOOL_CACHE:
+        return _TOOL_CACHE[name]
+
+    found = shutil.which(name)
+    if not found:
+        raise RuntimeError(
+            "%s was not found on PATH. Open a new terminal and check that "
+            "`%s --version` works, then try again." % (name, name)
+        )
+
+    _TOOL_CACHE[name] = found
+
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +398,7 @@ class BuildRun:
 
         if os.path.isdir(target):
             self.log("   intermediates still locked; running flutter clean")
-            self.run_command(["flutter", "clean"])
+            self.run_command([resolve_tool("flutter"), "clean"])
 
     def execute(self):
         name, code = app_version()
@@ -381,7 +417,7 @@ class BuildRun:
         self.clear_intermediates()
 
         status = self.run_command([
-            "flutter", "build", "apk", "--release",
+            resolve_tool("flutter"), "build", "apk", "--release",
             "--dart-define=CLIPSHIELD_API_SECRET=%s" % self.secret,
         ])
         if status != 0:
@@ -407,7 +443,7 @@ class BuildRun:
             self.clear_intermediates()
 
             status = self.run_command([
-                "flutter", "build", "apk", "--release",
+                resolve_tool("flutter"), "build", "apk", "--release",
                 "--dart-define=CLIPSHIELD_API_SECRET=%s" % self.secret,
                 "--dart-define=CLIPSHIELD_RESELLER_BASE=true",
             ])
@@ -426,7 +462,12 @@ class BuildRun:
         stamped = []
         if base_path:
             os.makedirs(os.path.join(ROOT, RESELLER_DIR), exist_ok=True)
-            stamper = os.path.join(ROOT, "tools", "stamp_reseller.py")
+
+            if stamp_reseller is None:
+                raise RuntimeError(
+                    "tools/stamp_reseller.py could not be imported, so no "
+                    "reseller APK can be produced."
+                )
 
             for reseller in self.resellers:
                 if self.cancelled:
@@ -437,13 +478,15 @@ class BuildRun:
                 out = os.path.join(ROOT, RESELLER_DIR, filename)
 
                 self.log("Stamping %s..." % rcode)
-                status = self.run_command([sys.executable, stamper, base_path, rcode, out])
-
-                if status == 0:
+                try:
+                    stamp_reseller.stamp(base_path, rcode, out, project_root=ROOT)
+                    size = os.path.getsize(out) / (1024 * 1024)
+                    self.log("   %s (%.1f MB)" % (filename, size))
                     stamped.append((rcode, filename))
                     built.append(out)
-                else:
-                    self.log("   FAILED: %s was not built" % rcode)
+                except Exception as error:
+                    # One reseller failing must not abandon the rest.
+                    self.log("   FAILED: %s -- %s" % (rcode, error))
 
                 advance()
 
@@ -513,10 +556,10 @@ class BuildRun:
         # only about keeping a copy in version control.
         if self.do_push and built:
             self.log("Committing APKs to git...")
-            self.run_command(["git", "add", RELEASE_DIR, RESELLER_DIR])
+            self.run_command([resolve_tool("git"), "add", RELEASE_DIR, RESELLER_DIR])
 
             changed = subprocess.run(
-                ["git", "status", "--porcelain", "--", RELEASE_DIR, RESELLER_DIR],
+                [resolve_tool("git"), "status", "--porcelain", "--", RELEASE_DIR, RESELLER_DIR],
                 cwd=ROOT, capture_output=True, text=True,
             ).stdout.strip()
 
@@ -524,9 +567,9 @@ class BuildRun:
                 message = "Build v%s+%d" % (name, code)
                 if stamped:
                     message += " with %d reseller APK(s)" % len(stamped)
-                self.run_command(["git", "commit", "-q", "-m", message])
+                self.run_command([resolve_tool("git"), "commit", "-q", "-m", message])
 
-                if self.run_command(["git", "push", "origin", "main"]) != 0:
+                if self.run_command([resolve_tool("git"), "push", "origin", "main"]) != 0:
                     self.log("   push failed; the APKs are committed locally.")
                 else:
                     self.log("   pushed")
