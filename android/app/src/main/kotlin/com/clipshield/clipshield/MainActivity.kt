@@ -52,6 +52,17 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    // What this phone can cope with, so the render pipeline
+                    // can size itself to the device rather than to whatever the
+                    // developer happened to be holding.
+                    "getCapabilities" -> {
+                        try {
+                            result.success(DeviceCapability.describe(applicationContext))
+                        } catch (e: Exception) {
+                            result.success(null)
+                        }
+                    }
+
                     else -> result.notImplemented()
                 }
             }

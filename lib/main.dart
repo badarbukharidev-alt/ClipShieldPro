@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'screens/splash_screen.dart';
 import 'services/license_service.dart';
+import 'services/device_capability_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/update_service.dart';
 import 'services/render_job_service.dart';
@@ -14,6 +15,11 @@ void main() async {
   // Panel-owned settings (currently the support contact) load before anything
   // can read them, so no screen ever renders the fallback number briefly and
   // then swaps it.
+  // Read what this phone can cope with before anything sizes itself. The
+  // render pipeline, the image cache and subject tracking all key off it.
+  await DeviceCapabilityService.instance.load();
+  DeviceCapabilityService.instance.applyImageCacheLimit();
+
   await RemoteConfigService.instance.load();
 
   // Reads the running build's versionCode and any release cached from a

@@ -19,6 +19,7 @@ import '../transformation/pipeline.dart';
 import 'ffmpeg_engine_service.dart';
 import 'gallery_export_service.dart';
 import 'license_service.dart';
+import 'device_capability_service.dart';
 import 'media_probe_service.dart';
 import 'project_storage_service.dart';
 import 'render_foreground_service.dart';
@@ -411,9 +412,20 @@ class RenderJobService {
   /// downscaled to fit the quality ceiling, so a 16:9 input always produces a
   /// 16:9 output and can never be reframed into a vertical canvas. Blindly
   /// forcing 1920x1080 would stretch any source that is not already 16:9.
-  static (int, int) widescreenOutputSize(MediaProbeInfo probe, String quality) {
-    final int maxW = quality == 'high' ? 1920 : 1280;
-    final int maxH = quality == 'high' ? 1080 : 720;
+  /// [deviceCeiling] is the device's own limit on output height. A low-end
+  /// phone is capped to 720p whatever quality was asked for: 1080p is four
+  /// times the pixel budget through every filter in the chain, and a render
+  /// that gets killed at 1080p is worth less than a 720p file that exists.
+  static (int, int) widescreenOutputSize(
+    MediaProbeInfo probe,
+    String quality, {
+    int? deviceCeiling,
+  }) {
+    final int ceiling = deviceCeiling ?? 1080;
+    final int maxH = math.min(quality == 'high' ? 1080 : 720, ceiling);
+    // Width follows the height ceiling at 16:9, so the cap cannot be dodged by
+    // feeding in an ultra-wide source.
+    final int maxW = (maxH * 16 / 9).round();
     final int srcW = probe.width > 0 ? probe.width : maxW;
     final int srcH = probe.height > 0 ? probe.height : maxH;
 
@@ -500,7 +512,8 @@ class RenderJobService {
         String cropCoords;
         if (isWidescreenMode) {
           cropCoords = '${request.probeInfo.width}:${request.probeInfo.height}:0:0';
-        } else if (request.enableSubjectTracking) {
+        } else if (request.enableSubjectTracking &&
+            DeviceCapabilityService.instance.canRunSubjectTracking) {
           cropCoords = await tracker.calculateOptimalCrop(
             videoPath: request.sourceVideoPath,
             startTime: clip.startTime,
@@ -511,6 +524,14 @@ class RenderJobService {
             logCallback: (m) => _log(projectId, m),
           );
         } else {
+          if (request.enableSubjectTracking) {
+            _log(
+              projectId,
+              'Subject tracking skipped on this device: the face-detection '
+              'model would not fit alongside the encoder. Centre crop used '
+              'instead.',
+            );
+          }
           final targetW = (request.probeInfo.height * request.aspectRatio.ratio).round();
           final defaultX = ((request.probeInfo.width - targetW) / 2)
               .round()
@@ -522,13 +543,35 @@ class RenderJobService {
         // 2. Output geometry
         final int outW;
         final int outH;
+        final capabilities = DeviceCapabilityService.instance;
+        final int ceiling = capabilities.maxOutputHeight;
+
         if (isWidescreenMode) {
-          final size = widescreenOutputSize(request.probeInfo, request.quality);
+          final size = widescreenOutputSize(
+            request.probeInfo,
+            request.quality,
+            deviceCeiling: ceiling,
+          );
           outW = size.$1;
           outH = size.$2;
         } else {
-          outW = request.quality == 'high' ? 1080 : 720;
-          outH = request.quality == 'high' ? 1920 : 1280;
+          // Vertical: the "height" of a 9:16 canvas is its long edge, so the
+          // device ceiling applies to the short edge (the width).
+          final int shortEdge =
+              math.min(request.quality == 'high' ? 1080 : 720, ceiling);
+          final int longEdge = (shortEdge * 16 / 9).round();
+          outW = shortEdge;
+          // H.264 requires even dimensions.
+          outH = longEdge.isOdd ? longEdge - 1 : longEdge;
+        }
+
+        if (ceiling < 1080 && request.quality == 'high') {
+          _log(
+            projectId,
+            'Output capped at ${outH}p for this device '
+            '(${capabilities.summary}). A 1080p render would likely be killed '
+            'by Android before it finished.',
+          );
         }
 
         // Captions are cut out of the source's absolute timeline and rebased

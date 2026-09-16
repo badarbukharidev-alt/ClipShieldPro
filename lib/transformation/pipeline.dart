@@ -1,4 +1,5 @@
 import '../models/app_modes.dart';
+import '../services/device_capability_service.dart';
 import 'ass_subtitle_builder.dart';
 import 'layer.dart';
 import 'layers/harmonic_audio_layer.dart';
@@ -195,8 +196,12 @@ class TransformationPipeline {
 
     final List<String> args = [
       "-y",
+      // Sized to the device, not to the machine this was written on. "0" means
+      // one thread per core, and x264 keeps per-thread frame buffers -- so an
+      // eight-core budget phone allocated eight sets of them out of a heap a
+      // fraction the size of a flagship's, and Android killed the process.
       "-threads",
-      "0",
+      "${DeviceCapabilityService.instance.encoderThreads}",
       if (start > 0.01) ...["-ss", start.toStringAsFixed(3)],
       if (clipDuration > 0.01) ...["-t", clipDuration.toStringAsFixed(3)],
       "-i",
@@ -238,6 +243,12 @@ class TransformationPipeline {
       "yuv420p",
       "-bf",
       "2",
+      // Bounded rather than left to grow. The default lets FFmpeg buffer an
+      // unlimited number of packets when one stream runs ahead of the other,
+      // which on a long source is a steady climb straight into the heap
+      // ceiling.
+      "-max_muxing_queue_size",
+      DeviceCapabilityService.instance.isLowEnd ? "256" : "1024",
       "-map_metadata",
       "-1",
       if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
@@ -283,8 +294,12 @@ class TransformationPipeline {
 
     List<String> args = [
       "-y",
+      // Sized to the device, not to the machine this was written on. "0" means
+      // one thread per core, and x264 keeps per-thread frame buffers -- so an
+      // eight-core budget phone allocated eight sets of them out of a heap a
+      // fraction the size of a flagship's, and Android killed the process.
       "-threads",
-      "0",
+      "${DeviceCapabilityService.instance.encoderThreads}",
     ];
 
     // Accurate seeking and duration limiting
