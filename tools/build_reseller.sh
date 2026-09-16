@@ -53,6 +53,13 @@ if [[ ! -f "android/key.properties" ]]; then
   echo "         with the debug key, which breaks upgrades and licensing." >&2
 fi
 
+# Clear the previous build's Flutter intermediates. A --dart-define change does
+# not invalidate them, so the asset copy walks into files left by the last build
+# and fails with "Cannot create a file when that file already exists". Cheaper
+# than a full `flutter clean`, and switching build flavours is exactly when it
+# happens.
+rm -rf build/app/intermediates/flutter
+
 echo "Building reseller APK for \"$RESELLER\"..."
 
 flutter build apk --release \
