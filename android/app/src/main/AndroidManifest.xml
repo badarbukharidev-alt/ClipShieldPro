@@ -51,10 +51,27 @@
             </intent-filter>
         </activity>
         
-        <!-- Foreground Service for long-running video rendering -->
+        <!--
+            Foreground Service for long-running video rendering.
+
+            BOTH types are declared, and that is not belt and braces.
+            "mediaProcessing" only exists from API 35 (Android 15). On Android 14
+            the system does not recognise it, so the service resolved to NO type
+            at all, and an app targeting API 34+ that calls startForeground()
+            without a valid type is killed on the spot with
+            MissingForegroundServiceTypeException.
+
+            That is exactly what happened: the app vanished the instant Render
+            was tapped, on every Android 14 phone, and the next launch reported
+            "Render was interrupted before it finished".
+
+            "dataSync" has existed since API 29, so Android 10-14 use that and
+            Android 15+ can use the more accurate one. The plugin calls the
+            two-argument startForeground(), so the type comes from here.
+        -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="mediaProcessing"
+            android:foregroundServiceType="dataSync|mediaProcessing"
             android:stopWithTask="false"
             android:exported="false" />
 
