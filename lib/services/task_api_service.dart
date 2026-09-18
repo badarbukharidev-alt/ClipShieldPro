@@ -37,7 +37,7 @@ class TaskApiService {
       String.fromEnvironment('CLIPSHIELD_API_SECRET', defaultValue: '');
 
   /// Reported to the panel so you can see which build a device is on.
-  static const String appVersion = '1.2.17';
+  static const String appVersion = '1.2.18';
 
   static bool get isConfigured => apiSecret.length >= 32;
 

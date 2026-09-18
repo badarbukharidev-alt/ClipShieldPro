@@ -12,6 +12,7 @@ import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
 import '../services/license_service.dart';
 import '../services/render_job_service.dart';
+import '../services/build_identity.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import 'analysis_screen.dart';
@@ -1198,7 +1199,7 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(height: 14),
             _buildModeDetailCard(),
             _buildRenderBanner(),
-            _buildFreeVideosCard(),
+            if (!BuildIdentity.isResellerBuild) _buildFreeVideosCard(),
 
             const SizedBox(height: 24),
             _buildStatsRow(),
@@ -1287,7 +1288,8 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             _buildNavItem(0, Icons.home_filled, "Home"),
             _buildNavItem(1, Icons.video_collection_outlined, "Projects"),
-            _buildNavItem(3, Icons.card_giftcard_rounded, "Free", pulse: true),
+            if (!BuildIdentity.isResellerBuild)
+              _buildNavItem(3, Icons.card_giftcard_rounded, "Free", pulse: true),
             _buildNavItem(2, Icons.settings_outlined, "Settings"),
           ],
         ),
@@ -1505,7 +1507,7 @@ class _HomeScreenState extends State<HomeScreen>
     final Widget body = switch (_currentNavIndex) {
       1 => const ProjectsHistoryScreen(),
       2 => const SettingsScreen(),
-      3 => const TasksScreen(),
+      3 when !BuildIdentity.isResellerBuild => const TasksScreen(),
       _ => _buildDashboard(),
     };
 

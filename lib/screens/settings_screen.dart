@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'update_dialog.dart';
 import 'activation_dialog.dart';
 import 'admin_license_screen.dart';
+import 'reseller_key_screen.dart';
 import 'diagnostics_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -137,6 +138,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _openResellerKeys() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ResellerKeyScreen()),
+    );
+  }
+
   Future<void> _loadSettings() async {
     final gemini = await ProjectStorageService.getGeminiApiKey();
     final openRouter = await ProjectStorageService.getOpenRouterApiKey();
@@ -221,7 +229,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text("Settings", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
         centerTitle: false,
         actions: [
-          if (BuildIdentity.allowsInAppAdmin)
+          if (BuildIdentity.isResellerBuild)
+            IconButton(
+              tooltip: "Reseller keys",
+              icon: const Icon(Icons.vpn_key_outlined, color: AppColors.mut, size: 20),
+              onPressed: _openResellerKeys,
+            )
+          else if (BuildIdentity.allowsInAppAdmin)
             IconButton(
               tooltip: "Admin Access",
               icon: const Icon(Icons.shield_outlined, color: AppColors.mut, size: 20),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'tasks_screen.dart';
+import '../services/build_identity.dart';
 import '../services/license_service.dart';
 import '../theme/app_theme.dart';
 
@@ -365,7 +366,7 @@ class _ActivationDialogState extends State<ActivationDialog> {
               // renders, which is the moment they most need to know that free
               // ones are earnable -- and until now the only options on screen
               // were "buy a key" or "close".
-              if (!isPro) _buildEarnFreeCta(),
+              if (!isPro && !BuildIdentity.isResellerBuild) _buildEarnFreeCta(),
 
               const SizedBox(height: 20),
 
