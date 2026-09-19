@@ -356,10 +356,12 @@ class RenderJobService {
 
     // Held for the whole drain, not per job, so the process is never released
     // between two queued renders.
-    await RenderForegroundService.instance.start(
-      title: 'ClipShield is rendering',
-      text: 'Preparing render queue...',
-    );
+    try {
+      await RenderForegroundService.instance.start(
+        title: 'ClipShield is rendering',
+        text: 'Preparing render queue...',
+      );
+    } catch (_) {}
 
     try {
       while (_queue.isNotEmpty) {
@@ -633,6 +635,8 @@ class RenderJobService {
           preferHardwareEncoder: useHardware,
           hardwareBitrateKbps: hardwareBitrateFor(outW, outH, request.quality),
           subtitlePath: subtitlePath,
+          sourceAudioSampleRate: request.probeInfo.audioSampleRate,
+          sourceAudioChannels: request.probeInfo.audioChannels,
         );
 
         // 3. Render

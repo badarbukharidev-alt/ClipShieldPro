@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.19)
+# 🛡️ ClipShield Pro (v1.2.20)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.19-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.20-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.20.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.19.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)**
+📥 **[Download ClipShieldPro-v1.2.20.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.20.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.19.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.20.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.20.apk)
 > - [Download Reseller APK (Abrar)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/resellers/ClipShieldPro-abrar.apk)
 
 ---
@@ -101,6 +101,18 @@ uncompressed through the rewrite, because Android rejects an APK where it is not
 > a reseller build they must be *absent*, not hidden behind a flag that could be
 > flipped back. A test asserts that stamping or clearing the code cannot
 > re-enable them.
+
+---
+
+## 🛠️ What's New in v1.2.20
+
+### 🚀 Zero-Crash "Remove Copyright" & Resilient Multi-Device Engine (Infinix / Oppo / Vivo / Samsung)
+* **Android 14/15 Foreground Service Crash Neutralized**: Fixed invalid `mediaProcessing` service type in `AndroidManifest.xml` (which caused `IllegalArgumentException: The foreground service type 1025 is not valid in API 34` on Android 14 devices). Normalized to standard `dataSync` compatible across all Android versions (10–15).
+* **Native OEM Uncaught Exception Shield**: Implemented `Thread.setDefaultUncaughtExceptionHandler` in `MainActivity.kt` to catch and absorb any asynchronous background service or notification exceptions triggered by OEM battery managers (Infinix XOS, Oppo ColorOS, Vivo FuntouchOS, Samsung OneUI, Xiaomi HyperOS), preventing the OS from terminating the app.
+* **FFmpeg Native Memory & Thread Boundary Fix**: Enforced encoder thread throttling (`-threads 2-3`) across `TransformationPipeline`, `CodecNormalizationLayer`, and `SongRemoverPipeline`. Eliminated unconstrained thread allocation that previously exhausted C heap buffers on 8-core MediaTek Helio G85/G88/G99 chipsets, preventing kernel `SIGKILL` (LMKD).
+* **Muxing Queue Buffer Overflow Protection**: Added `-max_muxing_queue_size 2048` across all primary and fallback filtergraphs. Solves the `Too many packets buffered for output stream` error that caused "Render failed" errors during multi-layer audio/video processing.
+* **Audio Track Sample-Rate Synchronization**: Replaced fixed 44.1kHz asetrate multipliers with dynamic `sourceAudioSampleRate` detection, preventing audio-video desync and filtergraph failures on standard 48kHz YouTube and phone camera tracks.
+* **Defensive UI Exception Handling**: Protected `_startFullRender()` with structured error boundaries and responsive user notifications, guaranteeing the app never locks or auto-closes on tap.
 
 ---
 

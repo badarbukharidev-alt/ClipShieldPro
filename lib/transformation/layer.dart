@@ -22,6 +22,8 @@ class FilterContext {
   /// Absolute path to a generated .ass file to burn in, or null for no
   /// captions. Applied last in the chain so the blur layer cannot soften text.
   final String? subtitlePath;
+  final int sourceAudioSampleRate;
+  final int sourceAudioChannels;
 
   FilterContext({
     required this.sourceWidth,
@@ -36,6 +38,8 @@ class FilterContext {
     this.preferHardwareEncoder = false,
     this.hardwareBitrateKbps = 8000,
     this.subtitlePath,
+    this.sourceAudioSampleRate = 44100,
+    this.sourceAudioChannels = 2,
   });
 }
 

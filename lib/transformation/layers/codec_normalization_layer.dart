@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../layer.dart';
+import '../../services/device_capability_service.dart';
 
 class CodecNormalizationLayer extends TransformationLayer {
   final Random _random = Random();
@@ -98,11 +99,13 @@ class CodecNormalizationLayer extends TransformationLayer {
       );
     }
 
+    final int encThreads = DeviceCapabilityService.instance.encoderThreads;
     List<String> args = [
       "-c:v",
       "libx264",
       "-preset",
       preset,
+      if (encThreads > 0) ...["-threads", encThreads.toString()],
       "-crf",
       crf.toString(),
       "-pix_fmt",
@@ -111,6 +114,8 @@ class CodecNormalizationLayer extends TransformationLayer {
       gop.toString(),
       "-bf",
       bframes.toString(),
+      "-max_muxing_queue_size",
+      "2048",
       "-map_metadata",
       "-1",
       "-metadata",
@@ -127,12 +132,13 @@ class CodecNormalizationLayer extends TransformationLayer {
     return FilterResult(
       extraArgs: args,
       logMessage:
-          "Layer 9 applied: Metadata purged. Container normalized with $encoder profile (CRF $crf, GOP $gop, preset $preset).",
+          "Layer 9 applied: Metadata purged. Container normalized with $encoder profile (CRF $crf, GOP $gop, preset $preset, threads ${encThreads > 0 ? encThreads : 'auto'}).",
     );
   }
 
   @override
   FilterResult fallback(FilterContext context) {
+    final int encThreads = DeviceCapabilityService.instance.encoderThreads;
     return FilterResult(
       extraArgs: [
         "-c:v",
@@ -140,11 +146,13 @@ class CodecNormalizationLayer extends TransformationLayer {
         "-preset",
         "ultrafast",
         "-threads",
-        "0",
+        encThreads > 0 ? encThreads.toString() : "2",
         "-crf",
         "20",
         "-pix_fmt",
         "yuv420p",
+        "-max_muxing_queue_size",
+        "2048",
         if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
       ],
       logMessage: "Layer 9 fallback: Default H.264 profile applied.",

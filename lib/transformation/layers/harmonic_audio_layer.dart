@@ -42,14 +42,16 @@ class HarmonicAudioLayer extends TransformationLayer {
     final double semitones =
         customSemitones ?? signedJitter(_random, 0.4, 0.5 + (intensity * 1.0));
     final double factor = pow(2.0, semitones / 12.0).toDouble();
+    final int sampleRate =
+        context.sourceAudioSampleRate > 0 ? context.sourceAudioSampleRate : 44100;
 
     final String rateFilter =
-        "asetrate=r=44100*${factor.toStringAsFixed(5)},aformat=sample_rates=44100,atempo=${(1.0 / factor).toStringAsFixed(5)}";
+        "asetrate=r=$sampleRate*${factor.toStringAsFixed(5)},aformat=sample_rates=$sampleRate,atempo=${(1.0 / factor).toStringAsFixed(5)}";
 
     return FilterResult(
       audioFilters: [rateFilter],
       logMessage:
-          "Layer 1 applied: Pitch shifted by ${semitones.toStringAsFixed(2)} semitones (rate factor: ${factor.toStringAsFixed(3)}).",
+          "Layer 1 applied: Pitch shifted by ${semitones.toStringAsFixed(2)} semitones (rate factor: ${factor.toStringAsFixed(3)}, sampleRate: ${sampleRate}Hz).",
     );
   }
 
@@ -59,10 +61,12 @@ class HarmonicAudioLayer extends TransformationLayer {
     // fallback still performs a real pitch shift.
     final double semitones = signedJitter(_random, 0.4, 0.8);
     final double factor = pow(2.0, semitones / 12.0).toDouble();
+    final int sampleRate =
+        context.sourceAudioSampleRate > 0 ? context.sourceAudioSampleRate : 44100;
     return FilterResult(
       audioFilters: [
-        "asetrate=r=44100*${factor.toStringAsFixed(5)}",
-        "aformat=sample_rates=44100",
+        "asetrate=r=$sampleRate*${factor.toStringAsFixed(5)}",
+        "aformat=sample_rates=$sampleRate",
         "atempo=${(1.0 / factor).toStringAsFixed(5)}",
       ],
       logMessage:

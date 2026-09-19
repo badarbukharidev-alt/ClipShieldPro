@@ -145,58 +145,69 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final clip = ClipItem(
-      id: "transform_clip_${DateTime.now().millisecondsSinceEpoch}",
-      title: "Materially Transformed Asset",
-      duration: formatDuration(_probeInfo!.duration),
-      startTime: 0.0,
-      endTime: _probeInfo!.duration,
-      score: 95,
-      tag: "Shielded",
-      cropCoordinates: "${_probeInfo!.width}:${_probeInfo!.height}:0:0",
-    );
+    try {
+      final clip = ClipItem(
+        id: "transform_clip_${DateTime.now().millisecondsSinceEpoch}",
+        title: "Materially Transformed Asset",
+        duration: formatDuration(_probeInfo!.duration),
+        startTime: 0.0,
+        endTime: _probeInfo!.duration,
+        score: 95,
+        tag: "Shielded",
+        cropCoordinates: "${_probeInfo!.width}:${_probeInfo!.height}:0:0",
+      );
 
-    final project = ProjectItem(
-      id: "transform_proj_${DateTime.now().millisecondsSinceEpoch}",
-      mode: AppMode.transformAndProtect,
-      title: widget.sourceType == SourceType.youtubeUrl
-          ? "Protected Stream Export"
-          : _localVideoPath!.split('/').last.split('\\').last,
-      sourceUrlOrPath: _localVideoPath!,
-      sourceType: widget.sourceType,
-      clips: [clip],
-      preset: _selectedPreset,
-      aspectRatio: _aspectRatio,
-    );
-    if (widget.metadata != null) {
-      project.settings['sourceMeta'] = widget.metadata!.toMap();
-      project.title = widget.metadata!.title;
-    }
+      final project = ProjectItem(
+        id: "transform_proj_${DateTime.now().millisecondsSinceEpoch}",
+        mode: AppMode.transformAndProtect,
+        title: widget.sourceType == SourceType.youtubeUrl
+            ? "Protected Stream Export"
+            : _localVideoPath!.split('/').last.split('\\').last,
+        sourceUrlOrPath: _localVideoPath!,
+        sourceType: widget.sourceType,
+        clips: [clip],
+        preset: _selectedPreset,
+        aspectRatio: _aspectRatio,
+      );
+      if (widget.metadata != null) {
+        project.settings['sourceMeta'] = widget.metadata!.toMap();
+        project.title = widget.metadata!.title;
+      }
 
-    final projectId = await RenderJobService.instance.submit(
-      project: project,
-      sourceVideoPath: _localVideoPath!,
-      probeInfo: _probeInfo!,
-      clipsToRender: [clip],
-      pipeline: _pipeline,
-      aspectRatio: _aspectRatio,
-      enableSubjectTracking: false,
-      quality: _selectedPreset == PipelinePreset.advanced ? 'high' : 'balanced',
-    );
+      final projectId = await RenderJobService.instance.submit(
+        project: project,
+        sourceVideoPath: _localVideoPath!,
+        probeInfo: _probeInfo!,
+        clipsToRender: [clip],
+        pipeline: _pipeline,
+        aspectRatio: _aspectRatio,
+        enableSubjectTracking: false,
+        quality: _selectedPreset == PipelinePreset.advanced ? 'high' : 'balanced',
+      );
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProcessingScreen(
-          projectId: projectId,
-          mode: project.mode,
-          title: project.title,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProcessingScreen(
+            projectId: projectId,
+            mode: project.mode,
+            title: project.title,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text("Failed to begin rendering: $e"),
+        ),
+      );
+    }
   }
 
   @override

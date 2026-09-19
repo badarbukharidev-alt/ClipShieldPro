@@ -11,6 +11,25 @@ class MainActivity : FlutterActivity() {
     private val channelName = "com.clipshield/device"
     private val mediaChannelName = "com.clipshield/media"
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            val message = throwable.message ?: ""
+            val stack = android.util.Log.getStackTraceString(throwable)
+            if (stack.contains("flutter_foreground_task") ||
+                throwable is android.app.ForegroundServiceStartNotAllowedException ||
+                message.contains("ForegroundService") ||
+                message.contains("MissingForegroundServiceTypeException") ||
+                message.contains("Bad notification for startForeground")
+            ) {
+                android.util.Log.w("MainActivity", "Safely absorbed foreground task exception to protect app stability", throwable)
+            } else {
+                defaultHandler?.uncaughtException(thread, throwable)
+            }
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 

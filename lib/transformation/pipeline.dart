@@ -212,8 +212,10 @@ class TransformationPipeline {
     logCallback("Resilient video chain: $vfString");
 
     if (context.hasAudio && afList.isNotEmpty) {
+      final int sampleRate =
+          context.sourceAudioSampleRate > 0 ? context.sourceAudioSampleRate : 44100;
       final afString =
-          "aformat=sample_rates=44100:channel_layouts=stereo,${afList.join(',')}";
+          "aformat=sample_rates=$sampleRate:channel_layouts=stereo,${afList.join(',')}";
       logCallback("Resilient audio chain: $afString");
       args.addAll([
         "-filter_complex",
@@ -237,18 +239,16 @@ class TransformationPipeline {
       "libx264",
       "-preset",
       "ultrafast",
+      "-threads",
+      "${DeviceCapabilityService.instance.encoderThreads}",
       "-crf",
       "23",
       "-pix_fmt",
       "yuv420p",
       "-bf",
       "2",
-      // Bounded rather than left to grow. The default lets FFmpeg buffer an
-      // unlimited number of packets when one stream runs ahead of the other,
-      // which on a long source is a steady climb straight into the heap
-      // ceiling.
       "-max_muxing_queue_size",
-      DeviceCapabilityService.instance.isLowEnd ? "256" : "1024",
+      "2048",
       "-map_metadata",
       "-1",
       if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
@@ -326,9 +326,11 @@ class TransformationPipeline {
     }
 
     if (context.hasAudio) {
+      final int sampleRate =
+          context.sourceAudioSampleRate > 0 ? context.sourceAudioSampleRate : 44100;
       final afString = afList.isNotEmpty
-          ? "aformat=sample_rates=44100:channel_layouts=stereo,${afList.join(',')}"
-          : "aformat=sample_rates=44100:channel_layouts=stereo";
+          ? "aformat=sample_rates=$sampleRate:channel_layouts=stereo,${afList.join(',')}"
+          : "aformat=sample_rates=$sampleRate:channel_layouts=stereo";
 
       final filterComplex =
           "[0:v]$vfString[vout];"
@@ -349,6 +351,10 @@ class TransformationPipeline {
         "-map",
         "[vout]",
       ]);
+    }
+
+    if (!extraArgs.contains("-max_muxing_queue_size")) {
+      args.addAll(["-max_muxing_queue_size", "2048"]);
     }
 
     args.addAll(extraArgs);

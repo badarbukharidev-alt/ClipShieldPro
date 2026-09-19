@@ -1,4 +1,5 @@
 import '../models/audio_dsp_config.dart';
+import '../services/device_capability_service.dart';
 
 /// Pipeline for Songs Remover module.
 /// Builds FFmpeg args for: audio DSP processing + image-to-video composition.
@@ -211,7 +212,7 @@ class SongRemoverPipeline {
 
     return [
       "-y",
-      "-threads", "0",
+      "-threads", "${DeviceCapabilityService.instance.encoderThreads}",
       "-framerate", "1",
       "-loop", "1",
       "-i", imagePath,
@@ -220,6 +221,8 @@ class SongRemoverPipeline {
       "-c:v", "libx264",
       "-tune", "stillimage",
       "-preset", "ultrafast",
+      "-threads", "${DeviceCapabilityService.instance.encoderThreads}",
+      "-max_muxing_queue_size", "2048",
       "-r", "1",
       "-c:a", "copy",
       "-shortest",
