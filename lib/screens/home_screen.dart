@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Reconciles task credits with the server; a no-op when offline.
     unawaited(LicenseService.instance.syncBonusCredits().then((_) {
       if (mounted) setState(() {});
-    }));
+    }).catchError((_) {}));
 
     final stats = await ProjectStorageService.getStats();
     final projects = await ProjectStorageService.loadProjects();

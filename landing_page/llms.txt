@@ -1,0 +1,37 @@
+# ClipShield Pro — Copyright Remover & Audio DSP Suite
+
+> ClipShield Pro is a desktop and mobile YouTube copyright claim removal software and AI video processor. It provides a 12-layer non-destructive perturbation matrix that modifies visual geometries, chromatic vectors, and acoustic spectrograms to bypass YouTube Content ID and Facebook Copyright Match tools without manual editing or loss of perceptible media quality.
+
+## Core Modules & Capabilities
+
+- **16:9 Long Video Copyright Remover**: Preserves native widescreen dimensions while injecting 12-layer signed micro-perturbations across spatial geometry, hue/chroma vectors, and audio spectrums.
+- **AI Long Video to Viral Shorts**: Transcribes long-form audio via cloud APIs (Groq Llama-3.1-8B, Cerebras fallback), selects peak engagement hooks, and dynamically reframes 16:9 into 9:16 vertical videos using OpenCV Haar Cascade facial tracking.
+- **Songs Remover & Audio DSP Studio**: Standalone audio processing engine equipped with 5-band parametric EQ, pitch shifting (±0.5–1%), tempo warping (±1–2%), stereo phase panning, dynamic range compression, micro-reverb tail injection, and ITU-R BS.1770 loudness normalization.
+
+## 9-Layer Protection Pipeline Breakdown
+
+1. **Audio Pitch Shift**: Dynamically shifts vocal and acoustic harmonics by -1.5 to +1.5 semitones (`asetrate=44100*f,aresample=44100`).
+2. **5-Band Parametric Equalizer**: Shifts gain curves at 80Hz, 400Hz, 2kHz, 8kHz, and 15kHz to break acoustic fingerprints.
+3. **Stereo Phase Delay**: Generates micro-second time-arrival offsets between left and right channels (`adelay`).
+4. **Sub-Pixel Edge Crop**: Trims 1–3 boundary pixels on randomized borders to displace bounding box hashes (`crop`).
+5. **Visual Rescaling**: Bicubic frame interpolation restoring target dimensions (1080x1920 or 1920x1080).
+6. **Hue & Saturation Perturbation**: Shifts color degrees and saturation vectors to disrupt standard color histogram matching.
+7. **Gamma & Contrast Defense**: Fine-tunes luminance transfer curves and midtone contrast.
+8. **Inaudible Spectrogram Noise Floor**: Blends ultra-low amplitude white noise (`anoisesrc`) at -68dB to erase residual acoustic stamps.
+9. **Metadata & NLE Footprint Spoofing**: Strips existing camera/source markers and injects professional NLE metadata signatures (Adobe Premiere, CapCut, iMovie).
+
+## Technical Architecture
+
+- **Runtime**: Flutter 3.x (Mobile Android) & Python 3.12+ / PyWebView Core (Desktop Windows).
+- **Video & Audio Processing**: Local FFmpeg & FFprobe engines (`libx264`, `aac`, `faststart`).
+- **Computer Vision**: OpenCV (`cv2`) Haar Cascade facial centroid coordinate model.
+- **Inference Engines**: Groq Cloud Llama-3.1-8B Instant with Cerebras 120B fallback.
+- **Execution Mode**: 100% on-device local execution; zero confidential media uploaded to third-party cloud servers.
+
+## Official Resources & Downloads
+
+- **Official Website**: https://clipshieldpro.toolsfinity.io/
+- **Windows Desktop Software**: https://docs.google.com/document/d/1Y4dAxV-JO_scOKUW_2gXk5Mv4c59nQQvOBETKpCALF0/edit?tab=t.0
+- **Android Mobile APK**: https://docs.google.com/document/d/1dKX0N3qHkH0KqHyJw3_BD701n7aXsR-MwdOc_1jjB4U/edit?tab=t.0
+- **Video Walkthrough & Demo**: https://youtu.be/9tmoZPbgD84
+- **Support & WhatsApp Channel**: https://whatsapp.com/channel/0029VbD0TwiFy72GJkpVaA20

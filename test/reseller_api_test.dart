@@ -58,6 +58,25 @@ void main() {
     });
   });
 
+  group('quotas survive the app being closed', () {
+    // The bug this covers: quotas arrived only as a side effect of login or
+    // generate. A token outlives the app, so on reopen the reseller was signed
+    // in with no numbers -- every tier read "0 left" and Generate was disabled.
+    test('there is a way to ask for quotas on their own', () {
+      expect(ResellerApiService.instance.fetchQuotas, isA<Function>(),
+          reason: 'without a standalone fetch, a restored session has no '
+              'allowance to show');
+    });
+
+    test('fetching with no session asks for re-auth rather than hanging',
+        () async {
+      final result = await ResellerApiService.instance.fetchQuotas();
+
+      expect(result.ok, isFalse);
+      expect(result.error, 'reauth_required');
+    });
+  });
+
   group('availability', () {
     test('the desk is unavailable without a reseller build and a secret', () {
       // In a plain test run there is no reseller code and no API secret, so the

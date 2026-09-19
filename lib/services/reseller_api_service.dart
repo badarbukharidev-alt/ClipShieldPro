@@ -191,6 +191,40 @@ class ResellerApiService {
     return ResellerResult(ok: true, quotas: ResellerQuotas.fromMap(res['quotas']));
   }
 
+  /// Current allowance for the stored token.
+  ///
+  /// The token outlives the app being closed, so on reopen the phone is signed
+  /// in but holds no numbers. Without this the screen showed every tier as zero
+  /// and refused to generate -- it only ever had quotas as a side effect of
+  /// logging in or generating.
+  Future<ResellerResult> fetchQuotas() async {
+    if (!isLoggedIn) {
+      return const ResellerResult(ok: false, error: 'reauth_required');
+    }
+
+    final res = await _post('reseller.quotas', _code, {'token': _token});
+
+    if (res == null) {
+      return const ResellerResult(ok: false, error: 'network');
+    }
+
+    if (res['error'] == 'reauth_required') {
+      await logout();
+      return const ResellerResult(ok: false, error: 'reauth_required');
+    }
+
+    if (res['ok'] != true) {
+      return ResellerResult(ok: false, error: res['error'] as String? ?? 'unknown');
+    }
+
+    final name = res['display_name'] as String?;
+    if (name != null && name.isNotEmpty) {
+      _displayName = name;
+    }
+
+    return ResellerResult(ok: true, quotas: ResellerQuotas.fromMap(res['quotas']));
+  }
+
   /// Generates one key against the reseller's allowance.
   ///
   /// Returns fresh quotas in the result, so the screen stays current without a

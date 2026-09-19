@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.16)
+# 🛡️ ClipShield Pro (v1.2.19)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.16-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.19-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,12 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.16.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)**
+📥 **[Download ClipShieldPro-v1.2.19.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.16.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.16.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.19.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.19.apk)
+> - [Download Reseller APK (Abrar)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/resellers/ClipShieldPro-abrar.apk)
 
 ---
 
@@ -100,6 +101,18 @@ uncompressed through the rewrite, because Android rejects an APK where it is not
 > a reseller build they must be *absent*, not hidden behind a flag that could be
 > flipped back. A test asserts that stamping or clearing the code cannot
 > re-enable them.
+
+---
+
+## 🛠️ What's New in v1.2.19
+
+### 🛡️ Universal Device Compatibility & Zero-Crash Shield
+* **Bulletproof Startup (`runZonedGuarded` + `PlatformDispatcher.onError`)**: All asynchronous core subsystems (`BuildIdentity`, `DeviceCapabilityService`, `RemoteConfigService`, `UpdateService`, `LicenseService`, `RenderJobService`) are safely wrapped in isolated fallback blocks. Unhandled platform-level and asynchronous exceptions are caught and suppressed, preventing Android OS from terminating the application on launch.
+* **Native Monochromatic Notification Icon (`ic_notification.xml`)**: Added standard monochrome vector drawable to prevent `RemoteServiceException: Bad notification for startForeground` crashes across Oppo (ColorOS), Realme UI, Vivo (FuntouchOS/OriginOS), Xiaomi (HyperOS/MIUI), and Samsung (OneUI).
+* **Asynchronous Exception Isolation**: Attached safe `.catchError()` handlers across all unawaited background futures (`syncBonusCredits`, balance sync, remote telemetry), guaranteeing network timeouts or offline boots never kill the app in release mode.
+* **Android 14 & 15 (API 34/35) Foreground Service Compliance**: Enhanced service declarations (`dataSync|mediaProcessing`) and runtime permissions (`POST_NOTIFICATIONS`) to ensure background rendering completes seamlessly without being killed by OEM power managers.
+* **Graceful UI Recovery (`ErrorWidget.builder`)**: Substituted raw red error screens with a friendly, branded error boundary so users can continue operating the app even if an individual widget encounters layout constraints.
+* **SEO & Web Landing Page Refresh**: Updated landing page at `https://clipshieldpro.toolsfinity.io/` with metadata, `llms.txt`, `robots.txt`, and `sitemap.xml`.
 
 ---
 

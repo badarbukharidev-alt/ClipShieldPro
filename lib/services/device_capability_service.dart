@@ -163,10 +163,12 @@ class DeviceCapabilityService {
 
   /// Applies the cache ceiling. Called once at startup.
   void applyImageCacheLimit() {
-    PaintingBinding.instance.imageCache.maximumSizeBytes = imageCacheBytes;
-    // A count cap as well: many small images can be as damaging as a few large
-    // ones, and the byte cap alone does not bound the entry count.
-    PaintingBinding.instance.imageCache.maximumSize = isLowEnd ? 60 : 200;
+    try {
+      PaintingBinding.instance.imageCache.maximumSizeBytes = imageCacheBytes;
+      // A count cap as well: many small images can be as damaging as a few large
+      // ones, and the byte cap alone does not bound the entry count.
+      PaintingBinding.instance.imageCache.maximumSize = isLowEnd ? 60 : 200;
+    } catch (_) {}
   }
 
   /// One line for the diagnostics screen and for bug reports.

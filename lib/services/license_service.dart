@@ -422,7 +422,7 @@ class LicenseService {
       _bonusUsed += 1;
       await prefs.setInt(_keyBonusUsed, _bonusUsed);
       // Report the spend so a reinstall cannot forget it.
-      unawaited(syncBonusCredits());
+      unawaited(syncBonusCredits().catchError((_) {}));
     }
   }
 
@@ -431,12 +431,14 @@ class LicenseService {
   /// Silently does nothing when the API is unconfigured or unreachable, so the
   /// app keeps working fully offline with whatever credits it already has.
   Future<void> syncBonusCredits() async {
-    if (!TaskApiService.isConfigured) return;
+    try {
+      if (!TaskApiService.isConfigured) return;
 
-    final balance = await TaskApiService.instance.syncBalance(creditsUsed: _bonusUsed);
-    if (balance == null) return;
+      final balance = await TaskApiService.instance.syncBalance(creditsUsed: _bonusUsed);
+      if (balance == null) return;
 
-    await applyBonusBalance(balance.earned, balance.used);
+      await applyBonusBalance(balance.earned, balance.used);
+    } catch (_) {}
   }
 
   /// Writes a server-provided balance into local cache.

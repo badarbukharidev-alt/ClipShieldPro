@@ -70,6 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
           Permission.audio,
           Permission.photos,
           Permission.storage,
+          Permission.notification,
         ].request();
       }
     } catch (_) {}

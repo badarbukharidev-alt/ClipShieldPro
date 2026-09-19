@@ -34,6 +34,7 @@ class _ResellerKeyScreenState extends State<ResellerKeyScreen> {
 
   ResellerQuotas? _quotas;
   bool _busy = false;
+  bool _loadingQuotas = false;
   String? _generatedKey;
   String? _generatedInfo;
 
@@ -45,11 +46,37 @@ class _ResellerKeyScreenState extends State<ResellerKeyScreen> {
 
   Future<void> _restore() async {
     await _api.loadSession();
+
     // Prefill the device field with this phone's own id, so a reseller
     // activating on the customer's handset in front of them need not retype it.
     final device = await _api.currentDeviceId();
     if (!mounted) return;
     setState(() => _deviceController.text = device);
+
+    // A stored token survives the app closing, so on reopen we are signed in
+    // with no allowance loaded. Without this the screen showed every tier as
+    // "0 left" and disabled Generate.
+    if (_api.isLoggedIn) await _refreshQuotas();
+  }
+
+  Future<void> _refreshQuotas() async {
+    setState(() => _loadingQuotas = true);
+    final result = await _api.fetchQuotas();
+    if (!mounted) return;
+
+    setState(() {
+      _loadingQuotas = false;
+      if (result.ok) _quotas = result.quotas;
+    });
+
+    if (!result.ok) {
+      if (result.error == 'reauth_required') {
+        // Token expired: fall back to the login form rather than showing a
+        // generator that cannot generate.
+        setState(() => _quotas = null);
+      }
+      _toast(_explain(result.error), error: true);
+    }
   }
 
   @override
@@ -113,6 +140,7 @@ class _ResellerKeyScreenState extends State<ResellerKeyScreen> {
     await _api.logout();
     if (!mounted) return;
     setState(() {
+      _loadingQuotas = false;
       _quotas = null;
       _generatedKey = null;
       _generatedInfo = null;
@@ -274,10 +302,33 @@ class _ResellerKeyScreenState extends State<ResellerKeyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('YOUR ALLOWANCE',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('YOUR ALLOWANCE',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1)),
+                  if (_loadingQuotas)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.mut),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: _refreshQuotas,
+                      child: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.mut),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
-              for (final tier in ResellerTier.values) _quotaRow(tier, q?.of(tier) ?? 0),
+              if (q == null && _loadingQuotas)
+                const Text('Loading your allowance...',
+                    style: TextStyle(fontSize: 13, color: AppColors.mut))
+              else if (q == null)
+                const Text('Could not load your allowance. Tap refresh.',
+                    style: TextStyle(fontSize: 13, color: AppColors.error))
+              else
+                for (final tier in ResellerTier.values) _quotaRow(tier, q.of(tier)),
             ],
           ),
         ),
@@ -332,9 +383,14 @@ class _ResellerKeyScreenState extends State<ResellerKeyScreen> {
               const SizedBox(height: 16),
               _primaryButton(
                 _busy ? 'Generating...' : 'Generate key',
-                (_busy || (q?.of(_tier) ?? 0) <= 0) ? null : _generate,
+                // Only blocked on a *known* zero. An allowance that has not
+                // loaded yet is unknown, not empty -- the server enforces the
+                // real limit either way.
+                (_busy || _loadingQuotas || (q != null && q.of(_tier) <= 0))
+                    ? null
+                    : _generate,
               ),
-              if ((q?.of(_tier) ?? 0) <= 0)
+              if (q != null && q.of(_tier) <= 0)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text('No keys of this type left in your allowance.',

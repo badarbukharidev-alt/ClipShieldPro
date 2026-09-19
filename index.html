@@ -467,7 +467,7 @@
     .launch-btn {
       width: 100%;
       border: none;
-      background: var(--accent-tangerine);
+      background: var(--accent-grape);
       color: #FFFFFF;
       border-radius: var(--radius-md);
       padding: 15px;
@@ -479,8 +479,8 @@
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      box-shadow: var(--shadow-accent);
-      transition: transform 0.15s, background 0.2s;
+      box-shadow: 0 8px 20px rgba(124, 92, 255, 0.35);
+      transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
     }
 
     .launch-btn:active {
@@ -791,11 +791,11 @@
       <div class="modes-container">
         <div class="card-label">
           <span>Choose Action</span>
-          <span id="activeModeLabel" style="color: var(--accent-tangerine);">16:9 Copyright Remover</span>
+          <span id="activeModeLabel" style="color: var(--accent-grape);">16:9 Copyright Remover</span>
         </div>
 
         <div class="modes-tabs">
-          <button class="mode-tab-btn active mode-orange" id="tab-transform" onclick="selectMode('transform')">
+          <button class="mode-tab-btn active mode-grape" id="tab-transform" onclick="selectMode('transform')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2L4 5V11C4 16.5 7.5 21.2 12 22C16.5 21.2 20 16.5 20 11V5L12 2Z"/>
             </svg>
@@ -821,7 +821,7 @@
         <div class="mode-detail-card" id="modeDetailCard">
           <div class="mode-detail-header">
             <div>
-              <span class="mode-badge-pill pill-orange" id="modeBadge">16:9 Widescreen Stream</span>
+              <span class="mode-badge-pill pill-grape" id="modeBadge">16:9 Widescreen Stream</span>
               <div class="mode-detail-title" id="modeTitle">Long Video Copyright Remover</div>
             </div>
           </div>
@@ -841,7 +841,7 @@
           </div>
 
           <!-- Direct Execution Button -->
-          <button class="launch-btn" id="launchBtn" onclick="triggerExecution()">
+          <button class="launch-btn" id="launchBtn" onclick="triggerExecution()" style="background: var(--accent-grape); box-shadow: 0 8px 20px rgba(124, 92, 255, 0.35);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -879,7 +879,7 @@
           <!-- Card 1 -->
           <div class="project-card-mini" onclick="showToast('Opening Completed Project: Huberman_Lab_Focus')">
             <div class="project-card-thumb">
-              <span class="thumb-badge" style="background: var(--accent-tangerine);">16:9 WIDE</span>
+              <span class="thumb-badge" style="background: var(--accent-grape);">16:9 WIDE</span>
               <span class="thumb-dur">12:40</span>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" opacity="0.85"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -892,7 +892,7 @@
           <!-- Card 2 -->
           <div class="project-card-mini" onclick="showToast('Opening Completed Shorts: Lex_Fridman_AI')">
             <div class="project-card-thumb">
-              <span class="thumb-badge" style="background: var(--accent-grape);">9:16 SHORTS</span>
+              <span class="thumb-badge" style="background: var(--accent-tangerine);">9:16 SHORTS</span>
               <span class="thumb-dur">0:58</span>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" opacity="0.85"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -978,22 +978,22 @@
       transform: {
         label: "16:9 Copyright Remover",
         badge: "16:9 Widescreen Stream",
-        badgeClass: "pill-orange",
+        badgeClass: "pill-grape",
         title: "Long Video Copyright Remover",
         desc: "Preserves native 16:9 widescreen canvas while passing through 12-layer geometric, chromatic, and acoustic signed-jitter perturbation.",
         btnText: "Start Copyright Protection",
-        btnColor: "var(--accent-tangerine)",
-        activeClass: "mode-orange"
+        btnColor: "var(--accent-grape)",
+        activeClass: "mode-grape"
       },
       shorts: {
         label: "Long Video → Shorts",
         badge: "9:16 Vertical AI Clipper",
-        badgeClass: "pill-grape",
+        badgeClass: "pill-orange",
         title: "Long Video to Shorts (AI)",
         desc: "Extracts high-retention viral clips from full videos using automated transcript hooks and facial centroid subject tracking.",
         btnText: "Extract Viral Shorts",
-        btnColor: "var(--accent-grape)",
-        activeClass: "mode-grape"
+        btnColor: "var(--accent-tangerine)",
+        activeClass: "mode-orange"
       },
       songs: {
         label: "Songs Remover & DSP",
