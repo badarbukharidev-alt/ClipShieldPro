@@ -21,12 +21,15 @@ class UpdateDialog extends StatefulWidget {
   /// Shows the dialog if one is not already up. Returns once it closes.
   ///
   /// A mandatory update is not dismissible: no barrier tap, no back button.
-  static Future<void> show(BuildContext context, AppUpdate update) {
-    return showDialog<void>(
+  static Future<void> show(BuildContext context, AppUpdate update) async {
+    await showDialog<void>(
       context: context,
       barrierDismissible: !update.mandatory,
       builder: (_) => UpdateDialog(update: update),
     );
+    if (!update.mandatory) {
+      await UpdateService.instance.skipCurrent();
+    }
   }
 
   @override
@@ -125,9 +128,10 @@ class _UpdateDialogState extends State<UpdateDialog>
     if (!mounted) return;
 
     if (failure == null) {
-      // The system installer is now in front; leaving the dialog up behind it
-      // would greet the user again when they come back.
-      Navigator.of(context).pop();
+      // The system installer is now in front; record skip for this version so
+      // returning to the app never re-prompts for what was just installed.
+      await UpdateService.instance.skipCurrent();
+      if (mounted) Navigator.of(context).pop();
       return;
     }
 

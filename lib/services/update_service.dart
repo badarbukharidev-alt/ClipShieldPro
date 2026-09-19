@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -50,7 +51,7 @@ class UpdateService {
     try {
       final info = await PackageInfo.fromPlatform();
       _currentCode = int.tryParse(info.buildNumber) ?? 0;
-      _currentName = info.version;
+      _currentName = info.version.trim();
     } catch (_) {
       // Tests and any platform without the plugin: a zero current code would
       // make every advertised release look newer, so treat it as unknown and
@@ -107,7 +108,54 @@ class UpdateService {
     final update = latest.value;
     if (update == null || _currentCode <= 0) return false;
 
-    return update.versionCode > _currentCode;
+    // 1. The advertised versionCode must be strictly higher than current build.
+    if (update.versionCode <= _currentCode) return false;
+
+    // 2. If version names are known, the advertised version name must NOT be
+    // equal to or older than the currently installed version name.
+    // A user already running "1.2.19" must NEVER be offered "1.2.19" again.
+    if (_currentName.isNotEmpty && update.versionName.isNotEmpty) {
+      if (compareSemVer(update.versionName, _currentName) <= 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// Compares two semantic version strings, e.g. "1.2.19" vs "1.2.18".
+  /// Returns:
+  ///   > 0 if a > b
+  ///   < 0 if a < b
+  ///   0 if a == b
+  static int compareSemVer(String a, String b) {
+    String clean(String v) {
+      v = v.trim().toLowerCase();
+      if (v.startsWith('v')) v = v.substring(1).trim();
+      if (v.contains('+')) v = v.split('+')[0].trim();
+      if (v.contains('-')) v = v.split('-')[0].trim();
+      return v;
+    }
+
+    final cleanA = clean(a);
+    final cleanB = clean(b);
+
+    if (cleanA.isEmpty && cleanB.isEmpty) return 0;
+    if (cleanA.isEmpty) return -1;
+    if (cleanB.isEmpty) return 1;
+
+    final partsA = cleanA.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final partsB = cleanB.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+
+    final maxLen = math.max(partsA.length, partsB.length);
+    for (int i = 0; i < maxLen; i++) {
+      final valA = i < partsA.length ? partsA[i] : 0;
+      final valB = i < partsB.length ? partsB[i] : 0;
+      if (valA != valB) {
+        return valA.compareTo(valB);
+      }
+    }
+    return 0;
   }
 
   /// Whether to put the dialog in front of the user right now. A skipped

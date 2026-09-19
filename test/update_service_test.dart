@@ -69,6 +69,22 @@ void main() {
 
       expect(service.isUpdateAvailable, isFalse);
     });
+
+    test('does not offer an update if installed version name matches or is newer', () async {
+      service.debugSetCurrent(13, '1.2.19');
+      await service.applyFromApi(announcement(code: 25, name: '1.2.19'));
+
+      expect(service.isUpdateAvailable, isFalse);
+      expect(service.shouldPrompt, isFalse);
+    });
+
+    test('does not offer an update if installed version name is higher than announcement', () async {
+      service.debugSetCurrent(13, '1.2.20');
+      await service.applyFromApi(announcement(code: 25, name: '1.2.19'));
+
+      expect(service.isUpdateAvailable, isFalse);
+      expect(service.shouldPrompt, isFalse);
+    });
   });
 
   group('rejecting announcements that should never reach a user', () {
