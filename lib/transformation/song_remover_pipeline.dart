@@ -205,10 +205,27 @@ class SongRemoverPipeline {
     required bool isWidescreen, // true = 16:9, false = 9:16
     required Function(String) logCallback,
   }) {
-    final int w = isWidescreen ? 1920 : 1080;
-    final int h = isWidescreen ? 1080 : 1920;
+    final int ceiling = DeviceCapabilityService.instance.maxOutputHeight; // 720 on low-tier, 1080 on mid/high
+    final int w;
+    final int h;
 
-    logCallback("Composing cover image (${w}x$h) + audio → video...");
+    if (isWidescreen) {
+      // 16:9 widescreen: height is the short edge
+      final int targetH = ceiling.clamp(360, 1080);
+      int targetW = (targetH * 16 / 9).round();
+      if (targetW.isOdd) targetW -= 1;
+      w = targetW;
+      h = targetH.isOdd ? targetH - 1 : targetH;
+    } else {
+      // 9:16 vertical: width is the short edge, capped by ceiling
+      final int targetW = ceiling.clamp(360, 1080);
+      int targetH = (targetW * 16 / 9).round();
+      if (targetH.isOdd) targetH -= 1;
+      w = targetW.isOdd ? targetW - 1 : targetW;
+      h = targetH;
+    }
+
+    logCallback("Composing cover image (${w}x$h, ceiling: ${ceiling}p) + audio → video...");
 
     return [
       "-y",

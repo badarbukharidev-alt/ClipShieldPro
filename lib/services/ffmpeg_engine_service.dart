@@ -8,6 +8,7 @@ import '../transformation/layer.dart';
 import 'media_probe_service.dart';
 import '../transformation/song_remover_pipeline.dart';
 import '../models/audio_dsp_config.dart';
+import 'device_capability_service.dart';
 
 class FfmpegEngineService {
   /// Executes a single video transformation render.
@@ -97,7 +98,25 @@ class FfmpegEngineService {
         context: context,
         logCallback: logCallback,
       );
-      final fallbackSession = await FFmpegKit.executeWithArguments(fallbackArgs);
+      final fallbackCompleter = Completer<Session>();
+      await FFmpegKit.executeWithArgumentsAsync(
+        fallbackArgs,
+        (s) => fallbackCompleter.complete(s),
+        (log) {
+          final message = log.getMessage();
+          if (message.isNotEmpty && (message.contains("Error") || message.contains("failed"))) {
+            logCallback("FFmpeg Fallback: $message");
+          }
+        },
+        (stats) {
+          final timeMs = stats.getTime();
+          if (timeMs > 0 && clipDuration > 0) {
+            final double p = (timeMs / 1000.0 / clipDuration).clamp(0.0, 0.98);
+            onProgress(0.85 + (p * 0.09), "Fallback: ${(p * 100).toInt()}%");
+          }
+        },
+      );
+      final fallbackSession = await fallbackCompleter.future;
       final fbCode = await fallbackSession.getReturnCode();
 
       final bool fbFileValid = await outputFile.exists() && await outputFile.length() > 1024;
@@ -120,7 +139,8 @@ class FfmpegEngineService {
     logCallback("Clip generated and verified: ${path.basename(outputPath)}");
   }
 
-  /// Generates a fast 5-second preview segment using the exact same transformation pipeline.
+  /// Generates a fast, lightweight 5-second preview segment.
+  /// Uses tier-capped resolution, -preset ultrafast, max 2 threads, and async execution.
   Future<String> generatePreviewSegment({
     required String inputPath,
     required String previewOutputPath,
@@ -131,20 +151,45 @@ class FfmpegEngineService {
   }) async {
     final double start = previewStartTime;
     final double end = previewStartTime + 5.0; // 5-second preview
+    final double duration = end - start;
+
+    final capabilities = DeviceCapabilityService.instance;
+    final int tierCeiling = capabilities.maxOutputHeight; // e.g. 720 on low-tier, 1080 on mid/high
+    final int threads = capabilities.isLowEnd ? 1 : 2;
+
+    // Calculate capped preview dimensions preserving aspect ratio
+    int prevW = context.targetWidth;
+    int prevH = context.targetHeight;
+    if (prevH > tierCeiling || prevW > tierCeiling) {
+      if (prevH >= prevW) {
+        // Portrait / 9:16 or tall
+        prevW = (prevW * tierCeiling / prevH).round();
+        prevH = tierCeiling;
+      } else {
+        // Landscape / 16:9 or wide
+        prevH = (prevH * tierCeiling / prevW).round();
+        prevW = tierCeiling;
+      }
+      if (prevW.isOdd) prevW -= 1;
+      if (prevH.isOdd) prevH -= 1;
+    }
 
     final previewContext = FilterContext(
       sourceWidth: context.sourceWidth,
       sourceHeight: context.sourceHeight,
-      duration: 5.0,
+      duration: duration,
       hasAudio: context.hasAudio,
       quality: 'fast',
-      targetWidth: context.targetWidth,
-      targetHeight: context.targetHeight,
+      targetWidth: prevW,
+      targetHeight: prevH,
       cropCoordinates: context.cropCoordinates,
+      sourceAudioSampleRate: context.sourceAudioSampleRate,
+      sourceAudioChannels: context.sourceAudioChannels,
       isPreview: true,
     );
 
-    final args = pipeline.buildFfmpegArgs(
+    // Fast preview args: single pass, ultrafast, max 2 threads, async
+    final args = pipeline.buildResilientArgs(
       inputPath: inputPath,
       outputPath: previewOutputPath,
       start: start,
@@ -153,18 +198,39 @@ class FfmpegEngineService {
       logCallback: logCallback,
     );
 
-    logCallback("Generating preview segment (5s)...");
-    final session = await FFmpegKit.executeWithArguments(args);
+    // Enforce threads and preset bounds in preview args
+    final int threadIdx = args.indexOf("-threads");
+    if (threadIdx >= 0 && threadIdx + 1 < args.length) {
+      args[threadIdx + 1] = "$threads";
+    }
+
+    logCallback("Generating lightweight preview segment (5s, ${prevW}x$prevH, $threads threads)...");
+    final completer = Completer<Session>();
+    await FFmpegKit.executeWithArgumentsAsync(
+      args,
+      (s) => completer.complete(s),
+      (log) {
+        final msg = log.getMessage();
+        if (msg.isNotEmpty && (msg.contains("Error") || msg.contains("failed"))) {
+          logCallback("FFmpeg Preview: $msg");
+        }
+      },
+      (stats) {},
+    );
+
+    final session = await completer.future;
     final returnCode = await session.getReturnCode();
 
     if (returnCode == null || !returnCode.isValueSuccess()) {
+      final logs = await session.getLogsAsString();
+      logCallback("Preview generation failed ($returnCode): $logs");
       throw Exception("Preview generation failed.");
     }
 
     return previewOutputPath;
   }
 
-  /// Generates high-definition thumbnail poster.
+  /// Generates high-definition thumbnail poster asynchronously without blocking main thread.
   Future<String> extractThumbnail({
     required String videoPath,
     required String thumbnailPath,
@@ -175,6 +241,8 @@ class FfmpegEngineService {
 
     final args = [
       "-y",
+      "-threads",
+      "${DeviceCapabilityService.instance.encoderThreads}",
       "-ss",
       targetTime.toStringAsFixed(3),
       "-i",
@@ -188,7 +256,15 @@ class FfmpegEngineService {
       thumbnailPath,
     ];
 
-    final session = await FFmpegKit.executeWithArguments(args);
+    final completer = Completer<Session>();
+    await FFmpegKit.executeWithArgumentsAsync(
+      args,
+      (s) => completer.complete(s),
+      (_) {},
+      (_) {},
+    );
+
+    final session = await completer.future;
     final returnCode = await session.getReturnCode();
 
     if (returnCode == null || !returnCode.isValueSuccess()) {
@@ -221,7 +297,7 @@ class FfmpegEngineService {
     return true;
   }
 
-  /// Renders audio with DSP processing for Songs Remover module.
+  /// Renders audio with DSP processing for Songs Remover module asynchronously.
   Future<String> renderSongRemoverAudio({
     required String inputPath,
     required String outputPath,
@@ -245,10 +321,29 @@ class FfmpegEngineService {
       logCallback: logCallback,
     );
 
-    logCallback("Dispatching audio DSP FFmpeg session...");
+    logCallback("Dispatching audio DSP FFmpeg session asynchronously...");
     onProgress(0.3, "Processing audio...");
 
-    final session = await FFmpegKit.executeWithArguments(args);
+    final completer = Completer<Session>();
+    await FFmpegKit.executeWithArgumentsAsync(
+      args,
+      (s) => completer.complete(s),
+      (log) {
+        final msg = log.getMessage();
+        if (msg.isNotEmpty && (msg.contains("Error") || msg.contains("failed"))) {
+          logCallback("FFmpeg Audio: $msg");
+        }
+      },
+      (stats) {
+        final timeMs = stats.getTime();
+        if (timeMs > 0 && audioDuration != null && audioDuration > 0) {
+          final double p = (timeMs / 1000.0 / audioDuration).clamp(0.0, 0.95);
+          onProgress(0.30 + (p * 0.50), "Processing audio: ${(p * 100).toInt()}%");
+        }
+      },
+    );
+
+    final session = await completer.future;
     final returnCode = await session.getReturnCode();
 
     if (returnCode == null || !returnCode.isValueSuccess()) {
@@ -261,7 +356,7 @@ class FfmpegEngineService {
     return outputPath;
   }
 
-  /// Composes a static cover image + processed audio into a final video.
+  /// Composes a static cover image + processed audio into a final video asynchronously.
   Future<String> composeCoverVideo({
     required String imagePath,
     required String audioPath,
@@ -281,10 +376,28 @@ class FfmpegEngineService {
       logCallback: logCallback,
     );
 
-    logCallback("Dispatching image+audio composition...");
+    logCallback("Dispatching image+audio composition asynchronously...");
     onProgress(0.3, "Composing video...");
 
-    final session = await FFmpegKit.executeWithArguments(args);
+    final completer = Completer<Session>();
+    await FFmpegKit.executeWithArgumentsAsync(
+      args,
+      (s) => completer.complete(s),
+      (log) {
+        final msg = log.getMessage();
+        if (msg.isNotEmpty && (msg.contains("Error") || msg.contains("failed"))) {
+          logCallback("FFmpeg Compose: $msg");
+        }
+      },
+      (stats) {
+        final timeMs = stats.getTime();
+        if (timeMs > 0) {
+          onProgress(0.5, "Encoding cover video...");
+        }
+      },
+    );
+
+    final session = await completer.future;
     final returnCode = await session.getReturnCode();
 
     if (returnCode == null || !returnCode.isValueSuccess()) {

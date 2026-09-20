@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
+import '../services/device_capability_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final String originalVideoPath;
@@ -23,31 +24,75 @@ class PreviewScreen extends StatefulWidget {
 }
 
 class _PreviewScreenState extends State<PreviewScreen> {
-  late VideoPlayerController _transformedController;
-  late VideoPlayerController _originalController;
+  VideoPlayerController? _transformedController;
+  VideoPlayerController? _originalController;
   bool _showTransformed = true;
   bool _isInitialized = false;
+  Duration _lastPosition = Duration.zero;
+
+  bool get _isLowTier => DeviceCapabilityService.instance.isLowEnd;
 
   @override
   void initState() {
     super.initState();
-    _initControllers();
+    _initActiveController();
   }
 
-  Future<void> _initControllers() async {
-    _transformedController =
-        VideoPlayerController.file(File(widget.transformedVideoPath));
-    _originalController =
-        VideoPlayerController.file(File(widget.originalVideoPath));
+  Future<void> _initActiveController() async {
+    setState(() => _isInitialized = false);
 
-    await Future.wait([
-      _transformedController.initialize(),
-      _originalController.initialize(),
-    ]);
+    if (_isLowTier) {
+      // Low-tier device: strictly keep only ONE controller in memory at any time.
+      if (_showTransformed) {
+        await _originalController?.dispose();
+        _originalController = null;
 
-    _transformedController.setLooping(true);
-    _originalController.setLooping(true);
-    _transformedController.play();
+        final c = VideoPlayerController.file(File(widget.transformedVideoPath));
+        _transformedController = c;
+        await c.initialize();
+        c.setLooping(true);
+        if (_lastPosition > Duration.zero) {
+          await c.seekTo(_lastPosition);
+        }
+        c.play();
+      } else {
+        await _transformedController?.dispose();
+        _transformedController = null;
+
+        final c = VideoPlayerController.file(File(widget.originalVideoPath));
+        _originalController = c;
+        await c.initialize();
+        c.setLooping(true);
+        if (_lastPosition > Duration.zero) {
+          await c.seekTo(_lastPosition);
+        }
+        c.play();
+      }
+    } else {
+      // Mid / High-tier: can afford both controllers initialized for instant toggling.
+      _transformedController ??=
+          VideoPlayerController.file(File(widget.transformedVideoPath));
+      _originalController ??=
+          VideoPlayerController.file(File(widget.originalVideoPath));
+
+      final tc = _transformedController;
+      final oc = _originalController;
+      if (tc != null && oc != null) {
+        await Future.wait([
+          if (!tc.value.isInitialized) tc.initialize(),
+          if (!oc.value.isInitialized) oc.initialize(),
+        ]);
+
+        tc.setLooping(true);
+        oc.setLooping(true);
+
+        if (_showTransformed) {
+          tc.play();
+        } else {
+          oc.play();
+        }
+      }
+    }
 
     if (mounted) {
       setState(() {
@@ -58,24 +103,49 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   @override
   void dispose() {
-    _transformedController.dispose();
-    _originalController.dispose();
+    // Dispose aggressively and null references immediately
+    final tc = _transformedController;
+    final oc = _originalController;
+    _transformedController = null;
+    _originalController = null;
+    tc?.pause();
+    oc?.pause();
+    tc?.dispose();
+    oc?.dispose();
     super.dispose();
   }
 
-  void _togglePreviewMode(bool showTransformed) {
+  Future<void> _togglePreviewMode(bool showTransformed) async {
+    if (_showTransformed == showTransformed) return;
+
+    final currentController =
+        _showTransformed ? _transformedController : _originalController;
+    if (currentController != null && currentController.value.isInitialized) {
+      _lastPosition = currentController.value.position;
+      currentController.pause();
+    }
+
     setState(() {
       _showTransformed = showTransformed;
-      if (_showTransformed) {
-        _originalController.pause();
-        _transformedController.seekTo(_originalController.value.position);
-        _transformedController.play();
-      } else {
-        _transformedController.pause();
-        _originalController.seekTo(_transformedController.value.position);
-        _originalController.play();
-      }
     });
+
+    if (_isLowTier) {
+      await _initActiveController();
+    } else {
+      if (_showTransformed) {
+        final tc = _transformedController;
+        if (tc != null && tc.value.isInitialized) {
+          await tc.seekTo(_lastPosition);
+          tc.play();
+        }
+      } else {
+        final oc = _originalController;
+        if (oc != null && oc.value.isInitialized) {
+          await oc.seekTo(_lastPosition);
+          oc.play();
+        }
+      }
+    }
   }
 
   Future<void> _shareClip() async {
@@ -215,139 +285,149 @@ class _PreviewScreenState extends State<PreviewScreen> {
               // a 9:16 Shorts window with heavy black bars.
               Expanded(
                 child: Center(
-                  child: AspectRatio(
-                    aspectRatio:
-                        _isInitialized && activeController.value.aspectRatio > 0
-                            ? activeController.value.aspectRatio
-                            : 9.0 / 16.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(22),
-                        border:
-                            Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (_isInitialized)
-                            Positioned.fill(
-                                child: VideoPlayer(activeController))
-                          else
-                            const Center(
-                                child: CircularProgressIndicator(
-                                    color: AppColors.accentTangerine)),
+                  child: Builder(
+                    builder: (context) {
+                      final controller = activeController;
+                      final isReady = _isInitialized &&
+                          controller != null &&
+                          controller.value.isInitialized;
 
-                          // Subject Tracking Indicator overlay
-                          if (_showTransformed)
-                            Positioned(
-                              top: 20,
-                              left: 20,
-                              child: Container(
-                                width: 65,
-                                height: 65,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                      color: AppColors.accentTangerine,
-                                      width: 2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Align(
-                                  alignment: Alignment.topLeft,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(2.0),
-                                    child: Text(
-                                      "SUBJECT",
-                                      style: TextStyle(
-                                        color: AppColors.accentTangerine,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w900,
+                      return AspectRatio(
+                        aspectRatio:
+                            isReady && controller.value.aspectRatio > 0
+                                ? controller.value.aspectRatio
+                                : 9.0 / 16.0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(22),
+                            border:
+                                Border.all(color: Colors.white.withOpacity(0.1)),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (isReady)
+                                Positioned.fill(
+                                    child: VideoPlayer(controller))
+                              else
+                                const Center(
+                                    child: CircularProgressIndicator(
+                                        color: AppColors.accentTangerine)),
+
+                              // Subject Tracking Indicator overlay
+                              if (_showTransformed)
+                                Positioned(
+                                  top: 20,
+                                  left: 20,
+                                  child: Container(
+                                    width: 65,
+                                    height: 65,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: AppColors.accentTangerine,
+                                          width: 2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Padding(
+                                        padding: EdgeInsets.all(2.0),
+                                        child: Text(
+                                          "SUBJECT",
+                                          style: TextStyle(
+                                            color: AppColors.accentTangerine,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
 
-                          // Play/Pause Center Tap
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (activeController.value.isPlaying) {
-                                  activeController.pause();
-                                } else {
-                                  activeController.play();
-                                }
-                              });
-                            },
-                            child: Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.4),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                activeController.value.isPlaying
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                            ),
-                          ),
-
-                          // Video Bottom Progress
-                          if (_isInitialized)
-                            Positioned(
-                              bottom: 16,
-                              left: 16,
-                              right: 16,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  VideoProgressIndicator(
-                                    activeController,
-                                    allowScrubbing: true,
-                                    colors: const VideoProgressColors(
-                                      playedColor: AppColors.accentTangerine,
-                                      bufferedColor: Colors.white24,
-                                      backgroundColor: Colors.white12,
+                              // Play/Pause Center Tap
+                              if (isReady)
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (controller.value.isPlaying) {
+                                        controller.pause();
+                                      } else {
+                                        controller.play();
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.4),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      controller.value.isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: Colors.white,
+                                      size: 32,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                ),
+
+                              // Video Bottom Progress
+                              if (isReady)
+                                Positioned(
+                                  bottom: 16,
+                                  left: 16,
+                                  right: 16,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      ValueListenableBuilder(
-                                        valueListenable: activeController,
-                                        builder:
-                                            (context, VideoPlayerValue val, _) {
-                                          final p = val.position;
-                                          return Text(
-                                            "${p.inMinutes}:${(p.inSeconds % 60).toString().padLeft(2, '0')}",
+                                      VideoProgressIndicator(
+                                        controller,
+                                        allowScrubbing: true,
+                                        colors: const VideoProgressColors(
+                                          playedColor: AppColors.accentTangerine,
+                                          bufferedColor: Colors.white24,
+                                          backgroundColor: Colors.white12,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          ValueListenableBuilder(
+                                            valueListenable: controller,
+                                            builder:
+                                                (context, VideoPlayerValue val, _) {
+                                              final p = val.position;
+                                              return Text(
+                                                "${p.inMinutes}:${(p.inSeconds % 60).toString().padLeft(2, '0')}",
+                                                style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 11),
+                                              );
+                                            },
+                                          ),
+                                          Text(
+                                            widget.duration,
                                             style: const TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 11),
-                                          );
-                                        },
-                                      ),
-                                      Text(
-                                        widget.duration,
-                                        style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 11),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),

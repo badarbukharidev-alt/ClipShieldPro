@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/app_modes.dart';
@@ -30,6 +31,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
   SourceType _sourceType = SourceType.youtubeUrl;
   final TextEditingController _urlController = TextEditingController();
   final DownloaderService _downloaderService = DownloaderService();
+  Timer? _debounceTimer;
   
   String? _selectedFilePath;
   bool _isAuthorized = false;
@@ -44,9 +46,14 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
   }
 
   void _onUrlChanged() {
+    _debounceTimer?.cancel();
     final text = _urlController.text.trim();
     if (text.isNotEmpty && _downloaderService.getVideoId(text) != null) {
-      _fetchYtMetadata(text);
+      _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+        if (mounted) {
+          _fetchYtMetadata(text);
+        }
+      });
     } else {
       if (_ytPreviewVideo != null) {
         setState(() => _ytPreviewVideo = null);
@@ -67,7 +74,9 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
 
     setState(() => _isFetchingMetadata = true);
     try {
-      final video = await _downloaderService.getVideoDetails(url);
+      final video = await _downloaderService
+          .getVideoDetails(url)
+          .timeout(const Duration(seconds: 8));
       if (mounted) {
         setState(() {
           _ytPreviewVideo = video;
@@ -83,6 +92,7 @@ class _ProjectCreateDialogState extends State<ProjectCreateDialog> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
     _downloaderService.dispose();

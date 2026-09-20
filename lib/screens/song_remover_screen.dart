@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/session.dart';
 import '../models/app_modes.dart';
 import '../models/audio_dsp_config.dart';
 import '../models/clip_model.dart';
@@ -123,7 +125,14 @@ class _SongRemoverScreenState extends State<SongRemoverScreen> {
         logCallback: (_) {},
       );
 
-      final session = await FFmpegKit.executeWithArguments(args);
+      final completer = Completer<Session>();
+      await FFmpegKit.executeWithArgumentsAsync(
+        args,
+        (s) => completer.complete(s),
+        (_) {},
+        (_) {},
+      );
+      final session = await completer.future;
       final returnCode = await session.getReturnCode();
 
       if (returnCode != null && returnCode.isValueSuccess() && mounted) {
