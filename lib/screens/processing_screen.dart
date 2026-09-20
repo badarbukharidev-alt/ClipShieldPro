@@ -27,6 +27,18 @@ class ProcessingScreen extends StatefulWidget {
 
 class _ProcessingScreenState extends State<ProcessingScreen> {
   bool _navigatedToResults = false;
+  bool _isBgRenderingEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBgSetting();
+  }
+
+  Future<void> _loadBgSetting() async {
+    final enabled = await ProjectStorageService.getBackgroundRenderingEnabled();
+    if (mounted) setState(() => _isBgRenderingEnabled = enabled);
+  }
 
   List<String> get _pipelineSteps {
     switch (widget.mode) {
@@ -280,12 +292,18 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.softTangerine,
+            color: _isBgRenderingEnabled ? AppColors.softTangerine : AppColors.line.withOpacity(0.35),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text(
-            "Running in background · you can leave this screen",
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accentTangerine),
+          child: Text(
+            _isBgRenderingEnabled
+                ? "Running in background · you can leave this screen"
+                : "Foreground mode · keep app open on this screen",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: _isBgRenderingEnabled ? AppColors.accentTangerine : AppColors.ink,
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -429,12 +447,22 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: () => Navigator.maybePop(context),
+                onPressed: () {
+                  if (!_isBgRenderingEnabled) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Foreground mode active: keep ClipShield open until rendering completes."),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                  Navigator.maybePop(context);
+                },
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: AppColors.accentTangerine,
+                  backgroundColor: _isBgRenderingEnabled ? AppColors.accentTangerine : AppColors.ink,
                 ),
-                child: const Text("Run in background"),
+                child: Text(_isBgRenderingEnabled ? "Run in background" : "Minimize (Foreground)"),
               ),
             ),
           ],

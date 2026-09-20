@@ -31,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _licenseStatus = "Trial";
   String _deviceId = "CS-DEV-SCANNING";
   bool _obscureKeys = true;
+  bool _backgroundRendering = true;
 
   int _adminTapCount = 0;
   DateTime? _lastAdminTapTime;
@@ -154,6 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final provider = await ProjectStorageService.getSelectedAiProvider();
     final license = await ProjectStorageService.getLicenseStatus();
     final deviceId = await ProjectStorageService.getDeviceId();
+    final bgRendering = await ProjectStorageService.getBackgroundRenderingEnabled();
 
     if (!mounted) return;
     setState(() {
@@ -165,6 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _selectedAiProvider = provider;
       _licenseStatus = license;
       _deviceId = deviceId;
+      _backgroundRendering = bgRendering;
     });
   }
 
@@ -176,6 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await ProjectStorageService.setSelectedAiProvider(_selectedAiProvider);
     await ProjectStorageService.setExportQuality(_exportQuality);
     await ProjectStorageService.setLicenseStatus(_licenseStatus);
+    await ProjectStorageService.setBackgroundRenderingEnabled(_backgroundRendering);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -627,6 +631,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const Text(
                     "Optional: If keys are omitted or network is unavailable, ClipShield falls back to its built-in offline mathematical heuristic.",
                     style: TextStyle(fontSize: 11.5, color: AppColors.mut, height: 1.3),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Performance & Background Processing Group
+            const Text(
+              "PERFORMANCE & BACKGROUND PROCESSING",
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.mut, letterSpacing: 1.2),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.line),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _backgroundRendering ? AppColors.softTangerine : AppColors.line.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          _backgroundRendering ? Icons.sync_rounded : Icons.sync_disabled_rounded,
+                          color: _backgroundRendering ? AppColors.accentTangerine : AppColors.mut,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Background Rendering",
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _backgroundRendering
+                                  ? "Enabled: Renders continue when you minimize the app or switch to other apps."
+                                  : "Disabled: Renders run safely in foreground only. App screen must remain open.",
+                              style: const TextStyle(fontSize: 12, color: AppColors.mut, height: 1.35),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _backgroundRendering,
+                        activeColor: AppColors.accentTangerine,
+                        onChanged: (val) {
+                          setState(() => _backgroundRendering = val);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 16, color: AppColors.accentTangerine),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Tip: If your Infinix, Oppo, or Vivo phone aggressive battery manager auto-closes the app, turn this OFF and keep ClipShield open while rendering.",
+                            style: TextStyle(fontSize: 11.5, color: AppColors.mut, height: 1.3),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

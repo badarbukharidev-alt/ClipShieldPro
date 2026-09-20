@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import 'project_storage_service.dart';
+
 /// Keeps the app's process alive while renders are running.
 ///
 /// FFmpeg work happens on the main isolate. Without a foreground service
@@ -67,6 +69,12 @@ class RenderForegroundService {
   Future<void> start({required String title, required String text}) async {
     if (!_isSupported || _isRunning) return;
     try {
+      final isBgEnabled = await ProjectStorageService.getBackgroundRenderingEnabled();
+      if (!isBgEnabled) {
+        // User turned off background rendering in settings.
+        // Render will run purely on the foreground UI without touching foreground service.
+        return;
+      }
       await FlutterForegroundTask.startService(
         notificationTitle: title,
         notificationText: text,

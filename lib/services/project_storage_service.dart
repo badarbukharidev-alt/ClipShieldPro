@@ -16,6 +16,7 @@ class ProjectStorageService {
   static const String _keyTotalShorts = "clipshield_total_shorts_count";
   static const String _keyTotalHoursSaved = "clipshield_total_hours_saved";
   static const String _keyCountedProjects = "clipshield_counted_projects";
+  static const String _keyBackgroundRendering = "clipshield_background_rendering_enabled";
 
   /// Bumped on every write so any screen showing projects can rebuild without
   /// needing a manual refresh. Storage is the single source of truth; this is
@@ -155,6 +156,16 @@ class ProjectStorageService {
   static Future<void> setExportQuality(String quality) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyExportQuality, quality);
+  }
+
+  static Future<bool> getBackgroundRenderingEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyBackgroundRendering) ?? true;
+  }
+
+  static Future<void> setBackgroundRenderingEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyBackgroundRendering, enabled);
   }
 
   static Future<Map<String, dynamic>> getStats() async {

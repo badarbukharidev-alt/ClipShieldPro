@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/project_storage_service.dart';
 import '../services/render_foreground_service.dart';
 import '../theme/app_theme.dart';
 
@@ -18,6 +19,9 @@ class BackgroundPermissionDialog {
   /// Never blocks a render: if the user says no, the job still runs, it is just
   /// vulnerable to being killed.
   static Future<void> maybeShow(BuildContext context) async {
+    final isBgEnabled = await ProjectStorageService.getBackgroundRenderingEnabled();
+    if (!isBgEnabled) return;
+
     final service = RenderForegroundService.instance;
 
     if (await service.isBatteryOptimisationDisabled()) return;

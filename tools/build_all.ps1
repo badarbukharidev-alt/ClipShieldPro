@@ -67,6 +67,18 @@ Write-Host ""
 # ---------------------------------------------------------- reseller list
 function Get-Resellers {
     $ts = [int][double]::Parse((Get-Date -UFormat %s))
+    try {
+        $headReq = [System.Net.WebRequest]::Create("$PanelUrl/")
+        $headReq.Method = 'HEAD'
+        $headReq.Timeout = 5000
+        $headRes = $headReq.GetResponse()
+        $serverDate = $headRes.Headers['Date']
+        $headRes.Close()
+        if ($serverDate) {
+            $ts = [DateTimeOffset]::Parse($serverDate).ToUnixTimeSeconds()
+        }
+    } catch {}
+
     $nonce = -join ((1..16) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
 
     # Canonical form must match api_canonical() exactly:
