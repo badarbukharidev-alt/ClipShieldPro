@@ -143,6 +143,45 @@ class TransformationPipeline {
     return fused;
   }
 
+  /// Two guarantees that must hold on every path, whatever the enabled layers:
+  ///
+  /// 1. A downscale to the target canvas is always present. The device
+  ///    resolution ceiling otherwise lives only inside the resampling layer, so
+  ///    a custom preset that turns that layer off would let the encoder run at
+  ///    full source resolution — and a low-end phone is back to being killed.
+  /// 2. When [FilterContext.targetFps] is set, the frame rate is capped as the
+  ///    very first filter, so crop, scale and colour all process fewer frames.
+  ///    It only ever reduces: the caller sets it only when the source runs
+  ///    faster than the device tier allows.
+  static List<String> _withSafetyScaleAndFps(
+    List<String> filters,
+    FilterContext context,
+    Function(String) logCallback,
+  ) {
+    final out = List<String>.from(filters);
+
+    if (!out.any((f) => f.startsWith('scale='))) {
+      final scale =
+          "scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic";
+      final sarIdx = out.indexWhere((f) => f.startsWith('setsar='));
+      if (sarIdx >= 0) {
+        out.insert(sarIdx, scale);
+      } else {
+        out.add(scale);
+        out.add("setsar=1");
+      }
+      logCallback(
+          "Safety net: output scale injected to honour the ${context.targetHeight}p device ceiling.");
+    }
+
+    if (context.targetFps > 0) {
+      out.insert(0, "fps=${context.targetFps}");
+      logCallback("Frame rate capped to ${context.targetFps} fps for this device.");
+    }
+
+    return out;
+  }
+
   /// Builds a deliberately simple command that still performs a real
   /// transformation.
   ///
@@ -177,14 +216,6 @@ class TransformationPipeline {
 
     vfList = fuseVideoFilters(vfList);
 
-    // Captions are burned in after every other video filter, so the blur and
-    // colour layers cannot soften or tint the text.
-    final subs = context.subtitlePath;
-    if (subs != null && subs.isNotEmpty) {
-      vfList.add("subtitles='${AssSubtitleBuilder.escapeFilterPath(subs)}'");
-      logCallback("Captions: burning in ${subs.split('/').last}");
-    }
-
     if (vfList.isEmpty) {
       vfList = [
         "scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic",
@@ -194,14 +225,31 @@ class TransformationPipeline {
       ];
     }
 
+    vfList = _withSafetyScaleAndFps(vfList, context, logCallback);
+
+    // Captions are burned in after every other video filter, so the blur and
+    // colour layers cannot soften or tint the text.
+    final subs = context.subtitlePath;
+    if (subs != null && subs.isNotEmpty) {
+      vfList.add("subtitles='${AssSubtitleBuilder.escapeFilterPath(subs)}'");
+      logCallback("Captions: burning in ${subs.split('/').last}");
+    }
+
+    final caps = DeviceCapabilityService.instance;
     final List<String> args = [
       "-y",
+      // Cap any single libav allocation so a corrupt/oversized header fails to a
+      // recoverable error instead of a native abort() that kills the app.
+      "-max_alloc",
+      "${caps.maxAllocBytes}",
       // Sized to the device, not to the machine this was written on. "0" means
       // one thread per core, and x264 keeps per-thread frame buffers -- so an
       // eight-core budget phone allocated eight sets of them out of a heap a
       // fraction the size of a flagship's, and Android killed the process.
       "-threads",
-      "${DeviceCapabilityService.instance.encoderThreads}",
+      "${caps.encoderThreads}",
+      "-fflags",
+      "+discardcorrupt+genpts",
       if (start > 0.01) ...["-ss", start.toStringAsFixed(3)],
       if (clipDuration > 0.01) ...["-t", clipDuration.toStringAsFixed(3)],
       "-i",
@@ -234,21 +282,23 @@ class TransformationPipeline {
       ]);
     }
 
+    final String? x264 = caps.x264Params;
     args.addAll([
       "-c:v",
       "libx264",
       "-preset",
       "ultrafast",
       "-threads",
-      "${DeviceCapabilityService.instance.encoderThreads}",
+      "${caps.encoderThreads}",
       "-crf",
       "23",
       "-pix_fmt",
       "yuv420p",
       "-bf",
-      "2",
+      "${caps.videoBframes}",
+      if (x264 != null) ...["-x264-params", x264],
       "-max_muxing_queue_size",
-      "2048",
+      "1024",
       "-map_metadata",
       "-1",
       if (context.hasAudio) ...["-c:a", "aac", "-b:a", "192k"],
@@ -292,15 +342,27 @@ class TransformationPipeline {
       }
     }
 
+    final caps = DeviceCapabilityService.instance;
     List<String> args = [
       "-y",
+      // Cap any single libav allocation. A corrupt or oversized header can ask
+      // for gigabytes in one block; without this that goes straight to a native
+      // abort() that kills the whole app ("it just closes when I tap Render").
+      // With it the allocation fails to a recoverable error and the fallback
+      // encoder takes over.
+      "-max_alloc",
+      "${caps.maxAllocBytes}",
       // Sized to the device, not to the machine this was written on. "0" means
       // one thread per core, and x264 keeps per-thread frame buffers -- so an
       // eight-core budget phone allocated eight sets of them out of a heap a
       // fraction the size of a flagship's, and Android killed the process.
       "-threads",
-      "${DeviceCapabilityService.instance.encoderThreads}",
+      "${caps.encoderThreads}",
     ];
+
+    // Input-side resilience: drop corrupt packets and regenerate timestamps
+    // instead of aborting on a slightly damaged source.
+    args.addAll(["-fflags", "+discardcorrupt+genpts"]);
 
     // Accurate seeking and duration limiting
     if (start > 0.01) {
@@ -319,6 +381,8 @@ class TransformationPipeline {
       vfList = ["scale=${context.targetWidth}:${context.targetHeight}:flags=bicubic", "setsar=1"];
       logCallback("No video layers produced filters; applied baseline resample.");
     }
+
+    vfList = _withSafetyScaleAndFps(vfList, context, logCallback);
     final vfString = vfList.join(',');
     logCallback("Video chain (${vfList.length} filters): $vfString");
     if (context.hasAudio) {

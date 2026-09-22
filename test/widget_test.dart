@@ -29,6 +29,18 @@ void main() {
     expect(find.text("Choose Video or Audio from Storage"), findsOneWidget);
   });
 
+  testWidgets('the licence status card tells a trial user what is left',
+      (WidgetTester tester) async {
+    // Fresh install with no key defaults to the free trial, so the home screen
+    // must state the plan and the renders remaining rather than hiding it.
+    await pumpDashboard(tester);
+
+    expect(find.text("Free Trial"), findsOneWidget,
+        reason: 'the plan must be named on the home screen');
+    expect(find.textContaining("render"), findsWidgets,
+        reason: 'a trial user should see how many free renders remain');
+  });
+
   testWidgets('the app icon sits beside the wordmark',
       (WidgetTester tester) async {
     await pumpDashboard(tester);

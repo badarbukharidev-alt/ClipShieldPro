@@ -241,8 +241,12 @@ class FfmpegEngineService {
 
     final args = [
       "-y",
+      "-max_alloc",
+      "${DeviceCapabilityService.instance.maxAllocBytes}",
       "-threads",
       "${DeviceCapabilityService.instance.encoderThreads}",
+      "-fflags",
+      "+discardcorrupt+genpts",
       "-ss",
       targetTime.toStringAsFixed(3),
       "-i",

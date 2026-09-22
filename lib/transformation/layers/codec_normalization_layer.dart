@@ -63,9 +63,10 @@ class CodecNormalizationLayer extends TransformationLayer {
             ? (isVertical ? 23 : 25)
             : (isVertical ? 20 : 22) + _random.nextInt(2));
     final int gop = 60 + _random.nextInt(61); // 60 to 120
-    // B-frames are the most expensive part of the ultrafast preset's search;
-    // pinning to 2 keeps compression while cutting encode time.
-    const int bframes = 2;
+    // B-frames make x264 hold future frames in memory. Two keeps compression on
+    // a phone that can afford it; a low-end heap drops to zero, where that
+    // buffer is a cost with no upside. Sized by the device, not hardcoded.
+    final int bframes = DeviceCapabilityService.instance.videoBframes;
     const String preset = "ultrafast";
 
     // Hardware path: mediacodec has no CRF, so it is driven by bitrate. If the
@@ -100,6 +101,7 @@ class CodecNormalizationLayer extends TransformationLayer {
     }
 
     final int encThreads = DeviceCapabilityService.instance.encoderThreads;
+    final String? x264Params = DeviceCapabilityService.instance.x264Params;
     List<String> args = [
       "-c:v",
       "libx264",
@@ -114,8 +116,12 @@ class CodecNormalizationLayer extends TransformationLayer {
       gop.toString(),
       "-bf",
       bframes.toString(),
+      // Shrinks x264's in-flight frame set on constrained devices (ref=1, short
+      // lookahead). Non-overlapping with the options above, so nothing is
+      // overridden twice. Null on high-end.
+      if (x264Params != null) ...["-x264-params", x264Params],
       "-max_muxing_queue_size",
-      "2048",
+      "1024",
       "-map_metadata",
       "-1",
       "-metadata",

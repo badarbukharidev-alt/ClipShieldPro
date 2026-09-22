@@ -140,6 +140,62 @@ class DeviceCapabilityService {
     }
   }
 
+  /// Ceiling on output frame rate, whatever the source runs at.
+  ///
+  /// The second-biggest lever after threads. A 60 or 120 fps source multiplies
+  /// the frame count — and therefore encode time, decode buffers and peak
+  /// memory — for no visible benefit on a short social clip. Capping fps early
+  /// (as the first filter) means every downstream filter processes fewer frames.
+  int get maxFrameRate {
+    switch (tier) {
+      case DeviceTier.low:
+        return 30;
+      case DeviceTier.mid:
+        return 30;
+      case DeviceTier.high:
+        return 60;
+    }
+  }
+
+  /// B-frame count for the software encoder.
+  ///
+  /// B-frames make x264 hold future frames in memory. On a low-end heap that is
+  /// a cost with no upside, so it drops to zero there and stays at 2 elsewhere.
+  int get videoBframes => tier == DeviceTier.low ? 0 : 2;
+
+  /// Extra x264 knobs that shrink the encoder's working set on constrained
+  /// devices. `ref=1` and a short lookahead cut the number of frames x264 keeps
+  /// in flight at once — which is exactly where a cheap phone runs out of heap.
+  /// Null on high-end, where the encoder is left to its own defaults.
+  String? get x264Params {
+    switch (tier) {
+      case DeviceTier.low:
+        return 'ref=1:rc-lookahead=10:sync-lookahead=0';
+      case DeviceTier.mid:
+        return 'ref=2:rc-lookahead=20';
+      case DeviceTier.high:
+        return null;
+    }
+  }
+
+  /// Ceiling on any single libav allocation, in bytes.
+  ///
+  /// A corrupt or hostile header can ask libavcodec for gigabytes in one block.
+  /// Without a cap that request goes straight to a native abort() that takes the
+  /// whole app down with it — the "app just closes when I tap Render" report.
+  /// With `-max_alloc` set to this, the allocation fails, the FFmpeg session
+  /// returns an error, and the engine's resilient fallback takes over instead.
+  int get maxAllocBytes {
+    switch (tier) {
+      case DeviceTier.low:
+        return 256 * 1024 * 1024;
+      case DeviceTier.mid:
+        return 512 * 1024 * 1024;
+      case DeviceTier.high:
+        return 1024 * 1024 * 1024;
+    }
+  }
+
   /// Whether face-tracking reframing can be afforded.
   ///
   /// ML Kit holds a detection model in memory for the whole pass, on top of the

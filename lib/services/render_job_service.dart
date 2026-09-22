@@ -447,6 +447,20 @@ class RenderJobService {
   /// x264, where quality per byte is better and the time cost is irrelevant.
   static const double hardwareEncoderThresholdSeconds = 600; // 10 minutes
 
+  /// Frame-rate ceiling for a given source, or 0 to leave it untouched.
+  ///
+  /// A 60/120 fps import multiplies the frame count and, with it, the decode
+  /// buffers, encode time and peak memory that push a cheap phone over its heap.
+  /// Only returns a cap when the source is actually faster than the tier allows;
+  /// a 24 or 30 fps source is never touched (never up-sampled).
+  static int _fpsCapFor(double sourceFps) {
+    final int cap = DeviceCapabilityService.instance.maxFrameRate;
+    return sourceFps > cap + 0.5 ? cap : 0;
+  }
+
+  @visibleForTesting
+  static int fpsCapForTest(double sourceFps) => _fpsCapFor(sourceFps);
+
   /// Bitrate for the hardware path, scaled to the output canvas.
   static int hardwareBitrateFor(int width, int height, String quality) {
     final int pixels = width * height;
@@ -637,6 +651,7 @@ class RenderJobService {
           subtitlePath: subtitlePath,
           sourceAudioSampleRate: request.probeInfo.audioSampleRate,
           sourceAudioChannels: request.probeInfo.audioChannels,
+          targetFps: _fpsCapFor(request.probeInfo.fps),
         );
 
         // 3. Render

@@ -11,6 +11,7 @@ import '../models/source_metadata.dart';
 import '../services/downloader_service.dart';
 import '../services/project_storage_service.dart';
 import '../services/license_service.dart';
+import 'activation_dialog.dart';
 import '../services/render_job_service.dart';
 import '../services/build_identity.dart';
 import '../services/update_service.dart';
@@ -984,6 +985,169 @@ class _HomeScreenState extends State<HomeScreen>
     return AppMode.longVideoToShorts;
   }
 
+  /// At-a-glance licence state: what plan is active and exactly how much of it
+  /// is left — days for a monthly key, videos for a pack, "unlimited" for
+  /// lifetime, or the free renders remaining on trial. People kept asking "how
+  /// many days do I have?"; this answers it on the home screen instead of
+  /// burying it behind the activation dialog. Tapping it opens activation for
+  /// anyone who is not already on lifetime.
+  Widget _buildLicenseStatusCard() {
+    final license = LicenseService.instance;
+    final tier = license.currentTier;
+
+    // Resolve the plan into one visual identity and one plain-language line.
+    late final Color accent;
+    late final Color soft;
+    late final IconData icon;
+    late final String title;
+    late final String detail;
+    late final String metric; // the big number, e.g. "12" or "∞"
+    late final String metricUnit; // "days left", "videos left", ...
+    bool warn = false;
+    bool canActivate = true;
+
+    switch (tier) {
+      case LicenseTier.lifetime:
+        accent = AppColors.accentGrape;
+        soft = AppColors.softGrape;
+        icon = Icons.workspace_premium_rounded;
+        title = 'Lifetime Pro';
+        detail = 'Unlimited on-device renders · never expires';
+        metric = '∞';
+        metricUnit = 'lifetime';
+        canActivate = false;
+        break;
+      case LicenseTier.monthly:
+        final days = license.expiresAt
+                ?.difference(DateTime.now())
+                .inDays
+                .clamp(0, 100000) ??
+            0;
+        final expired = days <= 0;
+        accent = expired ? AppColors.error : AppColors.accentOcean;
+        soft = expired ? AppColors.softTangerine : AppColors.softOcean;
+        icon = Icons.calendar_month_rounded;
+        title = 'Pro Monthly';
+        detail = expired
+            ? 'Your monthly plan has ended · renew your key'
+            : 'Monthly plan active · renews when the days run out';
+        metric = expired ? '0' : '$days';
+        metricUnit = expired ? 'expired' : (days == 1 ? 'day left' : 'days left');
+        warn = expired;
+        break;
+      case LicenseTier.videoPack:
+        final left = license.remainingVideos;
+        final empty = left <= 0;
+        accent = empty ? AppColors.error : AppColors.accentTangerine;
+        soft = AppColors.softTangerine;
+        icon = Icons.movie_filter_rounded;
+        title = 'Video Pack';
+        detail = empty
+            ? 'All videos in this pack are used · renew your key'
+            : 'Each render uses one video from your pack';
+        metric = '$left';
+        metricUnit = empty ? 'used up' : (left == 1 ? 'video left' : 'videos left');
+        warn = empty;
+        break;
+      case LicenseTier.trial:
+        final left = license.remainingTrials + license.bonusAvailable;
+        final none = left <= 0;
+        accent = none ? AppColors.error : AppColors.accentLime;
+        soft = none ? AppColors.softTangerine : AppColors.softLime;
+        icon = Icons.bolt_rounded;
+        title = 'Free Trial';
+        detail = none
+            ? 'Trial finished · activate a key to keep rendering'
+            : 'Activate a Pro key for unlimited or longer access';
+        metric = '$left';
+        metricUnit = none ? 'none left' : (left == 1 ? 'render left' : 'renders left');
+        warn = none;
+        break;
+    }
+
+    Future<void> onTap() async {
+      if (!canActivate) return;
+      final activated = await ActivationDialog.show(context);
+      if (activated && mounted) setState(() {});
+    }
+
+    return GestureDetector(
+      onTap: canActivate ? onTap : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withOpacity(warn ? 0.9 : 0.5), width: 1.4),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: soft,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: accent, size: 24),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Wrap, not Row: a wider metric ("30 days left") must fall to
+                  // the next line on a narrow screen rather than overflow.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: soft,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '$metric $metricUnit',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    detail,
+                    style: const TextStyle(fontSize: 12, color: AppColors.mut, height: 1.35),
+                  ),
+                ],
+              ),
+            ),
+            if (canActivate)
+              const Icon(Icons.arrow_forward_ios,
+                  size: 13, color: AppColors.mut),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Entry point to the reward tasks. Shows the live balance so the value is
   /// obvious before the user taps through.
   Widget _buildFreeVideosCard() {
@@ -1161,6 +1325,8 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
+
+            _buildLicenseStatusCard(),
 
             _buildFastInputCard(),
             const SizedBox(height: 22),

@@ -25,6 +25,12 @@ class FilterContext {
   final int sourceAudioSampleRate;
   final int sourceAudioChannels;
 
+  /// Frame-rate ceiling for the output, in fps. Zero means "leave the source
+  /// rate alone". When set (because the source runs faster than the device
+  /// tier allows), the pipeline caps fps as its very first video filter so
+  /// every later filter processes fewer frames.
+  final int targetFps;
+
   FilterContext({
     required this.sourceWidth,
     required this.sourceHeight,
@@ -40,6 +46,7 @@ class FilterContext {
     this.subtitlePath,
     this.sourceAudioSampleRate = 44100,
     this.sourceAudioChannels = 2,
+    this.targetFps = 0,
   });
 }
 
