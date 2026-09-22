@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.21)
+# 🛡️ ClipShield Pro (v1.2.22)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.21-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.21.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.22-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.21.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.21.apk)**
+📥 **[Download ClipShieldPro-v1.2.22.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.21.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.21.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.22.apk)
 > - [Download Reseller APK (Abrar)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/resellers/ClipShieldPro-abrar.apk)
 
 ---
@@ -101,6 +101,42 @@ uncompressed through the rewrite, because Android rejects an APK where it is not
 > a reseller build they must be *absent*, not hidden behind a flag that could be
 > flipped back. A test asserts that stamping or clearing the code cannot
 > re-enable them.
+
+---
+
+## 🛠️ What's New in v1.2.22
+
+### 🧨 Bulletproof render: the app can no longer be killed by a bad source
+
+The remaining *"app just closes the moment I tap Remove Copyright"* reports trace
+to one hard truth: **FFmpeg runs in-process**, so a native out-of-memory or a
+fatal decode calls `abort()` and takes the whole process down — past any Dart or
+Java `try/catch`. Device tiering (v1.2.16) lowered the odds; three gaps still let
+a heavy job reach that point, now closed on **every** path (main render, resilient
+fallback, preview, song/cover compose, thumbnail):
+
+| Guard | What it stops |
+|---|---|
+| **`-max_alloc`** on every command (256 MB → 1 GB by tier) | A corrupt/oversized header asking libav for gigabytes in one block → instant native abort. Now it fails to a recoverable error and the fallback encoder takes over. |
+| **`-fflags +discardcorrupt+genpts`** | A slightly-damaged source aborting instead of skipping the bad packet. |
+| **Frame-rate cap** (60 → 30 fps on low/mid), injected as the *first* filter | A 1080p60 / 4K import forcing every filter and the encoder through double the frames and memory. Only ever reduces — 24/30 fps sources are untouched. |
+| **Guaranteed output downscale** even when the resampling layer is off | The device resolution ceiling used to live *inside* a layer; a custom preset with resampling disabled encoded at full source resolution → OOM. The cap now always holds. |
+| **Tier-shrunk x264 working set** (`ref=1`, short lookahead, `bf=0` on low-end) | x264 holding several reference and future frames on a tiny heap. |
+
+> No in-process FFmpeg build can be *mathematically* crash-proof against a truly
+> pathological source, because a native abort bypasses every language-level catch.
+> These guards make a crash **far less likely and recoverable where it used to be
+> fatal** — the killer command can no longer be assembled from a heavy input or a
+> disabled layer. Pinned by `test/render_safety_guards_test.dart`.
+
+### 🪪 Licence status is on the home screen
+
+People kept asking *"how many days do I have?"* — the answer was buried behind the
+activation dialog. A licence card now sits at the top of the home screen and states
+the plan and exactly what is left: **days** for a monthly key, **videos** for a
+pack, **unlimited** for lifetime, or the **free renders remaining** on trial. It is
+tappable to activate for anyone not already on lifetime, and reflows without
+overflow down to a 375 px screen.
 
 ---
 
