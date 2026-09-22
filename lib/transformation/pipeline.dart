@@ -282,7 +282,6 @@ class TransformationPipeline {
       ]);
     }
 
-    final String? x264 = caps.x264Params;
     args.addAll([
       "-c:v",
       "libx264",
@@ -296,7 +295,6 @@ class TransformationPipeline {
       "yuv420p",
       "-bf",
       "${caps.videoBframes}",
-      if (x264 != null) ...["-x264-params", x264],
       "-max_muxing_queue_size",
       "1024",
       "-map_metadata",

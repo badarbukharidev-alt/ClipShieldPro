@@ -101,7 +101,6 @@ class CodecNormalizationLayer extends TransformationLayer {
     }
 
     final int encThreads = DeviceCapabilityService.instance.encoderThreads;
-    final String? x264Params = DeviceCapabilityService.instance.x264Params;
     List<String> args = [
       "-c:v",
       "libx264",
@@ -116,10 +115,6 @@ class CodecNormalizationLayer extends TransformationLayer {
       gop.toString(),
       "-bf",
       bframes.toString(),
-      // Shrinks x264's in-flight frame set on constrained devices (ref=1, short
-      // lookahead). Non-overlapping with the options above, so nothing is
-      // overridden twice. Null on high-end.
-      if (x264Params != null) ...["-x264-params", x264Params],
       "-max_muxing_queue_size",
       "1024",
       "-map_metadata",

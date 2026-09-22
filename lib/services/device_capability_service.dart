@@ -163,20 +163,13 @@ class DeviceCapabilityService {
   /// a cost with no upside, so it drops to zero there and stays at 2 elsewhere.
   int get videoBframes => tier == DeviceTier.low ? 0 : 2;
 
-  /// Extra x264 knobs that shrink the encoder's working set on constrained
-  /// devices. `ref=1` and a short lookahead cut the number of frames x264 keeps
-  /// in flight at once — which is exactly where a cheap phone runs out of heap.
-  /// Null on high-end, where the encoder is left to its own defaults.
-  String? get x264Params {
-    switch (tier) {
-      case DeviceTier.low:
-        return 'ref=1:rc-lookahead=10:sync-lookahead=0';
-      case DeviceTier.mid:
-        return 'ref=2:rc-lookahead=20';
-      case DeviceTier.high:
-        return null;
-    }
-  }
+  // NOTE: there is deliberately no `-x264-params` override. The pipeline encodes
+  // with `-preset ultrafast`, which already uses the smallest fast working set
+  // (ref=1, no rc-lookahead, no sync-lookahead). An earlier attempt to "shrink"
+  // it further actually RE-ENABLED rc-lookahead and raised ref on mid devices,
+  // which made every render markedly slower for no memory win. Thread count, the
+  // resolution ceiling and the fps cap are the levers that matter; ultrafast is
+  // left to its own encoder defaults.
 
   /// Ceiling on any single libav allocation, in bytes.
   ///

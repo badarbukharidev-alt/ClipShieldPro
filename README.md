@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.22)
+# 🛡️ ClipShield Pro (v1.2.23)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.22-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.23-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.22.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)**
+📥 **[Download ClipShieldPro-v1.2.23.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.22.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.22.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.23.apk)
 > - [Download Reseller APK (Abrar)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/resellers/ClipShieldPro-abrar.apk)
 
 ---
@@ -104,6 +104,21 @@ uncompressed through the rewrite, because Android rejects an APK where it is not
 
 ---
 
+## 🛠️ What's New in v1.2.23
+
+### ⚡ Fixed: renders got slower after v1.2.22
+
+v1.2.22 added an `-x264-params` override (`rc-lookahead`, plus `ref=2` on mid-tier
+phones) intended to shrink the encoder's memory. It backfired: the pipeline encodes
+with `-preset ultrafast`, which deliberately turns lookahead **off** for speed, so
+re-enabling it made every render markedly slower for no real memory win. The
+override is removed on all tiers — encode speed is back to where it was in v1.2.21,
+and high-fps sources are now a touch faster thanks to the frame-rate cap. Thread
+count, the resolution ceiling and the fps cap remain the memory levers that matter.
+Pinned by a test that fails if `-x264-params` ever creeps back into the command.
+
+---
+
 ## 🛠️ What's New in v1.2.22
 
 ### 🧨 Bulletproof render: the app can no longer be killed by a bad source
@@ -121,7 +136,10 @@ fallback, preview, song/cover compose, thumbnail):
 | **`-fflags +discardcorrupt+genpts`** | A slightly-damaged source aborting instead of skipping the bad packet. |
 | **Frame-rate cap** (60 → 30 fps on low/mid), injected as the *first* filter | A 1080p60 / 4K import forcing every filter and the encoder through double the frames and memory. Only ever reduces — 24/30 fps sources are untouched. |
 | **Guaranteed output downscale** even when the resampling layer is off | The device resolution ceiling used to live *inside* a layer; a custom preset with resampling disabled encoded at full source resolution → OOM. The cap now always holds. |
-| **Tier-shrunk x264 working set** (`ref=1`, short lookahead, `bf=0` on low-end) | x264 holding several reference and future frames on a tiny heap. |
+| **Fewer b-frames on low-end** (`bf=0`) | x264 holding future frames in memory on a tiny heap. |
+
+> An `-x264-params` lookahead tweak shipped here too, but it slowed encoding and
+> was reverted in v1.2.23 — see above.
 
 > No in-process FFmpeg build can be *mathematically* crash-proof against a truly
 > pathological source, because a native abort bypasses every language-level catch.

@@ -134,18 +134,44 @@ void main() {
     });
   });
 
-  group('encoder working set shrinks on constrained devices', () {
-    test('low-end drops b-frames and constrains x264 references', () {
+  group('encoder working set', () {
+    test('low-end drops b-frames to zero', () {
       caps.debugSet(totalMemoryBytes: 2 * gb, heapLimitMb: 128);
       expect(caps.videoBframes, 0);
-      expect(caps.x264Params, isNotNull);
-      expect(caps.x264Params!.contains('ref=1'), isTrue);
     });
 
-    test('high-end keeps b-frames and imposes no extra x264 constraint', () {
+    test('mid and high keep b-frames at two', () {
+      caps.debugSet(totalMemoryBytes: 4 * gb, heapLimitMb: 256);
+      expect(caps.videoBframes, 2);
       caps.debugSet(totalMemoryBytes: 12 * gb, heapLimitMb: 512);
       expect(caps.videoBframes, 2);
-      expect(caps.x264Params, isNull);
+    });
+
+    test('no -x264-params override is emitted, so ultrafast stays fast', () {
+      // A speed preset already uses the smallest fast working set; re-adding
+      // rc-lookahead here once made every render slower. Guard against it
+      // creeping back into the built command on any tier.
+      for (final mem in [2 * gb, 4 * gb, 12 * gb]) {
+        caps.debugSet(totalMemoryBytes: mem, heapLimitMb: 256);
+        final args = pipeline.buildFfmpegArgs(
+          inputPath: 'in.mp4',
+          outputPath: 'out.mp4',
+          start: 0,
+          end: 10,
+          context: ctx(),
+          logCallback: (_) {},
+        );
+        final resilient = pipeline.buildResilientArgs(
+          inputPath: 'in.mp4',
+          outputPath: 'out.mp4',
+          start: 0,
+          end: 10,
+          context: ctx(),
+          logCallback: (_) {},
+        );
+        expect(args.contains('-x264-params'), isFalse);
+        expect(resilient.contains('-x264-params'), isFalse);
+      }
     });
   });
 }
