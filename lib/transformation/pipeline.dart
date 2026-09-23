@@ -238,18 +238,12 @@ class TransformationPipeline {
     final caps = DeviceCapabilityService.instance;
     final List<String> args = [
       "-y",
-      // Cap any single libav allocation so a corrupt/oversized header fails to a
-      // recoverable error instead of a native abort() that kills the app.
-      "-max_alloc",
-      "${caps.maxAllocBytes}",
       // Sized to the device, not to the machine this was written on. "0" means
       // one thread per core, and x264 keeps per-thread frame buffers -- so an
       // eight-core budget phone allocated eight sets of them out of a heap a
       // fraction the size of a flagship's, and Android killed the process.
       "-threads",
       "${caps.encoderThreads}",
-      "-fflags",
-      "+discardcorrupt+genpts",
       if (start > 0.01) ...["-ss", start.toStringAsFixed(3)],
       if (clipDuration > 0.01) ...["-t", clipDuration.toStringAsFixed(3)],
       "-i",
@@ -343,13 +337,6 @@ class TransformationPipeline {
     final caps = DeviceCapabilityService.instance;
     List<String> args = [
       "-y",
-      // Cap any single libav allocation. A corrupt or oversized header can ask
-      // for gigabytes in one block; without this that goes straight to a native
-      // abort() that kills the whole app ("it just closes when I tap Render").
-      // With it the allocation fails to a recoverable error and the fallback
-      // encoder takes over.
-      "-max_alloc",
-      "${caps.maxAllocBytes}",
       // Sized to the device, not to the machine this was written on. "0" means
       // one thread per core, and x264 keeps per-thread frame buffers -- so an
       // eight-core budget phone allocated eight sets of them out of a heap a
@@ -357,10 +344,6 @@ class TransformationPipeline {
       "-threads",
       "${caps.encoderThreads}",
     ];
-
-    // Input-side resilience: drop corrupt packets and regenerate timestamps
-    // instead of aborting on a slightly damaged source.
-    args.addAll(["-fflags", "+discardcorrupt+genpts"]);
 
     // Accurate seeking and duration limiting
     if (start > 0.01) {

@@ -180,10 +180,6 @@ class SongRemoverPipeline {
 
     final List<String> args = [
       "-y",
-      // A corrupt or oddly-encoded source must not be able to trigger a native
-      // abort() that closes the app; cap the allocation and skip bad packets.
-      "-max_alloc", "${DeviceCapabilityService.instance.maxAllocBytes}",
-      "-fflags", "+discardcorrupt+genpts",
       "-i", inputPath,
     ];
 
@@ -236,14 +232,10 @@ class SongRemoverPipeline {
 
     return [
       "-y",
-      // Bound any single allocation so an oversized cover image fails to a
-      // recoverable error rather than a native abort() that closes the app.
-      "-max_alloc", "${DeviceCapabilityService.instance.maxAllocBytes}",
       "-threads", "${DeviceCapabilityService.instance.encoderThreads}",
       "-framerate", "1",
       "-loop", "1",
       "-i", imagePath,
-      "-fflags", "+discardcorrupt+genpts",
       "-i", audioPath,
       "-vf", "scale=$w:$h:force_original_aspect_ratio=decrease,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1",
       "-c:v", "libx264",

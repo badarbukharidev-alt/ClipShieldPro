@@ -1,8 +1,8 @@
-# 🛡️ ClipShield Pro (v1.2.23)
+# 🛡️ ClipShield Pro (v1.2.24)
 
 > **AI-Powered On-Device YouTube Short Clipper, Widescreen Video Copyright Protection Engine & Audio DSP Studio**
 
-[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.23-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)
+[![Release APK](https://img.shields.io/badge/Download-Release%20APK%20v1.2.24-FF6A3D?style=for-the-badge&logo=android&logoColor=white)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.24.apk)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/DSP%20Engine-100%25%20On--Device-7C5CFF?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
 [![Size](https://img.shields.io/badge/APK%20Size-176%20MB-12B56A?style=for-the-badge)](https://github.com/badarbukharidev-alt/ClipShieldPro)
@@ -13,11 +13,11 @@
 
 Download the latest production release of **ClipShield Pro** directly for your Android device:
 
-📥 **[Download ClipShieldPro-v1.2.23.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)**
+📥 **[Download ClipShieldPro-v1.2.24.apk (176 MB)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.24.apk)**
 
 > *Alternate Direct Links:*
-> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.23.apk)
-> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.23.apk)
+> - [Download via GitHub LFS Stream](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/release/ClipShieldPro-v1.2.24.apk)
+> - [Download via GitHub Raw Stream](https://github.com/badarbukharidev-alt/ClipShieldPro/raw/main/release/ClipShieldPro-v1.2.24.apk)
 > - [Download Reseller APK (Abrar)](https://media.githubusercontent.com/media/badarbukharidev-alt/ClipShieldPro/main/resellers/ClipShieldPro-abrar.apk)
 
 ---
@@ -104,6 +104,30 @@ uncompressed through the rewrite, because Android rejects an APK where it is not
 
 ---
 
+## 🛠️ What's New in v1.2.24
+
+### ⬛ Fixed: rendered video was black, with audio still playing
+
+A crash guard added in v1.2.22 backfired badly. `-fflags +discardcorrupt` was
+meant to let a slightly-damaged source skip a bad packet instead of aborting —
+but it discards **any** packet the demuxer flags corrupt, and on re-muxed sources
+(YouTube DASH downloads especially) that flag lands on genuinely-good video
+packets. The whole video track was dropped while audio came through untouched, so
+the export played **sound over a black screen**, on every mode.
+
+Both global guards from v1.2.22 — `-fflags +discardcorrupt` and `-max_alloc` — are
+removed from every command (main render, resilient fallback, preview, song/cover
+compose, thumbnail). Demuxing is standard again, so every frame is kept. The memory
+protection that actually matters — device-tiered thread count, the resolution
+ceiling, and the fps cap — all remain. A test now fails if either flag reappears.
+
+> These two were always the riskier half of the v1.2.22 work: a real abort from a
+> pathological source is rare, but dropping good frames on ordinary videos was not.
+> Crash resilience now rests on sizing the render to the device, not on second-
+> guessing the demuxer.
+
+---
+
 ## 🛠️ What's New in v1.2.23
 
 ### ⚡ Fixed: renders got slower after v1.2.22
@@ -139,7 +163,7 @@ fallback, preview, song/cover compose, thumbnail):
 | **Fewer b-frames on low-end** (`bf=0`) | x264 holding future frames in memory on a tiny heap. |
 
 > An `-x264-params` lookahead tweak shipped here too, but it slowed encoding and
-> was reverted in v1.2.23 — see above.
+> was reverted in v1.2.24 — see above.
 
 > No in-process FFmpeg build can be *mathematically* crash-proof against a truly
 > pathological source, because a native abort bypasses every language-level catch.

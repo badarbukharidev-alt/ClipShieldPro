@@ -171,23 +171,12 @@ class DeviceCapabilityService {
   // resolution ceiling and the fps cap are the levers that matter; ultrafast is
   // left to its own encoder defaults.
 
-  /// Ceiling on any single libav allocation, in bytes.
-  ///
-  /// A corrupt or hostile header can ask libavcodec for gigabytes in one block.
-  /// Without a cap that request goes straight to a native abort() that takes the
-  /// whole app down with it — the "app just closes when I tap Render" report.
-  /// With `-max_alloc` set to this, the allocation fails, the FFmpeg session
-  /// returns an error, and the engine's resilient fallback takes over instead.
-  int get maxAllocBytes {
-    switch (tier) {
-      case DeviceTier.low:
-        return 256 * 1024 * 1024;
-      case DeviceTier.mid:
-        return 512 * 1024 * 1024;
-      case DeviceTier.high:
-        return 1024 * 1024 * 1024;
-    }
-  }
+  // NOTE: an earlier `-max_alloc` cap and `-fflags +discardcorrupt` were removed.
+  // They were meant to turn a rare native abort into a recoverable error, but
+  // `discardcorrupt` dropped genuinely-good video packets on some sources, which
+  // produced a file with working audio and a BLACK video track. The memory that
+  // matters is bounded by thread count, the resolution ceiling and the fps cap;
+  // the encode is left to standard demuxing so every frame is kept.
 
   /// Whether face-tracking reframing can be afforded.
   ///

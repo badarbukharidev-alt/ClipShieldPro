@@ -42,8 +42,11 @@ void main() {
     return i >= 0 && i + 1 < args.length ? args[i + 1] : '';
   }
 
-  group('allocation ceiling — the abort() guard', () {
-    test('every render command bounds a single libav allocation', () {
+  group('no packet-dropping demuxer flags', () {
+    test('render commands never carry -fflags discardcorrupt or -max_alloc', () {
+      // These once shipped as a crash guard but dropped good video packets on
+      // some sources, producing a file with audio and a BLACK video track.
+      // Guard against either creeping back into any render command.
       caps.debugSet(totalMemoryBytes: 2 * gb, heapLimitMb: 128);
       final main = pipeline.buildFfmpegArgs(
         inputPath: 'in.mp4',
@@ -62,21 +65,11 @@ void main() {
         logCallback: (_) {},
       );
 
-      // A corrupt/oversized header must fail to a recoverable error, not a
-      // native abort() that kills the app.
-      expect(main.contains('-max_alloc'), isTrue);
-      expect(resilient.contains('-max_alloc'), isTrue);
-      expect(main.contains('-fflags'), isTrue);
-    });
-
-    test('the ceiling grows with the tier but is always finite', () {
-      caps.debugSet(totalMemoryBytes: 2 * gb, heapLimitMb: 128);
-      final low = caps.maxAllocBytes;
-      caps.debugSet(totalMemoryBytes: 12 * gb, heapLimitMb: 512);
-      final high = caps.maxAllocBytes;
-
-      expect(low, greaterThan(0));
-      expect(high, greaterThan(low));
+      for (final args in [main, resilient]) {
+        expect(args.contains('-max_alloc'), isFalse);
+        expect(args.contains('-fflags'), isFalse);
+        expect(args.any((a) => a.contains('discardcorrupt')), isFalse);
+      }
     });
   });
 

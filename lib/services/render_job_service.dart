@@ -698,8 +698,21 @@ class RenderJobService {
           } catch (_) {}
 
           try {
-            await GalleryExportService.exportToPublicGallery(outPath);
-          } catch (_) {}
+            final saved = await GalleryExportService.exportToPublicGallery(outPath);
+            if (saved != null && saved.startsWith('content://')) {
+              _log(projectId,
+                  'Saved to gallery: ${GalleryExportService.displayLocation(saved)}');
+            } else if (saved != null) {
+              // A plain path means MediaStore refused and we fell back to
+              // app-private storage -- the file exists but no gallery can see it.
+              _log(projectId,
+                  'Gallery save fell back to private storage (not visible in Gallery): $saved');
+            } else {
+              _log(projectId, 'Gallery save failed - the video is in the app only.');
+            }
+          } catch (e) {
+            _log(projectId, 'Gallery save error: $e');
+          }
         } else {
           clip.isRendered = false;
           clipErrors.add('Clip ${i + 1}: no output file was produced');
@@ -844,8 +857,19 @@ class RenderJobService {
       
       update(state.copyWith(progress: 0.95, currentStage: 'Exporting to gallery'));
       try {
-        await GalleryExportService.exportToPublicGallery(videoPath);
-      } catch (_) {}
+        final saved = await GalleryExportService.exportToPublicGallery(videoPath);
+        if (saved != null && saved.startsWith('content://')) {
+          _log(projectId,
+              'Saved to gallery: ${GalleryExportService.displayLocation(saved)}');
+        } else if (saved != null) {
+          _log(projectId,
+              'Gallery save fell back to private storage (not visible in Gallery): $saved');
+        } else {
+          _log(projectId, 'Gallery save failed - the video is in the app only.');
+        }
+      } catch (e) {
+        _log(projectId, 'Gallery save error: $e');
+      }
       
       final clip = request.clipsToRender.first;
       clip.outputPath = videoPath;

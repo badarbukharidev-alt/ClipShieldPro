@@ -148,7 +148,12 @@ object MediaStoreBridge {
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
 
-        val uri = resolver.insert(collection, values) ?: return null
+        // Insert into the primary external volume; if that specific volume is not
+        // resolvable on this ROM, fall back to the generic external collection.
+        // Some OEM builds return null for the VOLUME_EXTERNAL_PRIMARY form.
+        val uri = resolver.insertSafely(collection, values)
+            ?: resolver.insertSafely(genericCollection(legacyDirectory), values)
+            ?: return null
 
         try {
             resolver.openOutputStream(uri)?.use { out ->
@@ -166,11 +171,40 @@ object MediaStoreBridge {
             return null
         }
 
-        values.clear()
-        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
+        // Clearing IS_PENDING is what makes the row visible to galleries. If this
+        // throws (it has on a few ROMs), the file is already written -- deleting
+        // it would lose a good video, so publish is retried and the URI returned
+        // regardless, rather than leaving a hidden pending row and reporting null.
+        try {
+            val publish = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            resolver.update(uri, publish, null, null)
+        } catch (e: Exception) {
+            try {
+                val publish = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                resolver.update(uri, publish, null, null)
+            } catch (_: Exception) {
+                // Left pending on this ROM; the bytes are there and a rescan or
+                // reboot will surface it. Better than losing the file.
+            }
+        }
 
         return uri.toString()
+    }
+
+    /** insert() that never throws, so a fallback collection can be tried. */
+    private fun android.content.ContentResolver.insertSafely(collection: Uri, values: ContentValues): Uri? =
+        try {
+            insert(collection, values)
+        } catch (e: Exception) {
+            null
+        }
+
+    /** The generic external collection for a given legacy directory. */
+    private fun genericCollection(legacyDirectory: String): Uri = when (legacyDirectory) {
+        Environment.DIRECTORY_MOVIES -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        Environment.DIRECTORY_PICTURES -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        Environment.DIRECTORY_MUSIC -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        else -> MediaStore.Files.getContentUri("external")
     }
 
     /**
