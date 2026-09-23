@@ -7,6 +7,9 @@ class BackgroundMusicLayer extends TransformationLayer {
 
   BackgroundMusicLayer({super.isEnabled = true, super.intensity = 0.5, this.customVolumeDb});
 
+  @override
+  bool get isCore => false;
+
   @override int get layerNumber => 11;
   @override String get name => "Background Ambient Layer";
   @override String get subtitle => "In-line acoustic tone modulation for audio signature shift";

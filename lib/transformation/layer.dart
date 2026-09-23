@@ -90,6 +90,10 @@ abstract class TransformationLayer {
   bool isEnabled;
   double intensity; // 0.0 to 1.0 (default 0.5)
 
+  /// Core layers are required for effective copyright bypass; optional layers
+  /// add marginal fingerprint disruption at the cost of extra processing.
+  bool get isCore => true;
+
   TransformationLayer({
     this.isEnabled = true,
     this.intensity = 0.5,

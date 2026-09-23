@@ -195,6 +195,7 @@ class RenderJobService {
   final Map<String, List<String>> _logs = {};
   bool _isPumping = false;
   String? _runningProjectId;
+  int _lastEmitMs = 0;
 
   RenderJobState? jobFor(String projectId) => jobs.value[projectId];
 
@@ -317,6 +318,18 @@ class RenderJobService {
   // ---------------------------------------------------------------- internals
 
   void _emit(RenderJobState state) {
+    // Terminal transitions (completed, failed, canceled) always publish
+    // immediately so the UI reacts without delay. Progress ticks during
+    // an active render are throttled to once per second — the old per-
+    // statistics-callback path rebuilt every listener's widget tree 30-60
+    // times a second, which starved the event loop and made the UI (and
+    // the render itself) appear stuck.
+    if (state.isActive) {
+      final int now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _lastEmitMs < 1000) return;
+      _lastEmitMs = now;
+    }
+
     jobs.value = Map<String, RenderJobState>.from(jobs.value)..[state.projectId] = state;
     _recomputeActive();
 

@@ -79,6 +79,13 @@ class TransformationPipeline {
           layer.isEnabled = true;
           layer.intensity = 0.5;
         }
+        // These four audio layers are redundant when the core audio defenses
+        // (pitch shift + EQ) are active. Keeping them on adds filter passes
+        // that Content-ID does not look at, so they cost time for no gain.
+        spatialAudio.isEnabled = false;
+        audioConditioning.isEnabled = false;
+        backgroundMusic.isEnabled = false;
+        reverb.isEnabled = false;
         break;
 
       case PipelinePreset.advanced:
@@ -289,6 +296,8 @@ class TransformationPipeline {
       "yuv420p",
       "-bf",
       "${caps.videoBframes}",
+      "-movflags",
+      "+faststart",
       "-max_muxing_queue_size",
       "1024",
       "-map_metadata",

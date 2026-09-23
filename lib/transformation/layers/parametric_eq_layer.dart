@@ -35,10 +35,11 @@ class ParametricEqLayer extends TransformationLayer {
       return FilterResult(logMessage: "Layer 2: No audio track present. Skipped.");
     }
 
-    final bands = [80, 400, 2000, 8000, 15000];
+    // Three bands cover the speech/music core where Content-ID compares
+    // spectral shape. The old 80 Hz and 15 kHz extremes sat outside the
+    // fingerprint window and added two filter passes for no detection benefit.
+    final bands = [400, 2000, 8000];
     List<String> eqFilters = [];
-    // Each band gets a guaranteed minimum gain so the spectral signature always
-    // moves; a near-zero draw would leave the band untouched.
     final double maxGain = 1.2 + (intensity * 1.6); // 1.2 to 2.8 dB
 
     for (final freq in bands) {
@@ -51,7 +52,7 @@ class ParametricEqLayer extends TransformationLayer {
     return FilterResult(
       audioFilters: eqFilters,
       logMessage:
-          "Layer 2 applied: 5-Band Equalization active across ${bands.length} frequency poles.",
+          "Layer 2 applied: 3-Band Equalization active across ${bands.length} frequency poles.",
     );
   }
 

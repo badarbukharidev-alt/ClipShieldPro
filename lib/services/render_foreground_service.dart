@@ -21,6 +21,7 @@ class RenderForegroundService {
 
   bool _isRunning = false;
   String _lastText = '';
+  int _lastUpdateMs = 0;
 
   bool get isRunning => _isRunning;
 
@@ -87,10 +88,14 @@ class RenderForegroundService {
     }
   }
 
-  /// Progress updates. Repeated identical text is skipped so the notification
-  /// is not rewritten on every FFmpeg statistics callback.
+  /// Progress updates. Throttled to one platform-channel round trip every two
+  /// seconds: Android rate-limits notification rewrites anyway, and the old
+  /// per-callback path flooded the Dart event loop on fast encodes.
   Future<void> update({required String title, required String text}) async {
     if (!_isSupported || !_isRunning || text == _lastText) return;
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastUpdateMs < 2000) return;
+    _lastUpdateMs = now;
     _lastText = text;
     try {
       await FlutterForegroundTask.updateService(

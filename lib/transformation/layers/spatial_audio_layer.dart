@@ -14,6 +14,9 @@ class SpatialAudioLayer extends TransformationLayer {
   });
 
   @override
+  bool get isCore => false;
+
+  @override
   int get layerNumber => 3;
 
   @override

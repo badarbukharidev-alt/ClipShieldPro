@@ -12,6 +12,9 @@ class AudioConditioningLayer extends TransformationLayer {
   });
 
   @override
+  bool get isCore => false;
+
+  @override
   int get layerNumber => 8;
 
   @override

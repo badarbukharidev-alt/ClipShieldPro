@@ -42,6 +42,12 @@ class FfmpegEngineService {
     final double clipDuration = (endTime - startTime).abs();
     final completer = Completer<Session>();
 
+    // Throttle statistics to once per second so rapid callbacks from FFmpeg
+    // (30-60/s) do not flood the Dart event loop with ValueNotifier updates
+    // and notification rewrites — that flood is why the UI froze or the
+    // render appeared to stall when the user navigated to another page.
+    int _lastStatMs = 0;
+
     await FFmpegKit.executeWithArgumentsAsync(
       args,
       (completedSession) {
@@ -54,6 +60,10 @@ class FfmpegEngineService {
         }
       },
       (statistics) {
+        final int nowMs = DateTime.now().millisecondsSinceEpoch;
+        if (nowMs - _lastStatMs < 1000) return;
+        _lastStatMs = nowMs;
+
         final timeMs = statistics.getTime();
         if (timeMs > 0 && clipDuration > 0) {
           final double timeSec = timeMs / 1000.0;
@@ -99,6 +109,7 @@ class FfmpegEngineService {
         logCallback: logCallback,
       );
       final fallbackCompleter = Completer<Session>();
+      int _lastFbStatMs = 0;
       await FFmpegKit.executeWithArgumentsAsync(
         fallbackArgs,
         (s) => fallbackCompleter.complete(s),
@@ -109,6 +120,10 @@ class FfmpegEngineService {
           }
         },
         (stats) {
+          final int nowMs = DateTime.now().millisecondsSinceEpoch;
+          if (nowMs - _lastFbStatMs < 1000) return;
+          _lastFbStatMs = nowMs;
+
           final timeMs = stats.getTime();
           if (timeMs > 0 && clipDuration > 0) {
             final double p = (timeMs / 1000.0 / clipDuration).clamp(0.0, 0.98);

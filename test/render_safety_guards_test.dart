@@ -73,6 +73,39 @@ void main() {
     });
   });
 
+  group('moov atom placement', () {
+    test('every render command carries -movflags +faststart', () {
+      // Without faststart the moov atom sits at the end of the file and many
+      // Android gallery apps show a black video with working audio because
+      // they cannot seek to the moov before starting playback.
+      caps.debugSet(totalMemoryBytes: 2 * gb, heapLimitMb: 128);
+      final main = pipeline.buildFfmpegArgs(
+        inputPath: 'in.mp4',
+        outputPath: 'out.mp4',
+        start: 0,
+        end: 10,
+        context: ctx(),
+        logCallback: (_) {},
+      );
+      final resilient = pipeline.buildResilientArgs(
+        inputPath: 'in.mp4',
+        outputPath: 'out.mp4',
+        start: 0,
+        end: 10,
+        context: ctx(),
+        logCallback: (_) {},
+      );
+
+      for (final args in [main, resilient]) {
+        final movIdx = args.indexOf('-movflags');
+        expect(movIdx, greaterThanOrEqualTo(0),
+            reason: '-movflags must be present');
+        expect(args[movIdx + 1], '+faststart',
+            reason: 'the moov atom must be placed at the start of the file');
+      }
+    });
+  });
+
   group('resolution ceiling cannot be dodged by a disabled layer', () {
     test('a scale is present even when the resampling layer is off', () {
       caps.debugSet(totalMemoryBytes: 2 * gb, heapLimitMb: 128);

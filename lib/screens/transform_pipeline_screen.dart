@@ -515,13 +515,39 @@ class _TransformPipelineScreenState extends State<TransformPipelineScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  layer.name,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: layer.isEnabled ? AppColors.ink : AppColors.mut,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        layer.name,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: layer.isEnabled ? AppColors.ink : AppColors.mut,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: layer.isCore
+                            ? AppColors.accentGrape.withOpacity(0.12)
+                            : AppColors.line.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        layer.isCore ? "CORE" : "OPTIONAL",
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                          color: layer.isCore ? AppColors.accentGrape : AppColors.mut,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(

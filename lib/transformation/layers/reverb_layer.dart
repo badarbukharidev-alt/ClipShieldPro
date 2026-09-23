@@ -6,6 +6,9 @@ class ReverbLayer extends TransformationLayer {
 
   ReverbLayer({super.isEnabled = true, super.intensity = 0.5, this.customDelayMs, this.customDecay});
 
+  @override
+  bool get isCore => false;
+
   @override int get layerNumber => 12;
   @override String get name => "Micro-Reverb Audio Defense";
   @override String get subtitle => "Imperceptible reverb tail for waveform disruption";
